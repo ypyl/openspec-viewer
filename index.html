@@ -486,6 +486,17 @@
       main { padding: 20px; }
     }
   </style>
+  <script>
+    // Set the theme before first paint to avoid a flash of the wrong scheme.
+    // Runs before the DOM renders; the main script syncs the button state later.
+    (function () {
+      try {
+        var t = localStorage.getItem('osviewer.theme');
+        var dark = t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body>
   <header>
@@ -540,16 +551,34 @@
     }
 
     // ---------- Theme ----------
-    let theme = 'dark';
-    try { theme = localStorage.getItem('osviewer.theme') === 'light' ? 'light' : 'dark'; } catch (e) {}
-    function applyTheme(t) {
-      theme = t;
-      document.documentElement.dataset.theme = t;
-      themeBtn.textContent = t === 'dark' ? '☀️' : '🌙';
-      try { localStorage.setItem('osviewer.theme', t); } catch (e) {}
+    // 'dark' | 'light' | 'system' — system follows the OS via prefers-color-scheme.
+    let theme;
+    try {
+      const t = localStorage.getItem('osviewer.theme');
+      theme = (t === 'dark' || t === 'light') ? t : 'system';
+    } catch (e) { theme = 'system'; }
+
+    const mql = window.matchMedia('(prefers-color-scheme: dark)');
+    function resolved() {
+      return theme === 'system' ? (mql.matches ? 'dark' : 'light') : theme;
     }
-    applyTheme(theme);
-    themeBtn.addEventListener('click', () => applyTheme(theme === 'dark' ? 'light' : 'dark'));
+    function applyTheme() {
+      document.documentElement.dataset.theme = resolved();
+      const icons = { dark: '☀️', light: '🌙', system: '💻' };
+      const titles = {
+        dark: 'Switch to light theme',
+        light: 'Switch to dark theme',
+        system: 'Following system theme — click to override',
+      };
+      themeBtn.textContent = icons[theme];
+      themeBtn.title = titles[theme];
+      try { localStorage.setItem('osviewer.theme', theme); } catch (e) {}
+    }
+    // Click cycles: dark -> light -> system -> dark
+    const cycle = { dark: 'light', light: 'system', system: 'dark' };
+    themeBtn.addEventListener('click', () => { theme = cycle[theme]; applyTheme(); });
+    mql.addEventListener('change', () => { if (theme === 'system') applyTheme(); });
+    applyTheme();
 
     let allFiles = [];   // [{ rel, handle }] handle = FileSystemFileHandle (monitored) or File (one-shot)
     let currentRel = null;
