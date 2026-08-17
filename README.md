@@ -15,6 +15,11 @@ One `index.html` with no build step and no dependencies beyond CDN scripts.
 - Dark and light themes, collapsible sidebar sections, and a filter box.
 - Everything reads locally — nothing is uploaded.
 
+## Install
+
+Download [`index.html`](index.html) and save it anywhere. It is a single self-contained
+file — no build step, no npm install, no server.
+
 ## Usage
 
 1. Open `index.html` in Chrome or Edge (works from `file://`, no server needed).
