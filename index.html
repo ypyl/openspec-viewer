@@ -883,6 +883,10 @@
 
     async function startMonitoring(handle) {
       dirHandle = handle;
+      // Fresh folder: drop the previous folder's diff baseline and markers
+      // so the first scan doesn't flag every file as newly changed.
+      fileState.clear();
+      recentRels.clear();
       await scan(true);
       if (!currentRel) await autoOpenFirst();
       clearInterval(pollTimer);
