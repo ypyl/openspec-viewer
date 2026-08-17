@@ -127,6 +127,12 @@
       padding: 28px 40px 60px;
       min-width: 0;
     }
+    /* Cap the content column at a readable width and center it on wide screens. */
+    main > * {
+      max-width: 980px;
+      margin-left: auto;
+      margin-right: auto;
+    }
 
     /* ---------- Sidebar controls ---------- */
     .controls { padding: 12px; border-bottom: 1px solid var(--border-muted); display: flex; flex-direction: column; gap: 10px; }
@@ -481,9 +487,23 @@
     ::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 5px; border: 2px solid var(--panel); }
     ::-webkit-scrollbar-track { background: transparent; }
 
+    @media (max-width: 1100px) {
+      aside { width: 300px; }
+    }
     @media (max-width: 800px) {
       aside { width: 260px; }
       main { padding: 20px; }
+    }
+    /* Narrow screens: stack the sidebar above the content instead of squeezing. */
+    @media (max-width: 720px) {
+      .layout { flex-direction: column; }
+      aside {
+        width: 100%;
+        max-height: 42vh;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+      main { padding: 16px; min-height: 0; }
     }
   </style>
   <script>
