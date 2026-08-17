@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- OpenSpec Local Viewer v1.0.0 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -78,6 +79,17 @@
       letter-spacing: 0.2px;
     }
     header h1 .dot { color: var(--accent); }
+    .version {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 12%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+      border-radius: 20px;
+      padding: 1px 8px;
+      letter-spacing: .4px;
+      margin-left: 2px;
+    }
     .theme-btn {
       margin-left: 8px;
       background: var(--bg);
@@ -295,6 +307,41 @@
 
     .pane-loading { color: var(--fg-subtle); padding: 10px 0; }
 
+    /* ---------- Loading overlay ---------- */
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: color-mix(in srgb, var(--bg) 60%, transparent);
+      backdrop-filter: blur(2px);
+    }
+    .loading-overlay[hidden] { display: none; }
+    .loading-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 20px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 8px 30px rgba(0,0,0,.4);
+      color: var(--fg);
+      font-size: 13.5px;
+    }
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--border-muted);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
     /* ---------- Change tabs ---------- */
     .change-head {
       display: flex;
@@ -443,6 +490,7 @@
 <body>
   <header>
     <h1>OpenSpec <span class="dot">•</span> Local Viewer</h1>
+    <span class="version">v1.0.0</span>
     <button id="theme-btn" class="theme-btn" title="Toggle dark / light theme">☀️</button>
     <div id="stats"></div>
   </header>
@@ -466,6 +514,13 @@
     <main id="content"></main>
   </div>
 
+  <div id="loading" class="loading-overlay" hidden>
+    <div class="loading-box">
+      <div class="spinner" aria-hidden="true"></div>
+      <div id="loading-msg">Loading…</div>
+    </div>
+  </div>
+
   <script>
     'use strict';
 
@@ -476,6 +531,13 @@
     const contentEl = document.getElementById('content');
     const statsEl = document.getElementById('stats');
     const themeBtn = document.getElementById('theme-btn');
+    const loadingEl = document.getElementById('loading');
+    const loadingMsgEl = document.getElementById('loading-msg');
+
+    function setLoading(msg) {
+      loadingMsgEl.textContent = msg;
+      loadingEl.hidden = !msg;
+    }
 
     // ---------- Theme ----------
     let theme = 'dark';
@@ -663,17 +725,22 @@
     /* ---------- Loading ---------- */
 
     async function loadFiles(raw) {
-      allFiles = raw
-        .filter(f => isRelevant(f.rel) && groupOf(f.rel))
-        .sort((a, b) => a.rel.localeCompare(b.rel));
-      paneCache.clear();
-      fileState.clear();
-      currentRel = null;
-      currentKey = null;
-      buildChangeMeta();
-      renderList();
-      updateStats();
-      await autoOpenFirst();
+      setLoading('Loading files…');
+      try {
+        allFiles = raw
+          .filter(f => isRelevant(f.rel) && groupOf(f.rel))
+          .sort((a, b) => a.rel.localeCompare(b.rel));
+        paneCache.clear();
+        fileState.clear();
+        currentRel = null;
+        currentKey = null;
+        buildChangeMeta();
+        renderList();
+        updateStats();
+        await autoOpenFirst();
+      } finally {
+        setLoading(null);
+      }
     }
 
     async function autoOpenFirst() {
@@ -698,10 +765,10 @@
 
     async function startMonitoring(handle) {
       dirHandle = handle;
-      await scan();
+      await scan(true);
       if (!currentRel) await autoOpenFirst();
       clearInterval(pollTimer);
-      pollTimer = setInterval(scan, 30000);
+      pollTimer = setInterval(() => scan(false), 30000);
     }
 
     function stopMonitoring() {
@@ -719,9 +786,11 @@
       }
     }
 
-    async function scan() {
+    async function scan(initial) {
       if (!dirHandle || isScanning) return;
       isScanning = true;
+      if (initial) setLoading('Reading folder…');
+      let found = 0, lastUiAt = 0;
       try {
         const current = new Map();
         for await (const root of dirHandle.values()) {
@@ -732,8 +801,14 @@
             const prefix = rel0 ? rel0 + '/' : '';
             for await (const [rel, handle] of walkDir(root, prefix)) {
               if (!isRelevant(rel) || !groupOf(rel)) continue;
+              found++;
               const file = await handle.getFile();
               current.set(rel, { handle, lastModified: file.lastModified });
+              const now = performance.now();
+              if (initial && now - lastUiAt > 150) {
+                lastUiAt = now;
+                setLoading(`Reading folder… ${found} files`);
+              }
             }
           } else {
             if (!isRelevant(rel0) || !groupOf(rel0)) continue;
@@ -778,6 +853,7 @@
         }
       } finally {
         isScanning = false;
+        setLoading(null);
       }
     }
 
@@ -923,7 +999,8 @@
       currentRel = rel;
       currentKey = null;
       renderList();
-      contentEl.innerHTML = `<div class="crumb">${crumbFor(rel)}</div>${await paneHtml(rel)}`;
+      contentEl.innerHTML = `<div class="crumb">${crumbFor(rel)}</div><div class="pane-loading">Loading…</div>`;
+      contentEl.querySelector('.pane-loading').outerHTML = await paneHtml(rel);
       contentEl.scrollTop = 0;
     }
 
