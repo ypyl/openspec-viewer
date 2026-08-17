@@ -110,13 +110,19 @@
     #stats b { color: var(--fg); font-weight: 600; }
 
     /* ---------- Layout ---------- */
-    .layout { display: flex; flex: 1; min-height: 0; }
+    /* Mobile-first: base styles are the stacked layout; min-width media
+       queries below progressively restore the two-pane desktop layout.
+       Breakpoints follow Mantine defaults (em): xs=36em sm=48em md=62em
+       lg=75em xl=88em. */
+    .layout { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 
     aside {
-      width: 340px;
+      width: 100%;
+      max-height: 42vh;
       flex-shrink: 0;
       background: var(--panel);
-      border-right: 1px solid var(--border);
+      border-right: none;
+      border-bottom: 1px solid var(--border);
       display: flex;
       flex-direction: column;
       min-height: 0;
@@ -124,8 +130,9 @@
     main {
       flex: 1;
       overflow-y: auto;
-      padding: 28px 40px 60px;
+      padding: 16px;
       min-width: 0;
+      min-height: 0;
     }
     /* Cap the content column at a readable width and center it on wide screens. */
     main > * {
@@ -487,23 +494,37 @@
     ::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 5px; border: 2px solid var(--panel); }
     ::-webkit-scrollbar-track { background: transparent; }
 
-    @media (max-width: 1100px) {
-      aside { width: 300px; }
+    /* Below xs: tighten the header so stats don't crowd the title. */
+    @media (max-width: 36em) {
+      #stats { max-width: 45vw; }
+      main { padding: 16px 12px 40px; }
     }
-    @media (max-width: 800px) {
-      aside { width: 260px; }
-      main { padding: 20px; }
+
+    /* ≥ sm (768px): a little breathing room. */
+    @media (min-width: 48em) {
+      main { padding: 24px 32px 60px; }
     }
-    /* Narrow screens: stack the sidebar above the content instead of squeezing. */
-    @media (max-width: 720px) {
-      .layout { flex-direction: column; }
+
+    /* ≥ md (992px): sidebar and content side by side. */
+    @media (min-width: 62em) {
+      .layout { flex-direction: row; }
       aside {
-        width: 100%;
-        max-height: 42vh;
-        border-right: none;
-        border-bottom: 1px solid var(--border);
+        width: 280px;
+        max-height: none;
+        border-bottom: none;
+        border-right: 1px solid var(--border);
       }
-      main { padding: 16px; min-height: 0; }
+    }
+
+    /* ≥ lg (1200px): default desktop proportions. */
+    @media (min-width: 75em) {
+      aside { width: 340px; }
+      main { padding: 28px 40px 60px; }
+    }
+
+    /* ≥ xl (1408px): let the content breathe on big monitors. */
+    @media (min-width: 88em) {
+      main > * { max-width: 1080px; }
     }
   </style>
   <script>
