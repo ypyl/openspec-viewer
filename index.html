@@ -262,6 +262,41 @@
     }
     .live-dot { color: var(--green); font-weight: 600; }
 
+    /* ---------- Recent-change highlighting ---------- */
+    .item.new { background: color-mix(in srgb, var(--green) 9%, transparent); }
+    .item.new:hover { background: color-mix(in srgb, var(--green) 16%, transparent); }
+    .new-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      flex-shrink: 0;
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 22%, transparent);
+    }
+    .group-new {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--green);
+      text-transform: none;
+      letter-spacing: 0;
+    }
+    .toast {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      z-index: 90;
+      border-left: 3px solid var(--green);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 16px;
+      color: var(--fg);
+      font-size: 13px;
+      box-shadow: 0 8px 30px rgba(0,0,0,.35);
+      animation: toast-in .25s ease-out;
+    }
+    @keyframes toast-in { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+
     /* ---------- Main content ---------- */
     .crumb {
       display: flex;
@@ -590,6 +625,18 @@
       loadingEl.hidden = !msg;
     }
 
+    let toastTimer = null;
+    function showToast(msg) {
+      const old = document.querySelector('.toast');
+      if (old) old.remove();
+      const t = document.createElement('div');
+      t.className = 'toast';
+      t.textContent = msg;
+      document.body.appendChild(t);
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.remove(), 5000);
+    }
+
     // ---------- Theme ----------
     // 'dark' | 'light' | 'system' — system follows the OS via prefers-color-scheme.
     let theme;
@@ -630,6 +677,7 @@
     const fileState = new Map();  // rel -> { handle, lastModified } snapshot for change detection
     const changeMeta = new Map(); // change key -> { key, dir, label, date, proposalRel, files }
     const paneCache = new Map();  // rel -> rendered pane HTML
+    const recentRels = new Set(); // rels added/updated since the last scan, not yet opened
 
     const esc = s => String(s).replace(/[&<>"']/g, c =>
       ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -801,6 +849,7 @@
           .sort((a, b) => a.rel.localeCompare(b.rel));
         paneCache.clear();
         fileState.clear();
+        recentRels.clear();
         currentRel = null;
         currentKey = null;
         buildChangeMeta();
@@ -888,17 +937,27 @@
 
         let changed = false;
         let activeChanged = false;
+        const hadPrior = fileState.size > 0;   // false on the very first scan
+        const updates = [];
+        let removals = 0;
         for (const [rel, info] of current) {
           const prev = fileState.get(rel);
-          if (!prev) changed = true;
-          else if (prev.lastModified !== info.lastModified) {
+          if (!prev) {
             changed = true;
+            if (hadPrior) updates.push(rel);
+          } else if (prev.lastModified !== info.lastModified) {
+            changed = true;
+            if (hadPrior) updates.push(rel);
             paneCache.delete(rel);
             if (rel === currentRel) activeChanged = true;
           }
         }
         for (const rel of fileState.keys()) {
-          if (!current.has(rel)) { changed = true; paneCache.delete(rel); }
+          if (!current.has(rel)) {
+            changed = true;
+            paneCache.delete(rel);
+            if (hadPrior) removals++;
+          }
         }
 
         // The file currently open was deleted.
@@ -910,6 +969,17 @@
 
         fileState.clear();
         current.forEach((v, k) => fileState.set(k, v));
+
+        if (hadPrior && (updates.length || removals)) {
+          let fresh = 0;
+          for (const rel of updates) {
+            if (!recentRels.has(rel)) { recentRels.add(rel); fresh++; }
+          }
+          const parts = [];
+          if (fresh) parts.push(`${fresh} artifact${fresh === 1 ? '' : 's'} updated`);
+          if (removals) parts.push(`${removals} deleted`);
+          if (parts.length) showToast(parts.join(' · '));
+        }
 
         if (changed && fileState.size) {
           allFiles = [...fileState.entries()]
@@ -980,17 +1050,23 @@
         const items = sec.items || sec.rows;
         const isCollapsed = collapsed.has(g) && !forceOpen;
         const stickyCls = g === 'Changes' ? ' sticky' : '';
+        const newCount = (g === 'Changes' || g === 'Archive')
+          ? sec.rows.filter(r => r.files.some(f => recentRels.has(f.rel))).length
+          : items.filter(f => recentRels.has(f.rel)).length;
         html += `
           <div class="group-label g-${g.toLowerCase()}${stickyCls}${isCollapsed ? ' collapsed' : ''}" data-group="${esc(g)}">
             <span class="chevron">▾</span>
             <span class="group-name">${esc(g)}</span>
+            ${newCount ? `<span class="group-new">+${newCount} new</span>` : ''}
             <span class="group-count">${items.length}</span>
           </div>`;
         if (!isCollapsed) {
           if (g === 'Archive' || g === 'Changes') {
             sec.rows.forEach(m => {
               const active = m.key === currentKey;
-              html += `<div class="item change-row${active ? ' active' : ''}" data-key="${esc(m.key)}">
+              const isNew = m.files.some(f => recentRels.has(f.rel));
+              html += `<div class="item change-row${active ? ' active' : ''}${isNew ? ' new' : ''}" data-key="${esc(m.key)}">
+                ${isNew ? '<span class="new-dot" title="Updated since last scan"></span>' : ''}
                 <span class="path">${esc(m.label)}</span>
                 ${m.date ? `<span class="date">${esc(m.date)}</span>` : ''}
               </div>`;
@@ -998,10 +1074,12 @@
           } else {
             sec.items.forEach(f => {
               const active = f.rel === currentRel;
+              const isNew = recentRels.has(f.rel);
               // Specs/Config sections need no badge — the section color says it.
               const badge = (g === 'Specs' || g === 'Config') ? '' :
                 `<span class="badge ${artifactOf(f.rel).toLowerCase()}">${esc(artifactOf(f.rel))}</span>`;
-              html += `<div class="item${active ? ' active' : ''}" data-rel="${esc(f.rel)}">
+              html += `<div class="item${active ? ' active' : ''}${isNew ? ' new' : ''}" data-rel="${esc(f.rel)}">
+                ${isNew ? '<span class="new-dot" title="Updated since last scan"></span>' : ''}
                 <span class="path">${esc(displayLabel(f.rel, g))}</span>
                 ${badge}
               </div>`;
@@ -1070,6 +1148,7 @@
       if (key) { openChange(key, rel); return; }
       currentRel = rel;
       currentKey = null;
+      recentRels.delete(rel); // opening it counts as reviewing it
       renderList();
       contentEl.innerHTML = `<div class="crumb">${crumbFor(rel)}</div><div class="pane-loading">Loading…</div>`;
       contentEl.querySelector('.pane-loading').outerHTML = await paneHtml(rel);
@@ -1081,6 +1160,7 @@
       if (!meta) return;
       currentKey = key;
       currentRel = initialRel || meta.proposalRel || null;
+      meta.files.forEach(f => recentRels.delete(f.rel)); // opening the change reviews it
       renderList();
 
       // Tabs in order: proposal, specs…, design, tasks, metadata
