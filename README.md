@@ -3,6 +3,8 @@
 A single-file, offline viewer for [OpenSpec](https://openspec.cli/) artifacts.
 One `index.html` with no build step and no dependencies beyond CDN scripts.
 
+![OpenSpec Local Viewer screenshot](screen.png)
+
 ## What it does
 
 - Browse changes, archived changes, specs, and config from your `openspec/` folder.
