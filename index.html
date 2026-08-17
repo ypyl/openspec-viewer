@@ -1053,8 +1053,11 @@
       // FileSystemFileHandle re-reads the live file; a plain File is a one-shot snapshot.
       const text = typeof f.getFile === 'function' ? await (await f.getFile()).text() : await f.text();
       const name = rel.split('/').pop();
+      // config.yaml renders raw only — the metadata card is redundant with the
+      // file's own schema/context/rules keys. Metadata files keep the card.
+      const isConfig = rel === 'config.yaml';
       const html = (name.endsWith('.yaml') || name.endsWith('.yml'))
-        ? yamlPane(text) : markdownPane(rel, text);
+        ? yamlPane(text, !isConfig) : markdownPane(rel, text);
       paneCache.set(rel, html);
       return html;
     }
@@ -1135,16 +1138,18 @@
       renderList();
     }
 
-    function yamlPane(text) {
+    function yamlPane(text, showMeta = true) {
       let card = '';
-      try {
-        const data = jsyaml.load(text);
-        if (data && typeof data === 'object') {
-          card = metaCard(Object.entries(data).map(([k, v]) =>
-            [k, v === null ? 'null' : typeof v === 'object' ? JSON.stringify(v, null, 2) : String(v)]));
+      if (showMeta) {
+        try {
+          const data = jsyaml.load(text);
+          if (data && typeof data === 'object') {
+            card = metaCard(Object.entries(data).map(([k, v]) =>
+              [k, v === null ? 'null' : typeof v === 'object' ? JSON.stringify(v, null, 2) : String(v)]));
+          }
+        } catch (err) {
+          card = `<div class="meta-error">YAML parse failed: ${esc(err.message)}</div>`;
         }
-      } catch (err) {
-        card = `<div class="meta-error">YAML parse failed: ${esc(err.message)}</div>`;
       }
       return `${card}<pre class="yaml-view">${esc(text)}</pre>`;
     }
