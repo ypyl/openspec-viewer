@@ -3,7 +3,7 @@
 A single-file, offline viewer for [OpenSpec](https://openspec.cli/) artifacts.
 One `index.html` with no build step and no dependencies beyond CDN scripts.
 
-![OpenSpec Local Viewer screenshot](screen.png)
+**Try it live:** https://ypyl.github.io/openspec-viewer/
 
 ## What it does
 
