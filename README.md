@@ -20,6 +20,10 @@ One `index.html` with no build step and no dependencies beyond CDN scripts.
 Download [`index.html`](index.html) and save it anywhere. It is a single self-contained
 file — no build step, no npm install, no server.
 
+On the hosted version you can also **install it as an app**: open
+https://ypyl.github.io/openspec-viewer/ and use the browser's install option
+(install icon in the address bar). The page then loads fully offline.
+
 ## Usage
 
 1. Open `index.html` in Chrome or Edge (works from `file://`, no server needed).

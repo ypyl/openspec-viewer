@@ -12,10 +12,12 @@ Bump the version in `index.html` in the **same commit** as the change:
 - **MINOR** — new feature or visible behavior change
 - **PATCH** — fix, tweak, or refactor with no visible change
 
-Keep these two places in sync:
+Keep these places in sync:
 
 1. First line: `<!-- OpenSpec Local Viewer vX.Y.Z -->`
 2. Header badge: `<span class="version">vX.Y.Z</span>`
+3. Service worker cache name in `sw.js`: `const CACHE_VERSION = 'osviewer-X.Y.Z'`
+   (without this, returning users keep the old cached shell)
 
 ## Publishing
 
