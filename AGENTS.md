@@ -32,5 +32,5 @@ Keep these places in sync:
 - Test locally: serve the folder (`python -m http.server`) and open in Chrome.
   The folder picker needs the File System Access API; the file-upload fallback
   works in Playwright via `setInputFiles` on `#picker`.
-- Live monitoring polls every 30s; changed files show a green "new" marker,
+- Live monitoring polls every 10s; changed files show a green "new" marker,
   a group counter, and a toast.

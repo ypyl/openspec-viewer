@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- OpenSpec Local Viewer v1.5.0 -->
+<!-- OpenSpec Local Viewer v1.9.0 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -133,6 +133,9 @@
     main {
       flex: 1;
       overflow-y: auto;
+      /* Reserve vertical scrollbar space always so short/long tab content
+         doesn't cause the page to jump when the scrollbar appears/disappears. */
+      scrollbar-gutter: stable;
       padding: 16px;
       min-width: 0;
       min-height: 0;
@@ -182,7 +185,7 @@
     #search::placeholder { color: var(--fg-subtle); }
 
     /* ---------- File list ---------- */
-    #file-list { flex: 1; overflow-y: auto; padding: 8px 0; }
+    #file-list { flex: 1; overflow-y: auto; scrollbar-gutter: stable; padding: 8px 0; }
     .group-label {
       display: flex;
       align-items: center;
@@ -257,6 +260,21 @@
     .badge.spec     { color: var(--green);  border-color: color-mix(in srgb, var(--green) 45%, transparent); }
     .badge.metadata { color: var(--pink);   border-color: color-mix(in srgb, var(--pink) 45%, transparent); }
     .badge.config   { color: var(--fg);     border-color: var(--border); }
+    .cmt-count {
+      flex-shrink: 0;
+      font-size: 10px;
+      font-weight: 700;
+      background: color-mix(in srgb, var(--accent) 18%, transparent);
+      color: var(--accent);
+      border-radius: 10px;
+      min-width: 16px;
+      height: 16px;
+      padding: 0 4px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
     .empty {
       padding: 24px 14px;
       text-align: center;
@@ -289,7 +307,7 @@
       bottom: 16px;
       z-index: 90;
       border-left: 3px solid var(--green);
-      background: var(--panel);
+      background: color-mix(in srgb, var(--green) 12%, var(--panel));
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 10px 16px;
@@ -297,6 +315,15 @@
       font-size: 13px;
       box-shadow: 0 8px 30px rgba(0,0,0,.35);
       animation: toast-in .25s ease-out;
+    }
+    /* Keep the toast clear of the open review drawer (360px) so it never
+       covers the Copy fix prompt / Send to LLM buttons. */
+    body:has(.review-drawer.open) .toast {
+      right: 376px;
+    }
+    .toast.error {
+      border-left-color: var(--red);
+      background: color-mix(in srgb, var(--red) 12%, var(--panel));
     }
     @keyframes toast-in { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
 
@@ -526,15 +553,12 @@
     }
 
     /* ---------- Review: highlights & comments ---------- */
+    /* mark.hl wraps commented text as an invisible anchor for scroll-to-focus;
+       no background so the file reads cleanly. */
     mark.hl {
-      background: color-mix(in srgb, var(--accent) 22%, transparent);
+      background: transparent;
       color: inherit;
-      border-radius: 2px;
-      padding: 0 .1em;
-      cursor: pointer;
-      transition: background .12s;
     }
-    mark.hl:hover { background: color-mix(in srgb, var(--accent) 38%, transparent); }
     mark.hl.active { outline: 2px solid var(--accent); }
 
     .review-btn {
@@ -576,22 +600,27 @@
       border: 1px solid var(--border);
       border-radius: var(--radius);
       box-shadow: 0 8px 30px rgba(0,0,0,.4);
-      padding: 6px;
-      max-width: 320px;
+      max-width: min(960px, calc(100vw - 16px));
+      /* No padding in the button-only state so the Comment button fills the
+         whole popover edge-to-edge; the editor restores padding below. */
     }
+    /* Editor (textarea + actions) state gets comfortable padding. */
+    .ann-bubble:has(.ann-text) { padding: 6px; }
     .ann-add {
-      background: var(--accent-dim);
-      color: #fff;
-      border: 1px solid rgba(240,246,252,.1);
-      border-radius: var(--radius);
-      padding: 6px 12px;
+      width: 100%;
+      background: var(--bg);
+      color: var(--fg);
+      border: none;
+      border-radius: 0;
+      padding: 8px 12px;
       font-size: 13px;
       font-weight: 500;
       cursor: pointer;
     }
-    .ann-add:hover { background: #2a6fd9; }
+    .ann-add:hover { background: var(--panel); }
     .ann-text {
       width: 100%;
+      min-width: 300px;
       background: var(--bg);
       color: var(--fg);
       border: 1px solid var(--border-muted);
@@ -696,6 +725,13 @@
     }
     .rv-comment { font-size: 13px; color: var(--fg); line-height: 1.5; }
     .rv-nocomment { color: var(--fg-subtle); font-style: italic; }
+    .rv-file {
+      font-size: 10.5px;
+      color: var(--fg-subtle);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      margin-bottom: 4px;
+      word-break: break-all;
+    }
     .rv-stale { font-size: 11px; color: var(--orange); margin-top: 4px; }
     .rv-item.stale .rv-text { text-decoration: line-through; opacity: .7; }
     .rv-del {
@@ -713,14 +749,16 @@
 
     .review-actions {
       display: flex;
-      flex-direction: column;
+      flex-direction: row;
       gap: 8px;
       padding: 12px 14px;
       border-top: 1px solid var(--border-muted);
       flex-shrink: 0;
     }
     .review-action {
-      padding: 9px 12px;
+      flex: 1;
+      padding: 8px 10px;
+      white-space: nowrap;
       background: var(--bg);
       color: var(--fg);
       border: 1px solid var(--border-muted);
@@ -782,11 +820,12 @@
     }
     .modal-actions {
       display: flex;
+      align-items: center;
       gap: 8px;
       padding: 0 14px 12px;
       justify-content: flex-end;
     }
-    .modal-hint { padding: 0 14px 14px; margin: 0; font-size: 12px; color: var(--fg-subtle); }
+    .modal-hint { margin: 0 0 0 0; margin-right: auto; align-self: center; font-size: 12px; color: var(--fg-subtle); line-height: 1.4; }
 
     /* ---------- Scrollbars ---------- */
     ::-webkit-scrollbar { width: 10px; height: 10px; }
@@ -841,10 +880,10 @@
 <body>
   <header>
     <h1>OpenSpec <span class="dot">•</span> Local Viewer</h1>
-    <span class="version">v1.5.0</span>
+    <span class="version">v1.9.0</span>
     <button id="theme-btn" class="theme-btn" title="Toggle dark / light theme">☀️</button>
-    <button id="review-btn" class="review-btn" title="Review comments on the open artifact">💬<span id="review-count" class="review-count" hidden></span></button>
     <div id="stats"></div>
+    <button id="review-btn" class="review-btn" title="Review comments across all artifacts">💬<span id="review-count" class="review-count" hidden></span></button>
   </header>
 
   <div class="layout">
@@ -876,8 +915,8 @@
     </div>
     <div id="review-list" class="review-list"></div>
     <div class="review-actions">
-      <button id="copy-prompt-btn" class="review-action primary" disabled>📋 Copy fix prompt</button>
-      <button id="send-llm-btn" class="review-action" disabled>🤖 Send to LLM…</button>
+      <button id="copy-prompt-btn" class="review-action primary" disabled>📋 Copy fix</button>
+      <button id="send-llm-btn" class="review-action" disabled>🤖 Send to LLM</button>
     </div>
   </div>
 
@@ -889,10 +928,10 @@
       </div>
       <textarea id="prompt-text" spellcheck="false" placeholder="Generated fix prompt…"></textarea>
       <div class="modal-actions">
+        <p class="modal-hint">Paste the prompt into any LLM; it returns the corrected file. Highlights &amp; comments stay local.</p>
         <button id="pmt-copy" class="review-action primary">📋 Copy</button>
         <button id="pmt-open" class="review-action">Open in new tab</button>
       </div>
-      <p class="modal-hint">Paste the prompt into any LLM; it returns the corrected file. Highlights &amp; comments stay local.</p>
     </div>
   </div>
 
@@ -904,7 +943,103 @@
   </div>
 
   <script>
+    // ---------- Plain Vanilla Web libs (vendored, no build step) ----------
+    // html-literal, tiny-signals, tiny-context by jsebrech (https://plainvanillaweb.com).
+    // Classic script (not ES modules) so the app still runs from file://.
+    (function () {
+      // html-literal: tagged template that entity-encodes interpolations.
+      class Html extends String { }
+      const htmlRaw = str => new Html(str);
+      const htmlEncode = (value) => {
+        if (value instanceof Html) return value;   // avoid double-encoding
+        return htmlRaw(String(value).replace(/[&<>"']/g,
+          tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag])));
+      };
+      const html = (strings, ...values) =>
+        htmlRaw(String.raw({ raw: strings }, ...values.map(htmlEncode)));
+
+      // tiny-signals: minimal reactive state.
+      class Signal extends EventTarget {
+        #value;
+        get value() { return this.#value; }
+        set value(value) {
+          if (this.equals(value)) return;
+          this.#value = value;
+          this.dispatchEvent(new CustomEvent('change'));
+        }
+        constructor(value) { super(); this.#value = value; }
+        equals(value) { return this.#value === value; }
+        effect(fn) {
+          fn();
+          this.addEventListener('change', fn);
+          return () => this.removeEventListener('change', fn);
+        }
+        valueOf() { return this.#value; }
+        toString() { return String(this.#value); }
+      }
+      class Computed extends Signal {
+        constructor(fn, deps) {
+          super(fn(...deps));
+          for (const dep of deps) {
+            if (dep instanceof Signal)
+              dep.addEventListener('change', () => { this.value = fn(...deps); });
+          }
+        }
+      }
+      const signal = _ => new Signal(_);
+      const computed = (fn, deps) => new Computed(fn, deps);
+
+      // tiny-context: web components context protocol.
+      // Dormant for now: nothing crosses a component boundary in this
+      // single-file app; wire it up when UI is extracted into custom elements.
+      class ContextRequestEvent extends Event {
+        constructor(context, callback, subscribe) {
+          super('context-request', { bubbles: true, composed: true });
+          this.context = context;
+          this.callback = callback;
+          this.subscribe = subscribe;
+        }
+      }
+      class ContextProvider extends EventTarget {
+        #value; #context;
+        get value() { return this.#value; }
+        set value(v) { this.#value = v; this.dispatchEvent(new Event('change')); }
+        get context() { return this.#context; }
+        constructor(target, context, initialValue = undefined) {
+          super();
+          this.#context = context;
+          this.#value = initialValue;
+          if (target) this.attach(target);
+        }
+        attach(target) { target.addEventListener('context-request', this); }
+        detach(target) { target.removeEventListener('context-request', this); }
+        handleEvent(e) {
+          if (e.context === this.context) {
+            if (e.subscribe) {
+              const unsubscribe = () => this.removeEventListener('change', update);
+              const update = () => e.callback(this.value, unsubscribe);
+              this.addEventListener('change', update);
+              update();
+            } else {
+              e.callback(this.value);
+            }
+            e.stopPropagation();
+          }
+        }
+      }
+
+      window.PV = { html, htmlEncode, htmlRaw, signal, computed, ContextProvider, ContextRequestEvent };
+    })();
+  </script>
+
+  <script>
     'use strict';
+
+    const { html, htmlRaw, signal, computed } = window.PV;
+    // joinHtml: concatenate an array of html`` fragments into one safe chunk.
+    // A plain .join('') would lose the Html marker and get re-encoded on
+    // interpolation, so wrap it back with htmlRaw.
+    const joinHtml = parts => htmlRaw(parts.join(''));
 
     const picker = document.getElementById('picker');
     const pickBtn = document.getElementById('pick-btn');
@@ -921,12 +1056,22 @@
       loadingEl.hidden = !msg;
     }
 
+    const reviewBtn = document.getElementById('review-btn');
+    const reviewEl = document.getElementById('review');
+    const reviewCountEl = document.getElementById('review-count');
+    const reviewFileEl = document.getElementById('review-file');
+    const reviewListEl = document.getElementById('review-list');
+    const copyPromptBtn = document.getElementById('copy-prompt-btn');
+    const sendLlmBtn = document.getElementById('send-llm-btn');
+    const promptModal = document.getElementById('prompt-modal');
+    const promptTextEl = document.getElementById('prompt-text');
+
     let toastTimer = null;
-    function showToast(msg) {
+    function showToast(msg, type) {
       const old = document.querySelector('.toast');
       if (old) old.remove();
       const t = document.createElement('div');
-      t.className = 'toast';
+      t.className = 'toast' + (type === 'error' ? ' error' : '');
       t.textContent = msg;
       document.body.appendChild(t);
       clearTimeout(toastTimer);
@@ -935,15 +1080,15 @@
 
     // ---------- Theme ----------
     // 'dark' | 'light' | 'system' — system follows the OS via prefers-color-scheme.
-    let theme;
+    const theme = signal('system');
     try {
       const t = localStorage.getItem('osviewer.theme');
-      theme = (t === 'dark' || t === 'light') ? t : 'system';
-    } catch (e) { theme = 'system'; }
+      if (t === 'dark' || t === 'light') theme.value = t;
+    } catch (e) {}
 
     const mql = window.matchMedia('(prefers-color-scheme: dark)');
     function resolved() {
-      return theme === 'system' ? (mql.matches ? 'dark' : 'light') : theme;
+      return theme.value === 'system' ? (mql.matches ? 'dark' : 'light') : theme.value;
     }
     function applyTheme() {
       document.documentElement.dataset.theme = resolved();
@@ -953,30 +1098,102 @@
         light: 'Switch to dark theme',
         system: 'Following system theme — click to override',
       };
-      themeBtn.textContent = icons[theme];
-      themeBtn.title = titles[theme];
-      try { localStorage.setItem('osviewer.theme', theme); } catch (e) {}
+      themeBtn.textContent = icons[theme.value];
+      themeBtn.title = titles[theme.value];
+      try { localStorage.setItem('osviewer.theme', theme.value); } catch (e) {}
     }
     // Click cycles: dark -> light -> system -> dark
     const cycle = { dark: 'light', light: 'system', system: 'dark' };
-    themeBtn.addEventListener('click', () => { theme = cycle[theme]; applyTheme(); });
-    mql.addEventListener('change', () => { if (theme === 'system') applyTheme(); });
-    applyTheme();
+    themeBtn.addEventListener('click', () => { theme.value = cycle[theme.value]; });
+    mql.addEventListener('change', () => { if (theme.value === 'system') applyTheme(); });
+    theme.effect(applyTheme);
 
-    let allFiles = [];   // [{ rel, handle }] handle = FileSystemFileHandle (monitored) or File (one-shot)
-    let currentRel = null;
-    let currentKey = null;        // selected change (active or archived)
-    let currentTabs = [];         // tabs in the open change view
-    let dirHandle = null;         // FileSystemDirectoryHandle being monitored
+    // ---- Reactive state (tiny-signals). Mutating these re-renders via computed/effect. ----
+    const allFiles = signal([]);    // [{ rel, handle }] handle = FileSystemFileHandle (monitored) or File (one-shot)
+    const currentRel = signal(null);
+    const currentKey = signal(null);       // selected change (active or archived)
+    const dirHandle = signal(null);        // FileSystemDirectoryHandle being monitored
+    const recentRels = signal(new Set());  // rels added/updated since the last scan, not yet opened
+    let storedCollapsed = null;
+    try { storedCollapsed = localStorage.getItem('osviewer.collapsed'); } catch (e) {}
+    const collapsed = signal(new Set(storedCollapsed === null ? ['Archive'] : safeParse(storedCollapsed)));
+    const search = signal('');
+    const highlights = signal(new Map());  // rel -> [{ id, start, end, text, comment, ts, rel, lines }]
+    const staleTick = signal(0);           // bumped after a file renders so stale checks re-run on the right content
+
+    let currentTabs = [];         // tabs in the open change view (imperative, not reactive)
+    let storePrefix = '';         // project path prefix, e.g. 'llmclip/openspec/' or 'openspec/'
     let pollTimer = null;         // setInterval id for the poll loop
     let isScanning = false;       // guard against overlapping scans
     const fileState = new Map();  // rel -> { handle, lastModified } snapshot for change detection
-    const changeMeta = new Map(); // change key -> { key, dir, label, date, proposalRel, files }
     const paneCache = new Map();  // rel -> rendered pane HTML
-    const recentRels = new Set(); // rels added/updated since the last scan, not yet opened
+    const GROUPS = ['Changes', 'Specs', 'Archive', 'Config'];
 
-    const esc = s => String(s).replace(/[&<>"']/g, c =>
-      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    /* ---------- Derived state: computed + effects re-render the DOM ---------- */
+
+    const changeMeta = computed(() => {
+      const m = new Map();
+      const byKey = new Map();
+      for (const f of allFiles.value) {
+        const key = changeOf(f.rel);
+        if (!key) continue;
+        if (!byKey.has(key)) byKey.set(key, []);
+        byKey.get(key).push(f);
+      }
+      for (const [key, files] of byKey) {
+        const dir = key.split('/').pop();
+        const { label, date } = prettyChangeName(dir);
+        const proposal = files.find(f => f.rel.endsWith('/proposal.md'));
+        m.set(key, { key, dir, label, date, proposalRel: proposal ? proposal.rel : null, files });
+      }
+      return m;
+    }, [allFiles]);
+
+    const stats = computed(() => {
+      const all = allFiles.value;
+      const active = [...new Set(all.filter(f => groupOf(f.rel) === 'Changes').map(f => changeOf(f.rel)))].length;
+      const archived = [...changeMeta.value.values()].filter(m => isArchived(m.key)).length;
+      return html`<b>${all.length}</b> file${all.length === 1 ? '' : 's'} · ` +
+        html`<b>${active}</b> active change${active === 1 ? '' : 's'} · <b>${archived}</b> archived` +
+        (dirHandle.value ? html` · <span class="live-dot">● live</span>` : '');
+    }, [allFiles, dirHandle, changeMeta]);
+    stats.effect(() => { statsEl.innerHTML = stats.value; });
+
+    const listHtml = computed(buildListHtml, [allFiles, currentRel, currentKey, recentRels, collapsed, search, changeMeta, highlights]);
+    listHtml.effect(() => {
+      listEl.innerHTML = listHtml.value;
+      listEl.querySelectorAll('.group-label').forEach(el =>
+        el.addEventListener('click', () => toggleGroup(el.dataset.group)));
+      listEl.querySelectorAll('.item[data-rel]').forEach(el =>
+        el.addEventListener('click', () => openFile(el.dataset.rel)));
+      listEl.querySelectorAll('.item[data-key]').forEach(el =>
+        el.addEventListener('click', () => openChange(el.dataset.key)));
+    });
+
+    const reviewHtml = computed(buildReviewHtml, [currentRel, highlights, staleTick]);
+    reviewHtml.effect(() => {
+      const items = allHighlights();
+      reviewCountEl.textContent = items.length;
+      reviewCountEl.hidden = items.length === 0;
+      const files = new Set(items.map(h => h.rel)).size;
+      reviewFileEl.textContent = items.length
+        ? `${items.length} comment${items.length === 1 ? '' : 's'} · ${files} file${files === 1 ? '' : 's'}`
+        : '';
+      reviewListEl.innerHTML = reviewHtml.value;
+      reviewListEl.querySelectorAll('.rv-del').forEach(b =>
+        b.addEventListener('click', () => deleteHighlight(b.dataset.rel, b.dataset.id)));
+      reviewListEl.querySelectorAll('.rv-item').forEach(item =>
+        item.addEventListener('click', e => {
+          if (e.target.closest('.rv-del')) return;
+          revealComment(item.dataset.rel, item.dataset.id);
+        }));
+      const hasComments = items.some(h => h.comment);
+      copyPromptBtn.disabled = !hasComments;
+      sendLlmBtn.disabled = !hasComments;
+      const hint = hasComments ? '' : 'Add a comment first';
+      copyPromptBtn.title = hint;
+      sendLlmBtn.title = hint;
+    });
 
     /* ---------- Path helpers ---------- */
 
@@ -1007,8 +1224,6 @@
       return /\.(md|ya?ml|json)$/i.test(rel) &&
         (rel.endsWith('.openspec.yaml') || !rel.split('/').pop().startsWith('.'));
     }
-
-    const GROUPS = ['Changes', 'Specs', 'Archive', 'Config'];
 
     function isArchived(rel) {
       return rel.startsWith('changes/archive/');
@@ -1043,27 +1258,6 @@
       if (m) { date = m[1]; n = m[2]; }
       const label = n.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
       return { label, date };
-    }
-
-    function buildChangeMeta() {
-      changeMeta.clear();
-      const byKey = new Map();
-      for (const f of allFiles) {
-        const key = changeOf(f.rel);
-        if (!key) continue;
-        if (!byKey.has(key)) byKey.set(key, []);
-        byKey.get(key).push(f);
-      }
-      for (const [key, files] of byKey) {
-        const dir = key.split('/').pop();
-        const { label, date } = prettyChangeName(dir);
-        const proposal = files.find(f => f.rel.endsWith('/proposal.md'));
-        changeMeta.set(key, {
-          key, dir, label, date,
-          proposalRel: proposal ? proposal.rel : null,
-          files,
-        });
-      }
     }
 
     /* ---------- Picker ---------- */
@@ -1115,7 +1309,7 @@
             if (err.name === 'AbortError') throw err;         // user cancelled
             dir = await window.showDirectoryPicker();          // stale handle -> fresh
           }
-          dirHandle = dir;
+          dirHandle.value = dir;
           saveHandle(dir);
           await startMonitoring(dir);
         } catch (err) {
@@ -1131,27 +1325,33 @@
     picker.addEventListener('change', async e => {
       const files = Array.from(e.target.files);
       if (!files.length) return;
+      // Remember the project/openspec prefix so prompts can show full paths.
+      storePrefix = derivePrefix(files[0].webkitRelativePath || '');
       stopMonitoring();
       await loadFiles(files.map(f => ({ rel: normPath(f.webkitRelativePath), handle: f })));
     });
+
+    // Extract the leading 'project/openspec' path from a raw upload path
+    // (e.g. 'llmclip/openspec/specs/…' -> 'llmclip/openspec/').
+    function derivePrefix(rawPath) {
+      const m = String(rawPath).match(/^(.*?\bopenspec\b)(?=\/|$)/);
+      return m ? m[0] + '/' : '';
+    }
 
     /* ---------- Loading ---------- */
 
     async function loadFiles(raw) {
       setLoading('Loading files…');
       try {
-        allFiles = raw
+        allFiles.value = raw
           .filter(f => isRelevant(f.rel) && groupOf(f.rel))
           .sort((a, b) => a.rel.localeCompare(b.rel));
         paneCache.clear();
         fileState.clear();
-        recentRels.clear();
-        currentRel = null;
-        currentKey = null;
-        buildChangeMeta();
+        recentRels.value = new Set();
+        currentRel.value = null;
+        currentKey.value = null;
         pruneHighlights();
-        renderList();
-        updateStats();
         await autoOpenFirst();
       } finally {
         setLoading(null);
@@ -1159,40 +1359,34 @@
     }
 
     async function autoOpenFirst() {
-      const first = allFiles.find(f =>
+      const first = allFiles.value.find(f =>
         groupOf(f.rel) === 'Changes' && f.rel.endsWith('/proposal.md'))
-        || allFiles.find(f => groupOf(f.rel) === 'Changes')
-        || allFiles[0];
+        || allFiles.value.find(f => groupOf(f.rel) === 'Changes')
+        || allFiles.value[0];
       if (first) await openFile(first.rel);
-    }
-
-    function updateStats() {
-      const active = [...new Set(allFiles
-        .filter(f => groupOf(f.rel) === 'Changes')
-        .map(f => changeOf(f.rel)))].length;
-      const archived = [...changeMeta.values()].filter(m => isArchived(m.key)).length;
-      statsEl.innerHTML = `<b>${allFiles.length}</b> file${allFiles.length === 1 ? '' : 's'} · ` +
-        `<b>${active}</b> active change${active === 1 ? '' : 's'} · <b>${archived}</b> archived` +
-        (dirHandle ? ' · <span class="live-dot">● live</span>' : '');
     }
 
     /* ---------- Live monitoring ---------- */
 
     async function startMonitoring(handle) {
-      dirHandle = handle;
+      dirHandle.value = handle;
+      // The picked folder is the project root (use its name) or openspec itself.
+      storePrefix = handle && handle.name && handle.name !== 'openspec'
+        ? handle.name + '/openspec/'
+        : 'openspec/';
       // Fresh folder: drop the previous folder's diff baseline and markers
       // so the first scan doesn't flag every file as newly changed.
       fileState.clear();
-      recentRels.clear();
+      recentRels.value = new Set();
       await scan(true);
-      if (!currentRel) await autoOpenFirst();
+      if (!currentRel.value) await autoOpenFirst();
       clearInterval(pollTimer);
       pollTimer = setInterval(() => scan(false), 10000);
     }
 
     function stopMonitoring() {
       if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-      dirHandle = null;
+      dirHandle.value = null;
     }
 
     async function* walkDir(dir, prefix) {
@@ -1206,13 +1400,13 @@
     }
 
     async function scan(initial) {
-      if (!dirHandle || isScanning) return;
+      if (!dirHandle.value || isScanning) return;
       isScanning = true;
       if (initial) setLoading('Reading folder…');
       let found = 0, lastUiAt = 0;
       try {
         const current = new Map();
-        for await (const root of dirHandle.values()) {
+        for await (const root of dirHandle.value.values()) {
           const rel0 = normPath(root.name);
           if (root.kind === 'directory') {
             // normPath can collapse the picked 'openspec' dir to ''; join without
@@ -1250,7 +1444,7 @@
             changed = true;
             if (hadPrior) updates.push(rel);
             paneCache.delete(rel);
-            if (rel === currentRel) activeChanged = true;
+            if (rel === currentRel.value) activeChanged = true;
           }
         }
         for (const rel of fileState.keys()) {
@@ -1262,33 +1456,28 @@
         }
 
         // The file currently open was deleted.
-        if (currentRel && !fileState.has(currentRel) && !current.has(currentRel)) {
+        if (currentRel.value && !fileState.has(currentRel.value) && !current.has(currentRel.value)) {
           contentEl.innerHTML = '<div class="empty" style="margin-top:2rem">The open file was deleted while monitoring.</div>';
-          currentRel = null;
-          currentKey = null;
+          currentRel.value = null;
+          currentKey.value = null;
         }
 
         fileState.clear();
         current.forEach((v, k) => fileState.set(k, v));
 
         if (hadPrior && (updates.length || removals)) {
-          let fresh = 0;
-          for (const rel of updates) {
-            if (!recentRels.has(rel)) { recentRels.add(rel); fresh++; }
-          }
+          const added = updates.filter(rel => !recentRels.value.has(rel));
+          if (added.length) recentRels.value = new Set([...recentRels.value, ...added]);
           const parts = [];
-          if (fresh) parts.push(`${fresh} artifact${fresh === 1 ? '' : 's'} updated`);
+          if (added.length) parts.push(`${added.length} artifact${added.length === 1 ? '' : 's'} updated`);
           if (removals) parts.push(`${removals} deleted`);
           if (parts.length) showToast(parts.join(' · '));
         }
 
         if (changed && fileState.size) {
-          allFiles = [...fileState.entries()]
+          allFiles.value = [...fileState.entries()]
             .map(([rel, info]) => ({ rel, handle: info.handle }))
             .sort((a, b) => a.rel.localeCompare(b.rel));
-          buildChangeMeta();
-          renderList();
-          updateStats();
           if (activeChanged) await rerenderCurrent();
         }
       } finally {
@@ -1298,44 +1487,41 @@
     }
 
     async function rerenderCurrent() {
-      if (currentKey) await openChange(currentKey, currentRel);
-      else if (currentRel) await openFile(currentRel);
+      if (currentKey.value) await openChange(currentKey.value, currentRel.value);
+      else if (currentRel.value) await openFile(currentRel.value);
     }
 
     /* ---------- Sidebar list ---------- */
 
-    // Archive is collapsed by default on first visit; afterwards the user's
-    // choices persist (stored value is '[]' once they expand it).
-    let storedCollapsed = null;
-    try { storedCollapsed = localStorage.getItem('osviewer.collapsed'); } catch (e) {}
-    const collapsed = new Set(storedCollapsed === null ? ['Archive'] : safeParse(storedCollapsed));
-
+    // Archive is collapsed by default on first visit; the persisted choice
+    // is loaded into the `collapsed` signal at startup.
     function safeParse(v) {
       try { const a = JSON.parse(v); return Array.isArray(a) ? a : []; } catch (e) { return []; }
     }
 
     function toggleGroup(g) {
-      if (collapsed.has(g)) collapsed.delete(g); else collapsed.add(g);
-      try { localStorage.setItem('osviewer.collapsed', JSON.stringify([...collapsed])); } catch (e) {}
-      renderList();
+      const s = new Set(collapsed.value);
+      if (s.has(g)) s.delete(g); else s.add(g);
+      collapsed.value = s;
+      try { localStorage.setItem('osviewer.collapsed', JSON.stringify([...s])); } catch (e) {}
     }
 
-    function renderList() {
-      const q = searchEl.value.trim().toLowerCase();
+    function buildListHtml() {
+      const q = search.value.trim().toLowerCase();
       const forceOpen = q.length > 0; // searching always expands groups
 
       const sections = [];
       for (const g of GROUPS) {
         if (g === 'Archive' || g === 'Changes') {
           // One row per change (active or archived), labeled with its name.
-          const keys = [...new Set(allFiles
+          const keys = [...new Set(allFiles.value
             .filter(f => groupOf(f.rel) === g)
             .map(f => changeOf(f.rel)))];
-          const rows = keys.map(k => changeMeta.get(k))
+          const rows = keys.map(k => changeMeta.value.get(k))
             .filter(m => m && (!q || (m.label + ' ' + m.dir + ' ' + m.key).toLowerCase().includes(q)));
           if (rows.length) sections.push({ g, rows });
         } else {
-          const items = allFiles.filter(f => {
+          const items = allFiles.value.filter(f => {
             if (groupOf(f.rel) !== g) return false;
             if (q && !f.rel.toLowerCase().includes(q)) return false;
             return true;
@@ -1344,44 +1530,48 @@
         }
       }
 
-      let html = sections.length ? '' : '<div class="empty">No artifacts found.</div>';
+      let out = sections.length ? '' : '<div class="empty">No artifacts found.</div>';
 
       sections.forEach(sec => {
         const g = sec.g;
         const items = sec.items || sec.rows;
-        const isCollapsed = collapsed.has(g) && !forceOpen;
+        const isCollapsed = collapsed.value.has(g) && !forceOpen;
         const stickyCls = g === 'Changes' ? ' sticky' : '';
         const newCount = (g === 'Changes' || g === 'Archive')
-          ? sec.rows.filter(r => r.files.some(f => recentRels.has(f.rel))).length
-          : items.filter(f => recentRels.has(f.rel)).length;
-        html += `
-          <div class="group-label g-${g.toLowerCase()}${stickyCls}${isCollapsed ? ' collapsed' : ''}" data-group="${esc(g)}">
+          ? sec.rows.filter(r => r.files.some(f => recentRels.value.has(f.rel))).length
+          : items.filter(f => recentRels.value.has(f.rel)).length;
+        out += html`
+          <div class="group-label g-${g.toLowerCase()}${stickyCls}${isCollapsed ? ' collapsed' : ''}" data-group="${g}">
             <span class="chevron">▾</span>
-            <span class="group-name">${esc(g)}</span>
-            ${newCount ? `<span class="group-new">+${newCount} new</span>` : ''}
+            <span class="group-name">${g}</span>
+            ${newCount ? html`<span class="group-new">+${newCount} new</span>` : ''}
             <span class="group-count">${items.length}</span>
           </div>`;
         if (!isCollapsed) {
           if (g === 'Archive' || g === 'Changes') {
             sec.rows.forEach(m => {
-              const active = m.key === currentKey;
-              const isNew = m.files.some(f => recentRels.has(f.rel));
-              html += `<div class="item change-row${active ? ' active' : ''}${isNew ? ' new' : ''}" data-key="${esc(m.key)}">
-                ${isNew ? '<span class="new-dot" title="Updated since last scan"></span>' : ''}
-                <span class="path">${esc(m.label)}</span>
-                ${m.date ? `<span class="date">${esc(m.date)}</span>` : ''}
+              const active = m.key === currentKey.value;
+              const isNew = m.files.some(f => recentRels.value.has(f.rel));
+              const cnt = m.files.reduce((s, f) => s + (highlights.value.get(f.rel) || []).length, 0);
+              out += html`<div class="item change-row${active ? ' active' : ''}${isNew ? ' new' : ''}" data-key="${m.key}">
+                ${isNew ? html`<span class="new-dot" title="Updated since last scan"></span>` : ''}
+                <span class="path">${m.label}</span>
+                ${cnt ? html`<span class="cmt-count">${cnt}</span>` : ''}
+                ${m.date ? html`<span class="date">${m.date}</span>` : ''}
               </div>`;
             });
           } else {
             sec.items.forEach(f => {
-              const active = f.rel === currentRel;
-              const isNew = recentRels.has(f.rel);
+              const active = f.rel === currentRel.value;
+              const isNew = recentRels.value.has(f.rel);
+              const cnt = (highlights.value.get(f.rel) || []).length;
               // Specs/Config sections need no badge — the section color says it.
               const badge = (g === 'Specs' || g === 'Config') ? '' :
-                `<span class="badge ${artifactOf(f.rel).toLowerCase()}">${esc(artifactOf(f.rel))}</span>`;
-              html += `<div class="item${active ? ' active' : ''}${isNew ? ' new' : ''}" data-rel="${esc(f.rel)}">
-                ${isNew ? '<span class="new-dot" title="Updated since last scan"></span>' : ''}
-                <span class="path">${esc(displayLabel(f.rel, g))}</span>
+                html`<span class="badge ${artifactOf(f.rel).toLowerCase()}">${artifactOf(f.rel)}</span>`;
+              out += html`<div class="item${active ? ' active' : ''}${isNew ? ' new' : ''}" data-rel="${f.rel}">
+                ${isNew ? html`<span class="new-dot" title="Updated since last scan"></span>` : ''}
+                <span class="path">${displayLabel(f.rel, g)}</span>
+                ${cnt ? html`<span class="cmt-count">${cnt}</span>` : ''}
                 ${badge}
               </div>`;
             });
@@ -1389,16 +1579,10 @@
         }
       });
 
-      listEl.innerHTML = html;
-      listEl.querySelectorAll('.group-label').forEach(el =>
-        el.addEventListener('click', () => toggleGroup(el.dataset.group)));
-      listEl.querySelectorAll('.item[data-rel]').forEach(el =>
-        el.addEventListener('click', () => openFile(el.dataset.rel)));
-      listEl.querySelectorAll('.item[data-key]').forEach(el =>
-        el.addEventListener('click', () => openChange(el.dataset.key)));
+      return out;
     }
 
-    searchEl.addEventListener('input', renderList);
+    searchEl.addEventListener('input', () => { search.value = searchEl.value; });
     document.addEventListener('keydown', e => {
       if (e.key === '/' && document.activeElement !== searchEl) {
         e.preventDefault();
@@ -1406,7 +1590,7 @@
       }
       if (e.key === 'Escape' && document.activeElement === searchEl) {
         searchEl.value = '';
-        renderList();
+        search.value = '';
         searchEl.blur();
       }
     });
@@ -1417,15 +1601,15 @@
       let segs = rel.split('/');
       // Spec files: show the capability path, not a trailing spec.md.
       if (segs.length > 1 && segs[segs.length - 1] === 'spec.md') segs = segs.slice(0, -1);
-      return segs.map((seg, i) =>
+      return joinHtml(segs.map((seg, i) =>
         i === segs.length - 1
-          ? `<span class="file">${esc(seg)}</span>`
-          : `<span class="seg">${esc(seg)}</span><span class="sep">/</span>`).join('');
+          ? html`<span class="file">${seg}</span>`
+          : html`<span class="seg">${seg}</span><span class="sep">/</span>`));
     }
 
     async function paneHtml(rel) {
       if (paneCache.has(rel)) return paneCache.get(rel);
-      const entry = allFiles.find(f => f.rel === rel);
+      const entry = allFiles.value.find(f => f.rel === rel);
       if (!entry) return '<div class="empty">File not found.</div>';
       const f = entry.handle;
       // FileSystemFileHandle re-reads the live file; a plain File is a one-shot snapshot.
@@ -1434,39 +1618,44 @@
       // config.yaml renders raw only — the metadata card is redundant with the
       // file's own schema/context/rules keys. Metadata files keep the card.
       const isConfig = rel === 'config.yaml';
-      const html = (name.endsWith('.yaml') || name.endsWith('.yml'))
+      const pane = (name.endsWith('.yaml') || name.endsWith('.yml'))
         ? yamlPane(text, !isConfig) : markdownPane(rel, text);
-      paneCache.set(rel, html);
-      return html;
+      paneCache.set(rel, pane);
+      return pane;
     }
 
     // A change artifact (proposal/spec/design/tasks/metadata) opens the whole
     // change in a tabbed view instead of a single file.
     async function openFile(rel) {
-      const entry = allFiles.find(f => f.rel === rel);
+      const entry = allFiles.value.find(f => f.rel === rel);
       if (!entry) return;
       hideAnnBubble();
       const key = changeOf(rel);
       if (key) { openChange(key, rel); return; }
-      currentRel = rel;
-      currentKey = null;
-      recentRels.delete(rel); // opening it counts as reviewing it
-      renderList();
-      contentEl.innerHTML = `<div class="crumb">${crumbFor(rel)}</div><div class="pane-loading">Loading…</div>`;
+      currentRel.value = rel;
+      currentKey.value = null;
+      if (recentRels.value.has(rel)) {
+        const s = new Set(recentRels.value);
+        s.delete(rel);
+        recentRels.value = s;
+      }
+      contentEl.innerHTML = html`<div class="crumb">${crumbFor(rel)}</div><div class="pane-loading">Loading…</div>`;
       contentEl.querySelector('.pane-loading').outerHTML = await paneHtml(rel);
       applyHighlights(rel);
-      renderReviewPanel();
       contentEl.scrollTop = 0;
     }
 
     async function openChange(key, initialRel) {
-      const meta = changeMeta.get(key);
+      const meta = changeMeta.value.get(key);
       if (!meta) return;
       hideAnnBubble();
-      currentKey = key;
-      currentRel = initialRel || meta.proposalRel || null;
-      meta.files.forEach(f => recentRels.delete(f.rel)); // opening the change reviews it
-      renderList();
+      currentKey.value = key;
+      currentRel.value = initialRel || meta.proposalRel || null;
+      if (meta.files.some(f => recentRels.value.has(f.rel))) {
+        const s = new Set(recentRels.value);
+        meta.files.forEach(f => s.delete(f.rel));
+        recentRels.value = s;
+      }
 
       // Tabs in order: proposal, specs…, design, tasks, metadata
       const tabs = [];
@@ -1489,14 +1678,14 @@
       push(metaYaml && metaYaml.rel, 'Metadata');
       currentTabs = tabs;
 
-      const tabBar = tabs.map((t, i) =>
-        `<button class="tab ${artifactOf(t.rel).toLowerCase()}${t.rel === currentRel ? ' active' : ''}" data-i="${i}">${esc(t.label)}</button>`).join('');
+      const tabBar = joinHtml(tabs.map((t, i) =>
+        html`<button class="tab ${artifactOf(t.rel).toLowerCase()}${t.rel === currentRel.value ? ' active' : ''}" data-i="${i}">${t.label}</button>`));
 
-      contentEl.innerHTML = `
+      contentEl.innerHTML = html`
         <div class="crumb">${crumbFor(meta.key)}</div>
         <div class="change-head">
-          <h2>${esc(meta.label)}</h2>
-          ${meta.date ? `<span class="date-badge">${esc(meta.date)}</span>` : ''}
+          <h2>${meta.label}</h2>
+          ${meta.date ? html`<span class="date-badge">${meta.date}</span>` : ''}
         </div>
         <div class="tabs">${tabBar}</div>
         <div id="tab-panes" class="pane-loading">Loading…</div>`;
@@ -1504,23 +1693,21 @@
       contentEl.querySelectorAll('.tab').forEach(btn =>
         btn.addEventListener('click', () => activateTab(+btn.dataset.i)));
 
-      const start = Math.max(0, tabs.findIndex(t => t.rel === currentRel));
+      const start = Math.max(0, tabs.findIndex(t => t.rel === currentRel.value));
       await activateTab(start);
     }
 
     async function activateTab(i) {
       const t = currentTabs[i];
       if (!t) return;
-      currentRel = t.rel;
+      currentRel.value = t.rel;
       contentEl.querySelectorAll('.tab').forEach(b =>
         b.classList.toggle('active', +b.dataset.i === i));
       const panes = contentEl.querySelector('#tab-panes');
       panes.className = '';
       panes.innerHTML = await paneHtml(t.rel);
       applyHighlights(t.rel);
-      renderReviewPanel();
       contentEl.scrollTop = 0;
-      renderList();
     }
 
     function yamlPane(text, showMeta = true) {
@@ -1533,10 +1720,10 @@
               [k, v === null ? 'null' : typeof v === 'object' ? JSON.stringify(v, null, 2) : String(v)]));
           }
         } catch (err) {
-          card = `<div class="meta-error">YAML parse failed: ${esc(err.message)}</div>`;
+          card = html`<div class="meta-error">YAML parse failed: ${err.message}</div>`;
         }
       }
-      return `${card}<pre class="yaml-view annotatable">${esc(text)}</pre>`;
+      return html`${card}<pre class="yaml-view annotatable">${text}</pre>`;
     }
 
     function markdownPane(rel, text) {
@@ -1545,13 +1732,13 @@
       let metaHtml = '';
       if (meta && typeof meta === 'object' && !meta._error) {
         const rows = Object.entries(meta).map(([k, v]) =>
-          `<tr><td>${esc(k)}</td><td>${
+          html`<tr><td>${k}</td><td>${
             v === null || v === undefined ? '' :
-            typeof v === 'object' ? `<pre class="yaml-view" style="padding:6px">${esc(JSON.stringify(v, null, 2))}</pre>` :
-            esc(String(v))}</td></tr>`).join('');
-        metaHtml = `<div class="meta-card"><h3>${esc(artifactOf(rel))} metadata</h3><table class="meta-table">${rows}</table></div>`;
+            typeof v === 'object' ? html`<pre class="yaml-view" style="padding:6px">${JSON.stringify(v, null, 2)}</pre>` :
+            v}</td></tr>`);
+        metaHtml = html`<div class="meta-card"><h3>${artifactOf(rel)} metadata</h3><table class="meta-table">${joinHtml(rows)}</table></div>`;
       } else if (meta && meta._error) {
-        metaHtml = `<div class="meta-card"><h3>Frontmatter</h3><div class="meta-error">Could not parse: ${esc(meta._error)}</div></div>`;
+        metaHtml = html`<div class="meta-card"><h3>Frontmatter</h3><div class="meta-error">Could not parse: ${meta._error}</div></div>`;
       }
 
       // Tasks progress
@@ -1560,7 +1747,7 @@
       if (tasks.length) {
         const done = tasks.filter(t => /\[[xX]\]/.test(t)).length;
         const pct = Math.round(done / tasks.length * 100);
-        progressHtml = `<div class="progress">${done}/${tasks.length} tasks done · ${pct}%</div>
+        progressHtml = html`<div class="progress">${done}/${tasks.length} tasks done · ${pct}%</div>
           <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>`;
       }
 
@@ -1568,9 +1755,7 @@
         .replace(/<li>\[([ xX])\]\s*</g, (m, s) =>
           `<li class="task-${(s === 'x' || s === 'X') ? 'done' : 'open'}"><input type="checkbox" ${s !== ' ' ? 'checked' : ''} disabled>`));
 
-      return `${progressHtml}
-        ${metaHtml}
-        <div class="markdown annotatable">${safe}</div>`;
+      return html`${progressHtml}${metaHtml}<div class="markdown annotatable">${htmlRaw(safe)}</div>`;
     }
 
     function parseFrontmatter(text) {
@@ -1582,34 +1767,25 @@
     }
 
     function metaCard(rows) {
-      return `<div class="meta-card"><h3>Metadata</h3><table class="meta-table">${
-        rows.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${v}</td></tr>`).join('')}</table></div>`;
+      return html`<div class="meta-card"><h3>Metadata</h3><table class="meta-table">${
+        joinHtml(rows.map(([k, v]) => html`<tr><td>${k}</td><td>${v}</td></tr>`))}</table></div>`;
     }
 
     /* ---------- Review: highlights & comments → LLM fix prompt ---------- */
 
-    const highlights = new Map();  // rel -> [{ id, start, end, text, comment, ts }]
     let annBubble = null;          // floating selection toolbar / comment editor
     let annPending = null;         // { start, end, text } awaiting a comment
-
-    const reviewBtn = document.getElementById('review-btn');
-    const reviewEl = document.getElementById('review');
-    const reviewCountEl = document.getElementById('review-count');
-    const reviewFileEl = document.getElementById('review-file');
-    const reviewListEl = document.getElementById('review-list');
-    const copyPromptBtn = document.getElementById('copy-prompt-btn');
-    const sendLlmBtn = document.getElementById('send-llm-btn');
-    const promptModal = document.getElementById('prompt-modal');
-    const promptTextEl = document.getElementById('prompt-text');
 
     function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
 
     function loadHighlights() {
       try {
         const obj = JSON.parse(localStorage.getItem('osviewer.highlights') || '{}');
+        const m = new Map();
         for (const [rel, list] of Object.entries(obj)) {
-          if (Array.isArray(list)) highlights.set(rel, list);
+          if (Array.isArray(list)) m.set(rel, list);
         }
+        highlights.value = m;
       } catch (e) {}
     }
     loadHighlights();
@@ -1617,24 +1793,42 @@
     function persistHighlights() {
       try {
         const obj = {};
-        for (const [rel, list] of highlights) if (list.length) obj[rel] = list;
+        for (const [rel, list] of highlights.value) if (list.length) obj[rel] = list;
         localStorage.setItem('osviewer.highlights', JSON.stringify(obj));
       } catch (e) {}
     }
 
-    // Drop highlights whose artifact no longer exists (new folder / reload).
-    function pruneHighlights() {
-      for (const rel of [...highlights.keys()]) {
-        if (!allFiles.some(f => f.rel === rel)) highlights.delete(rel);
-      }
+    // Replace the highlights for one artifact; new Map so the signal fires.
+    function setHighlights(rel, list) {
+      const m = new Map(highlights.value);
+      if (list.length) m.set(rel, list); else m.delete(rel);
+      highlights.value = m;
       persistHighlights();
     }
 
+    // Drop highlights whose artifact no longer exists (new folder / reload).
+    function pruneHighlights() {
+      const m = new Map();
+      for (const [rel, list] of highlights.value) {
+        if (allFiles.value.some(f => f.rel === rel)) m.set(rel, list);
+      }
+      highlights.value = m;
+      persistHighlights();
+    }
+
+    // Read a file's raw text (File System handle or uploaded File).
     async function readFileText(rel) {
-      const entry = allFiles.find(f => f.rel === rel);
+      const entry = allFiles.value.find(f => f.rel === rel);
       if (!entry) return '';
       const f = entry.handle;
       return typeof f.getFile === 'function' ? await (await f.getFile()).text() : await f.text();
+    }
+
+    // 1-based line numbers in `raw` that contain `text`.
+    function refLines(raw, text) {
+      const out = [];
+      if (text) raw.split('\n').forEach((line, i) => { if (line.includes(text)) out.push(i + 1); });
+      return out;
     }
 
     /* ---- Selection → floating toolbar ---- */
@@ -1708,7 +1902,7 @@
       bub.className = 'ann-bubble';
       bub.innerHTML = '<button type="button" class="ann-add">💬 Comment</button>';
       bub.style.top = (rect.bottom + 8) + 'px';
-      bub.style.left = Math.max(8, Math.min(rect.left, innerWidth - 230)) + 'px';
+      bub.style.left = Math.max(8, Math.min(rect.left, innerWidth - 990)) + 'px';
       document.body.appendChild(bub);
       annBubble = bub;
       annPending = info;
@@ -1724,32 +1918,38 @@
         const ta = bub.querySelector('.ann-text');
         ta.focus();
         ta.addEventListener('keydown', e => {
-          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) saveAnnComment();
+          // Enter saves (Ctrl/Cmd+Enter too); Shift+Enter inserts a newline.
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            saveAnnComment();
+          }
           if (e.key === 'Escape') hideAnnBubble();
         });
       });
     }
 
-    function saveAnnComment() {
-      const rel = currentRel;
+    async function saveAnnComment() {
+      const rel = currentRel.value;
       if (!rel || !annPending) return;
       const ta = annBubble && annBubble.querySelector('.ann-text');
       const comment = ta ? ta.value.trim() : '';
       const { start, end, text } = annPending;
-      const list = highlights.get(rel) || [];
+      const list = highlights.value.get(rel) || [];
       if (list.some(h => h.start < end && start < h.end)) {
-        showToast('Selection overlaps an existing highlight');
+        showToast('Selection overlaps an existing highlight', 'error');
         hideAnnBubble();
         return;
       }
       const isFirst = list.length === 0;
-      list.push({ id: uid(), start, end, text, comment, ts: Date.now() });
-      highlights.set(rel, list);
-      persistHighlights();
+      // Store the file path and the raw lines referencing the text so the
+      // highlight can be re-anchored after a reload.
+      let lines = [];
+      try { lines = refLines(await readFileText(rel), text); } catch (e) {}
+      list.push({ id: uid(), start, end, text, comment, ts: Date.now(), rel, lines });
+      setHighlights(rel, list);
       hideAnnBubble();
       try { window.getSelection().removeAllRanges(); } catch (e) {}
       applyHighlights(rel);
-      renderReviewPanel();
       if (isFirst) openReviewPanel();
       showToast(comment ? 'Comment added' : 'Highlight added');
     }
@@ -1765,7 +1965,7 @@
       if (!sel || sel.rangeCount === 0) { hideAnnBubble(); return; }
       const rect = sel.getRangeAt(0).getBoundingClientRect();
       annBubble.style.top = (rect.bottom + 8) + 'px';
-      annBubble.style.left = Math.max(8, Math.min(rect.left, innerWidth - 230)) + 'px';
+      annBubble.style.left = Math.max(8, Math.min(rect.left, innerWidth - 990)) + 'px';
     }, { passive: true });
 
     /* ---- Applying highlight marks ---- */
@@ -1780,6 +1980,22 @@
       }
       if (last && offset === acc) return [last, last.data.length];
       return null;
+    }
+
+    function wrapTextNode(node, from, to, h) {
+      if (to <= from) return;
+      const mark = document.createElement('mark');
+      mark.className = 'hl';
+      mark.dataset.id = h.id;
+      mark.title = h.comment || 'Highlight';
+      mark.addEventListener('click', () => focusComment(h.id));
+      const text = node.data;
+      const frag = document.createDocumentFragment();
+      if (from > 0) frag.appendChild(document.createTextNode(text.slice(0, from)));
+      mark.appendChild(document.createTextNode(text.slice(from, to)));
+      frag.appendChild(mark);
+      if (to < text.length) frag.appendChild(document.createTextNode(text.slice(to)));
+      node.parentNode.replaceChild(frag, node);
     }
 
     function wrapHighlight(container, h) {
@@ -1798,18 +2014,30 @@
       const sn = findTextNodeAt(container, start);
       const en = findTextNodeAt(container, end);
       if (!sn || !en) return null;
-      const range = document.createRange();
-      range.setStart(sn[0], sn[1]);
-      range.setEnd(en[0], en[1]);
-      const mark = document.createElement('mark');
-      mark.className = 'hl';
-      mark.dataset.id = h.id;
-      mark.title = h.comment || 'Highlight';
-      mark.addEventListener('click', () => focusComment(h.id));
-      const frag = range.extractContents();
-      mark.appendChild(frag);
-      range.insertNode(mark);
-      return mark;
+      // Wrap each intersecting text node on its own so a <mark> never spans a
+      // block boundary (which would nest a <li> inside <mark> and break the DOM)
+      // while still covering the full referenced range. Collect the target text
+      // nodes first, then mutate, so the live NodeIterator never revisits the
+      // fragment nodes we insert (which caused an infinite wrap loop).
+      const nodes = [];
+      if (sn[0] === en[0]) {
+        nodes.push({ node: sn[0], from: sn[1], to: en[1] });
+      } else {
+        const w = document.createNodeIterator(container, NodeFilter.SHOW_TEXT);
+        let n, seen = false;
+        while ((n = w.nextNode())) {
+          if (n === sn[0]) seen = true;
+          if (!seen) continue;
+          nodes.push({
+            node: n,
+            from: n === sn[0] ? sn[1] : 0,
+            to: n === en[0] ? en[1] : n.data.length,
+          });
+          if (n === en[0]) break;
+        }
+      }
+      for (const p of nodes) wrapTextNode(p.node, p.from, p.to, h);
+      return nodes.length ? nodes[0].node : null;
     }
 
     function unwrapMark(mark) {
@@ -1823,14 +2051,14 @@
       const container = contentEl.querySelector('.annotatable');
       if (!container) return;
       container.querySelectorAll('mark.hl').forEach(unwrapMark);
-      for (const h of highlights.get(rel) || []) wrapHighlight(container, h);
+      for (const h of highlights.value.get(rel) || []) wrapHighlight(container, h);
+      // The open file has now been rendered; re-check staleness against it.
+      // (Signals update synchronously, so without this the review panel would
+      //  compare against the previous file's content right after a switch.)
+      staleTick.value++;
     }
 
     /* ---- Review panel ---- */
-
-    function currentHighlights() {
-      return currentRel ? (highlights.get(currentRel) || []) : [];
-    }
 
     function openReviewPanel() {
       reviewEl.classList.add('open');
@@ -1851,110 +2079,120 @@
       }
     }
 
+    // Jump from a review item to the text in the file, opening it first if needed.
+    async function revealComment(rel, id) {
+      openReviewPanel();
+      if (rel !== currentRel.value) await openFile(rel);
+      const mark = contentEl.querySelector(`mark.hl[data-id="${id}"]`);
+      if (mark) {
+        mark.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        mark.classList.add('active');
+        setTimeout(() => mark.classList.remove('active'), 1400);
+      }
+    }
+
     function snippet(text) {
       const t = text.replace(/\s+/g, ' ').trim();
       return t.length > 90 ? t.slice(0, 90) + '…' : t;
     }
 
-    function staleIds(rel) {
-      const container = contentEl.querySelector('.annotatable');
-      const out = new Set();
-      if (container) {
-        const t = container.textContent;
-        for (const h of highlights.get(rel) || []) {
-          const ok = h.text && (t.slice(h.start, h.end) === h.text || t.includes(h.text));
-          if (!ok) out.add(h.id);
-        }
+    // A highlight is stale only when its referenced text is absent from the
+    // currently rendered view of its file. Compare against the rendered text
+    // (not the raw markdown) so formatting like bullets, bold and code still
+    // matches after a reload. Only the open file can be checked this way.
+    function currentStaleIds() {
+      const ids = new Set();
+      if (!currentRel.value) return ids;
+      const el = contentEl.querySelector('.annotatable');
+      if (!el) return ids;
+      const t = el.textContent;
+      for (const h of highlights.value.get(currentRel.value) || []) {
+        const ok = h.text && (t.includes(h.text) || t.slice(h.start, h.end) === h.text);
+        if (!ok) ids.add(h.id);
       }
+      return ids;
+    }
+
+    // Every highlight across every artifact, oldest first.
+    function allHighlights() {
+      const out = [];
+      for (const [rel, list] of highlights.value) {
+        if (!list.length) continue;
+        for (const h of list) out.push({ rel, ...h });
+      }
+      out.sort((a, b) => a.ts - b.ts);
       return out;
     }
 
-    function renderReviewPanel() {
-      const rel = currentRel;
-      const list = rel ? (highlights.get(rel) || []) : [];
-      reviewCountEl.textContent = list.length;
-      reviewCountEl.hidden = list.length === 0;
-      reviewFileEl.textContent = rel || '';
-      const stale = staleIds(rel);
-
-      reviewListEl.innerHTML = list.length ? list.map((h, i) => `
-        <div class="rv-item${stale.has(h.id) ? ' stale' : ''}" data-id="${esc(h.id)}">
+    function buildReviewHtml() {
+      const items = allHighlights();
+      if (!items.length) {
+        return '<div class="rv-empty">Select text in any artifact and press <b>💬 Comment</b> to flag it for fixing.<br><br>Comments from all files are collected into a single fix prompt for an LLM.</div>';
+      }
+      const stale = currentStaleIds();
+      return items.map((h, i) => html`
+        <div class="rv-item${stale.has(h.id) ? ' stale' : ''}" data-id="${h.id}" data-rel="${h.rel}">
           <div class="rv-num">${i + 1}</div>
           <div class="rv-body">
-            <div class="rv-text">${esc(snippet(h.text))}</div>
-            <div class="rv-comment">${h.comment ? esc(h.comment) : '<span class="rv-nocomment">no comment</span>'}</div>
-            ${stale.has(h.id) ? '<div class="rv-stale">text not found in current content</div>' : ''}
+            <div class="rv-file">${h.rel}</div>
+            <div class="rv-text">${snippet(h.text)}</div>
+            <div class="rv-comment">${h.comment ? h.comment : html`<span class="rv-nocomment">no comment</span>`}</div>
+            ${stale.has(h.id) ? html`<div class="rv-stale">text not found in current content</div>` : ''}
           </div>
-          <button class="rv-del" title="Delete" data-id="${esc(h.id)}">✕</button>
-        </div>`).join('')
-        : '<div class="rv-empty">Select text in the artifact and press <b>💬 Comment</b> to flag it for fixing.<br><br>Highlights and comments are collected into a single fix prompt for an LLM.</div>';
-
-      reviewListEl.querySelectorAll('.rv-del').forEach(b =>
-        b.addEventListener('click', () => deleteHighlight(rel, b.dataset.id)));
-      reviewListEl.querySelectorAll('.rv-item').forEach(item =>
-        item.addEventListener('click', e => {
-          if (e.target.closest('.rv-del')) return;
-          const mark = contentEl.querySelector(`mark.hl[data-id="${item.dataset.id}"]`);
-          if (mark) {
-            mark.scrollIntoView({ block: 'center', behavior: 'smooth' });
-            mark.classList.add('active');
-            setTimeout(() => mark.classList.remove('active'), 1400);
-          }
-        }));
-
-      const hasComments = list.some(h => h.comment);
-      copyPromptBtn.disabled = !hasComments;
-      sendLlmBtn.disabled = !hasComments;
-      const hint = hasComments ? '' : 'Add a comment first';
-      copyPromptBtn.title = hint;
-      sendLlmBtn.title = hint;
+          <button class="rv-del" title="Delete" data-rel="${h.rel}" data-id="${h.id}">✕</button>
+        </div>`).join('');
     }
 
     function deleteHighlight(rel, id) {
-      const list = (highlights.get(rel) || []).filter(h => h.id !== id);
-      if (list.length) highlights.set(rel, list); else highlights.delete(rel);
-      persistHighlights();
+      const list = (highlights.value.get(rel) || []).filter(h => h.id !== id);
+      setHighlights(rel, list);
       applyHighlights(rel);
-      renderReviewPanel();
     }
 
     reviewBtn.addEventListener('click', () => {
       if (reviewEl.classList.contains('open')) closeReviewPanel();
-      else { renderReviewPanel(); openReviewPanel(); }
+      else openReviewPanel();
     });
     document.getElementById('review-close').addEventListener('click', closeReviewPanel);
 
     /* ---- LLM fix prompt ---- */
 
-    async function buildPrompt() {
-      const rel = currentRel;
-      if (!rel) return null;
-      const list = currentHighlights();
-      if (!list.some(h => h.comment)) return null;
-      const raw = await readFileText(rel);
-      const fence = raw.includes('```') ? '````' : '```';
+    function buildPrompt() {
+      const items = allHighlights();
+      if (!items.some(h => h.comment)) return null;
       const lines = [
-        'You are reviewing an OpenSpec artifact. Apply every review comment below, then return the complete corrected file.',
+        'Please fix only the OpenSpec artifacts below, based on the provided review comments. Keep it simple and focused.',
+        '',
+        'Each artifact belongs to a change proposal. Read the whole proposal (all of its artifacts: proposal, specs, design, tasks) from the repository — they are not included here — and make each fix so all artifacts in the proposal stay consistent with each other.',
         '',
         'Rules:',
-        '- Preserve frontmatter and any content not mentioned in the comments exactly as-is.',
-        '- Output only the corrected file content, with no preamble or explanation.',
-        '',
-        '# Artifact',
-        `File: ${rel}`,
-        `Type: ${artifactOf(rel)}`,
-        '',
-        '# Current content',
-        fence + 'markdown',
-        raw,
-        fence,
+        '- Only change content referenced by a comment; preserve everything else exactly as-is.',
+        '- Align each fix with the proposal the artifact belongs to (its proposal path is listed under the file).',
+        '- If consistency requires it, fix the whole proposal so all its artifacts do not contradict each other.',
         '',
         '# Review comments',
       ];
-      list.forEach((h, i) => {
-        lines.push(`${i + 1}. ${h.comment || '(no comment — review this section for issues)'}`);
+      let prevRel = null, n = 0;
+      for (const h of items) {
+        if (h.rel !== prevRel) {
+          prevRel = h.rel;
+          n = 0;
+          lines.push('', `## ${storePrefix}${h.rel}`);
+          const key = changeOf(h.rel);
+          const meta = key && changeMeta.value.get(key);
+          const prop = meta && meta.proposalRel;
+          if (prop) {
+            lines.push(`Proposal: ${storePrefix}${prop}`);
+            if (meta.files && meta.files.length) {
+              lines.push('Artifacts in this proposal:');
+              for (const f of meta.files) lines.push(`- ${storePrefix}${f.rel}`);
+            }
+          }
+        }
+        n++;
+        lines.push(`${n}. ${h.comment || '(no comment — review this section for issues)'}`);
         lines.push(`   Referenced text: "${snippet(h.text)}"`);
-      });
+      }
       return lines.join('\n');
     }
 
@@ -1978,7 +2216,8 @@
     copyPromptBtn.addEventListener('click', async () => {
       const prompt = await buildPrompt();
       if (!prompt) return;
-      showToast((await copyText(prompt)) ? 'Fix prompt copied to clipboard' : 'Copy failed — use Send to LLM');
+      const ok = await copyText(prompt);
+      showToast(ok ? 'Fix prompt copied to clipboard' : 'Copy failed — use Send to LLM', ok ? undefined : 'error');
     });
 
     sendLlmBtn.addEventListener('click', async () => {
@@ -1989,7 +2228,8 @@
     });
     document.getElementById('pmt-close').addEventListener('click', () => { promptModal.hidden = true; });
     document.getElementById('pmt-copy').addEventListener('click', async () => {
-      showToast((await copyText(promptTextEl.value)) ? 'Prompt copied to clipboard' : 'Copy failed');
+      const ok = await copyText(promptTextEl.value);
+      showToast(ok ? 'Prompt copied to clipboard' : 'Copy failed', ok ? undefined : 'error');
     });
     document.getElementById('pmt-open').addEventListener('click', () => {
       const url = URL.createObjectURL(new Blob([promptTextEl.value], { type: 'text/plain;charset=utf-8' }));
@@ -2010,6 +2250,19 @@
         change proposals, designs, task lists, and specs.</p>
         <p>Everything stays on your machine; files are read with the File API and never uploaded.</p>
       </div>`;
+
+    // Re-open the previously used folder on reload (File System Access API only).
+    async function autoReopen() {
+      if (!window.showDirectoryPicker) return;   // upload fallback has no persistent handle
+      try {
+        const saved = await loadHandle();
+        if (!saved) return;
+        if (await saved.queryPermission({ mode: 'read' }) === 'granted') {
+          await startMonitoring(saved);
+        }
+      } catch (e) { /* non-fatal */ }
+    }
+    autoReopen();
 
     // ---------- PWA ----------
     // Service worker only makes sense over http(s); it must not fail on file://.

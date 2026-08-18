@@ -9,7 +9,7 @@ One `index.html` with no build step and no dependencies beyond CDN scripts.
 
 - Browse changes, archived changes, specs, and config from your `openspec/` folder.
 - **Live monitoring** (Chrome/Edge): picks a folder via the File System Access API
-  and polls every 30 seconds, so added, modified, and deleted artifacts appear
+  and polls every 10 seconds, so added, modified, and deleted artifacts appear
   without reloading. Open files hot-refresh in place.
 - Open a change to see its artifacts as tabs: Proposal, Spec(s), Design, Tasks, Metadata.
 - **Review mode**: select text in an artifact and add a comment; highlights are kept
