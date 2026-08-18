@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- OpenSpec Local Viewer v1.11.0 -->
+<!-- OpenSpec Local Viewer v1.11.1 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -560,6 +560,14 @@
       margin-bottom: 16px;
     }
     .pane-bar .crumb { flex: 1; margin-bottom: 0; min-width: 0; }
+    /* Reserve the toggle's height even when the active tab has no diff, so the
+       bar (and everything below it) never jumps when switching tabs. */
+    .diff-toggle-slot {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+    }
     .diff-toggle {
       flex-shrink: 0;
       display: inline-flex;
@@ -968,7 +976,7 @@
 <body>
   <header>
     <h1>OpenSpec <span class="dot">•</span> Local Viewer</h1>
-    <span class="version">v1.11.0</span>
+    <span class="version">v1.11.1</span>
     <button id="theme-btn" class="theme-btn" title="Toggle dark / light theme">☀️</button>
     <div id="stats"></div>
     <button id="review-btn" class="review-btn" title="Review comments across all artifacts">💬<span id="review-count" class="review-count" hidden></span></button>
