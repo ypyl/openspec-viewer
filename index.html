@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- OpenSpec Local Viewer v1.10.1 -->
+<!-- OpenSpec Local Viewer v1.11.0 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -553,28 +553,59 @@
     }
 
     /* ---------- Diff view (content change detection) ---------- */
+    .pane-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .pane-bar .crumb { flex: 1; margin-bottom: 0; min-width: 0; }
+    .diff-toggle {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: var(--bg);
+      color: var(--fg-muted);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s, border-color .15s, color .15s;
+    }
+    .diff-toggle:hover { background: var(--panel); color: var(--fg); }
+    .diff-toggle.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 10%, transparent);
+    }
+    .diff-new {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: .6px;
+      color: var(--green);
+      background: color-mix(in srgb, var(--green) 15%, transparent);
+      border-radius: 10px;
+      padding: 0 5px;
+      line-height: 14px;
+    }
     .diff {
       border: 1px solid var(--border);
       border-radius: var(--radius);
       background: var(--panel);
-      margin-bottom: 20px;
       overflow: hidden;
     }
-    .diff summary {
+    .diff-head {
       display: flex;
       align-items: center;
       gap: 8px;
       padding: 8px 12px;
-      cursor: pointer;
-      user-select: none;
       font-size: 12.5px;
       font-weight: 600;
-      list-style: none;
+      border-bottom: 1px solid var(--border-muted);
     }
-    .diff summary::-webkit-details-marker { display: none; }
-    .diff summary::before { content: '▸'; color: var(--fg-subtle); transition: transform .12s; }
-    .diff[open] summary::before { transform: rotate(90deg); }
-    .diff summary:hover { background: rgba(110,118,129,.06); }
     .diff-ts { margin-left: auto; font-weight: 400; font-size: 11px; color: var(--fg-subtle); }
     .dh-add { color: var(--green); font-size: 11px; font-weight: 700; }
     .dh-del { color: var(--red); font-size: 11px; font-weight: 700; }
@@ -937,7 +968,7 @@
 <body>
   <header>
     <h1>OpenSpec <span class="dot">•</span> Local Viewer</h1>
-    <span class="version">v1.10.1</span>
+    <span class="version">v1.11.0</span>
     <button id="theme-btn" class="theme-btn" title="Toggle dark / light theme">☀️</button>
     <div id="stats"></div>
     <button id="review-btn" class="review-btn" title="Review comments across all artifacts">💬<span id="review-count" class="review-count" hidden></span></button>
@@ -1185,9 +1216,9 @@
     const fileState = new Map();  // rel -> { handle, lastModified } snapshot for change detection
     const paneCache = new Map();  // rel -> rendered pane HTML
     const diffInfo = new Map();   // rel -> { hunks, added, removed, ts } line diff vs last snapshot
-    const freshDiffs = new Set(); // rels whose diff came from the latest scan; never cleared —
-                                  // auto-open applies at first render only, and panes are cached
-                                  // afterwards, so the user's open/collapsed choice persists
+    const freshDiffs = new Set(); // rels with a diff the user hasn't seen yet -> "NEW" badge on the Diff button
+    const diffViews = new Map();  // rel -> true when the pane shows the diff view instead of the artifact
+    let paneHost = null;          // current pane container (#current-pane or #tab-panes)
     const GROUPS = ['Changes', 'Specs', 'Archive', 'Config'];
 
     /* ---------- Derived state: computed + effects re-render the DOM ---------- */
@@ -1463,6 +1494,7 @@
         recentRels.value = new Set();
         diffInfo.clear();
         freshDiffs.clear();
+        diffViews.clear();
         currentRel.value = null;
         currentKey.value = null;
         pruneHighlights();
@@ -1496,6 +1528,7 @@
       recentRels.value = new Set();
       diffInfo.clear();
       freshDiffs.clear();
+      diffViews.clear();
       await scan(true);
       if (!currentRel.value) await autoOpenFirst();
       clearInterval(pollTimer);
@@ -1592,6 +1625,7 @@
             paneCache.delete(rel);
             diffInfo.delete(rel);
             freshDiffs.delete(rel);
+            diffViews.delete(rel);
             if (hadPrior) {
               removals++;
               try { await deleteSnapshot(rel); } catch (e) {}   // drop its diff baseline too
@@ -1868,35 +1902,68 @@
       return `@@ -${f(h.oldStart, h.oldCount)} +${f(h.newStart, h.newCount)} @@`;
     }
 
-    // Collapsible unified diff rendered above an artifact pane. Stays out of
-    // .annotatable so highlight offsets keep matching the rendered content.
-    function diffBlock(di, autoOpen) {
-      return html`<details class="diff"${autoOpen ? ' open' : ''}>
-        <summary>
-          <span>Changed since last snapshot</span>
+    // Unified diff lines for one diff result (shared by every view).
+    function diffHunksHtml(di) {
+      return joinHtml(di.hunks.map(h => html`
+        <div class="diff-line hdr"><span class="ln">@@</span><span class="sign"></span><span class="code">${hunkHeader(h)}</span></div>
+        ${joinHtml(h.lines.map(l => {
+          const [t, oln, nln, text] = l;
+          const cls = t === '+' ? 'add' : t === '-' ? 'del' : 'ctx';
+          return html`<div class="diff-line ${cls}"><span class="ln">${t === '+' ? nln : oln}</span><span class="sign">${t}</span><span class="code">${text}</span></div>`;
+        }))}
+      `));
+    }
+
+    // The diff VIEW for an artifact — replaces the artifact pane when toggled on.
+    // Stays out of .annotatable so highlight offsets keep matching the rendered content.
+    function diffViewHtml(rel) {
+      const di = diffInfo.get(rel);
+      if (!di) return '';
+      return html`<div class="diff">
+        <div class="diff-head">
+          <span>Unified diff</span>
           ${di.added ? html`<b class="dh-add">+${di.added}</b>` : ''}
           ${di.removed ? html`<b class="dh-del">−${di.removed}</b>` : ''}
           <span class="diff-ts">${relTime(di.ts)}</span>
-        </summary>
-        <pre class="diff-view">${
-          joinHtml(di.hunks.map(h => html`
-            <div class="diff-line hdr"><span class="ln">@@</span><span class="sign"></span><span class="code">${hunkHeader(h)}</span></div>
-            ${joinHtml(h.lines.map(l => {
-              const [t, oln, nln, text] = l;
-              const cls = t === '+' ? 'add' : t === '-' ? 'del' : 'ctx';
-              return html`<div class="diff-line ${cls}"><span class="ln">${t === '+' ? nln : oln}</span><span class="sign">${t}</span><span class="code">${text}</span></div>`;
-            }))}
-          `))
-        }</pre>
-      </details>`;
+        </div>
+        <pre class="diff-view">${diffHunksHtml(di)}</pre>
+      </div>`;
+    }
+
+    // The Diff/Artifact toggle shown next to the breadcrumb when the artifact
+    // has a recorded diff. A "NEW" badge marks diffs the user hasn't seen yet.
+    function diffToggleHtml(rel, active) {
+      const di = diffInfo.get(rel);
+      if (!di) return '';
+      const fresh = freshDiffs.has(rel) && !active;
+      return html`<button class="diff-toggle${active ? ' active' : ''}" data-rel="${rel}" title="Toggle artifact / diff view">
+        ${active ? 'Artifact' : 'Diff'}
+        ${fresh ? html`<span class="diff-new">NEW</span>` : ''}
+        ${di.added ? html`<b class="dh-add">+${di.added}</b>` : ''}
+        ${di.removed ? html`<b class="dh-del">−${di.removed}</b>` : ''}
+      </button>`;
+    }
+
+    // Breadcrumb row with the diff toggle on the right.
+    function paneBarHtml(crumb, rel) {
+      return html`<div class="pane-bar">${crumb}<span class="diff-toggle-slot">${diffToggleHtml(rel, diffViews.get(rel))}</span></div>`;
+    }
+
+    // Re-render just the toggle after a tab switch or a click.
+    function refreshToggle(rel) {
+      const slot = contentEl.querySelector('.diff-toggle-slot');
+      if (slot) slot.innerHTML = diffToggleHtml(rel, diffViews.get(rel));
+    }
+
+    // The current view for an artifact: the unified diff, or the artifact.
+    async function viewFor(rel) {
+      return diffViews.get(rel) && diffInfo.get(rel) ? diffViewHtml(rel) : await paneHtml(rel);
     }
 
     async function paneHtml(rel) {
       if (paneCache.has(rel)) return paneCache.get(rel);
       const entry = allFiles.value.find(f => f.rel === rel);
       if (!entry) return '<div class="empty">File not found.</div>';
-      const di = diffInfo.get(rel);
-      const diffHtml = di ? diffBlock(di, freshDiffs.has(rel)) : '';
       const text = await handleText(entry.handle);
       const name = rel.split('/').pop();
       // config.yaml renders raw only — the metadata card is redundant with the
@@ -1904,7 +1971,7 @@
       const isConfig = rel === 'config.yaml';
       const pane = (name.endsWith('.yaml') || name.endsWith('.yml'))
         ? yamlPane(text, !isConfig) : markdownPane(rel, text);
-      paneCache.set(rel, diffHtml + pane);
+      paneCache.set(rel, pane);
       return paneCache.get(rel);
     }
 
@@ -1923,8 +1990,13 @@
         s.delete(rel);
         recentRels.value = s;
       }
-      contentEl.innerHTML = html`<div class="crumb">${crumbFor(rel)}</div><div class="pane-loading">Loading…</div>`;
-      contentEl.querySelector('.pane-loading').outerHTML = await paneHtml(rel);
+      // The artifact is now viewed; the diff toggle may still show NEW until
+      // the user actually switches to the diff view (cleared in the toggle handler).
+      contentEl.innerHTML = paneBarHtml(html`<div class="crumb">${crumbFor(rel)}</div>`, rel)
+        + '<div id="current-pane" class="pane-area pane-loading">Loading…</div>';
+      paneHost = contentEl.querySelector('#current-pane');
+      paneHost.classList.remove('pane-loading');
+      paneHost.innerHTML = await viewFor(rel);
       applyHighlights(rel);
       contentEl.scrollTop = 0;
     }
@@ -1966,7 +2038,7 @@
         html`<button class="tab ${artifactOf(t.rel).toLowerCase()}${t.rel === currentRel.value ? ' active' : ''}" data-i="${i}">${t.label}</button>`));
 
       contentEl.innerHTML = html`
-        <div class="crumb">${crumbFor(meta.key)}</div>
+        ${paneBarHtml(html`<div class="crumb">${crumbFor(meta.key)}</div>`, currentRel.value)}
         <div class="change-head">
           <h2>${meta.label}</h2>
           ${meta.date ? html`<span class="date-badge">${meta.date}</span>` : ''}
@@ -1987,12 +2059,30 @@
       currentRel.value = t.rel;
       contentEl.querySelectorAll('.tab').forEach(b =>
         b.classList.toggle('active', +b.dataset.i === i));
+      refreshToggle(t.rel);
       const panes = contentEl.querySelector('#tab-panes');
+      paneHost = panes;
       panes.className = '';
-      panes.innerHTML = await paneHtml(t.rel);
+      panes.innerHTML = await viewFor(t.rel);
       applyHighlights(t.rel);
       contentEl.scrollTop = 0;
     }
+
+    // Diff/Artifact toggle next to the breadcrumb: swaps the pane between the
+    // unified diff and the rendered artifact. The choice sticks per artifact.
+    contentEl.addEventListener('click', async e => {
+      const b = e.target.closest('.diff-toggle');
+      if (!b) return;
+      const rel = b.dataset.rel;
+      diffViews.set(rel, !diffViews.get(rel));
+      freshDiffs.delete(rel);
+      refreshToggle(rel);
+      if (paneHost && contentEl.contains(paneHost)) {
+        paneHost.innerHTML = await viewFor(rel);
+        applyHighlights(rel);
+        contentEl.scrollTop = 0;
+      }
+    });
 
     function yamlPane(text, showMeta = true) {
       let card = '';

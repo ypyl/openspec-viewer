@@ -12,9 +12,10 @@ One `index.html` with no build step and no dependencies beyond CDN scripts.
   and polls every 10 seconds, so added, modified, and deleted artifacts appear
   without reloading. Open files hot-refresh in place.
 - **Change diffs**: every scan snapshots artifact content, so when the monitor
-  detects a change you get a line-by-line diff (added/removed lines) above the
-  artifact, plus +/− counts in the sidebar. Snapshots live in IndexedDB, so the
-  diff still appears after a page reload.
+  detects a change you get a **Diff** button next to the breadcrumb with +/− line
+  counts — click it to switch from the artifact to a line-by-line unified diff
+  view (a NEW badge marks diffs you haven't seen yet). Snapshots live in
+  IndexedDB, so diffs survive a page reload.
 - Open a change to see its artifacts as tabs: Proposal, Spec(s), Design, Tasks, Metadata.
 - **Review mode**: select text in an artifact and add a comment; highlights are kept
   per file, then collected with the artifact content into a single LLM fix prompt

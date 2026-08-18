@@ -1,4 +1,4 @@
-/* End-to-end test for content-level change diffs (v1.10.0).
+/* End-to-end test for content-level change diffs (v1.11.0).
  *
  * Run (from repo root):
  *   python -m http.server 8743        # serve the app
@@ -7,8 +7,9 @@
  *
  * Stubs the File System Access API with an in-memory tree, then exercises the
  * real scan -> snapshot (IndexedDB) -> line-diff -> render pipeline:
- * fresh-pick baseline, in-session mutation, flat (non-change) artifacts,
- * auto-open of fresh diffs, and the reload-equivalent keepSnapshots path.
+ * fresh-pick baseline, in-session mutation, flat (non-change) artifacts, the
+ * breadcrumb Diff/Artifact toggle (default view is the artifact, never the
+ * diff), NEW badges, and the reload-equivalent keepSnapshots path.
  * Serves as: async page => { ... } single function expression. */
 async page => {
   const out = { steps: [], errors: [] };
@@ -29,7 +30,6 @@ async page => {
     'openspec/config.yaml': { text: 'extends: openspec\n', mtime: 1500 },
   };
 
-  // Stub the File System Access API before the app loads.
   await page.addInitScript((files) => {
     window.__fsData = files;
     function buildNode() {
@@ -80,18 +80,15 @@ async page => {
     r.identical = diffLines('a\nb\nc\n', 'a\nb\nc\n') === null;
     const d1 = diffLines('a\nb\nc\n', 'a\nX\nc\n');
     r.replace = d1.added === 1 && d1.removed === 1 && d1.hunks.length === 1;
-    r.hdr = d1.hunks[0].oldStart === 1 && d1.hunks[0].newStart === 1 &&
-            hunkHeader(d1.hunks[0]) === '@@ -1,3 +1,3 @@';
+    r.hdr = d1.hunks[0].oldStart === 1 && hunkHeader(d1.hunks[0]) === '@@ -1,3 +1,3 @@';
     const d2 = diffLines('', 'hello\nworld\n');
     r.fromEmpty = d2 && d2.added === 2 && d2.removed === 0;
     const d3 = diffLines('x\n', '');
     r.toEmpty = d3 && d3.added === 0 && d3.removed === 1;
     const d4 = diffLines('l1\nl2\nl3\nl4\nl5\nl6\nl7\nl8\nl9\nl10\n', 'l1\nl2\nCHG\nl4\nl5\nl6\nl7\nl8\nl9\nl10\n');
     r.context = d4.hunks.length === 1 && d4.hunks[0].lines.length === 7;   // ctx(2)+del+add+ctx(3)
-    const blk = diffBlock({ hunks: [{ oldStart: 2, newStart: 2, oldCount: 1, newCount: 1, lines: [['-', 2, 0, 'old'], ['+', 0, 2, 'new']] }], added: 1, removed: 1, ts: Date.now() - 60000 }, true);
-    const s = String(blk);
-    r.block = s.includes('details class="diff" open') && s.includes('+1') && s.includes('−1') &&
-              s.includes('diff-line del') && s.includes('diff-line add') && s.includes('@@ -2 +2 @@');
+    const blk = String(diffHunksHtml({ hunks: [{ oldStart: 2, newStart: 2, oldCount: 1, newCount: 1, lines: [['-', 2, 0, 'old'], ['+', 0, 2, 'new']] }] }));
+    r.hunks = blk.includes('diff-line del') && blk.includes('diff-line add') && blk.includes('@@ -2 +2 @@');
     r.hint = String(diffHint([{ added: 2, removed: 1 }])).includes('+2') && diffHint([]) === '';
     return r;
   });
@@ -103,13 +100,14 @@ async page => {
   await page.waitForTimeout(200);
   let state = await page.evaluate(() => ({
     newDots: document.querySelectorAll('.item.new').length,
-    hints: document.querySelectorAll('.diff-hint').length,
-    diffs: document.querySelectorAll('details.diff').length,
-    rows: document.querySelectorAll('.item.change-row').length,
+    toggles: document.querySelectorAll('.diff-toggle').length,
+    diffs: document.querySelectorAll('.diff').length,
+    hasBar: !!document.querySelector('.pane-bar .crumb'),
   }));
   out.steps.push('baseline: ' + JSON.stringify(state));
   if (state.newDots !== 0) err('baseline should have no new markers');
-  if (state.hints !== 0 || state.diffs !== 0) err('baseline should have no diffs');
+  if (state.toggles !== 0 || state.diffs !== 0) err('baseline should have no diff UI');
+  if (!state.hasBar) err('pane bar with breadcrumb should render');
 
   // ---- Mutate the proposal (2 lines changed, 2 added) ----
   await page.evaluate(() => {
@@ -121,22 +119,53 @@ async page => {
   await page.waitForTimeout(200);
 
   state = await page.evaluate(() => {
-    const row = [...document.querySelectorAll('.item.change-row')].find(r => r.textContent.includes('Alpha'));
+    const b = document.querySelector('.diff-toggle');
     return {
-      hint: row ? row.querySelector('.diff-hint').textContent : null,
-      diffOpen: document.querySelector('details.diff[open]') !== null,
-      addLines: document.querySelectorAll('details.diff .diff-line.add').length,
-      delLines: document.querySelectorAll('details.diff .diff-line.del').length,
-      hasAddedText: [...document.querySelectorAll('details.diff .diff-line.add')].some(l => l.textContent.includes('Ship it well')),
-      hasHdr: document.querySelector('details.diff .diff-line.hdr') ? document.querySelector('details.diff .diff-line.hdr').textContent : null,
+      // default view is the artifact, not the diff
+      diffShown: document.querySelector('.diff') !== null,
+      artifactShown: !!document.querySelector('#current-pane .markdown, #tab-panes .markdown'),
+      toggle: b ? b.textContent.replace(/\s+/g, ' ').trim() : null,
+      toggleNew: b ? !!b.querySelector('.diff-new') : false,
+      adds: b ? b.querySelectorAll('.dh-add').length : 0,
+      del: b ? b.querySelectorAll('.dh-del').length : 0,
     };
   });
   out.steps.push('after-mutation: ' + JSON.stringify(state));
-  if (state.hint !== '+4 −2') err('expected change-row hint "+4 −2", got ' + state.hint);
-  if (!state.diffOpen) err('diff should auto-open on the active (open) file');
+  if (state.diffShown) err('diff must NOT be shown by default (only on toggle)');
+  if (!state.artifactShown) err('artifact view should be the default');
+  if (!state.toggle || !state.toggle.includes('Diff') || !state.toggle.includes('+4') || !state.toggle.includes('−2')) {
+    err('toggle should read "Diff +4 −2", got ' + state.toggle);
+  }
+  if (!state.toggleNew) err('unseen diff should carry a NEW badge');
+
+  // ---- Click the toggle: diff view ----
+  await page.evaluate(() => { document.querySelector('.diff-toggle').click(); });
+  await page.waitForTimeout(150);
+  state = await page.evaluate(() => ({
+    diffShown: document.querySelector('.diff') !== null,
+    addLines: document.querySelectorAll('.diff-line.add').length,
+    delLines: document.querySelectorAll('.diff-line.del').length,
+    hasHdr: document.querySelector('.diff-line.hdr') !== null,
+    toggle: document.querySelector('.diff-toggle').textContent.replace(/\s+/g, ' ').trim(),
+    diffTs: document.querySelector('.diff-ts') ? document.querySelector('.diff-ts').textContent : null,
+  }));
+  out.steps.push('toggle-on: ' + JSON.stringify(state));
+  if (!state.diffShown) err('diff view should show after toggling');
   if (state.addLines !== 4) err('expected 4 added lines, got ' + state.addLines);
   if (state.delLines !== 2) err('expected 2 deleted lines, got ' + state.delLines);
-  if (!state.hasAddedText) err('added line content missing');
+  if (!state.hasHdr) err('diff should include hunk header');
+  if (!state.toggle.startsWith('Artifact')) err('toggle should now offer to switch back, got ' + state.toggle);
+
+  // ---- Toggle back: artifact view ----
+  await page.evaluate(() => { document.querySelector('.diff-toggle').click(); });
+  await page.waitForTimeout(150);
+  state = await page.evaluate(() => ({
+    diffShown: document.querySelector('.diff') !== null,
+    artifactShown: !!document.querySelector('#current-pane .markdown, #tab-panes .markdown'),
+  }));
+  out.steps.push('toggle-off: ' + JSON.stringify(state));
+  if (state.diffShown) err('diff should hide after toggling back');
+  if (!state.artifactShown) err('artifact view should return after toggling back');
 
   // ---- Mutate a spec (flat item, not open) ----
   await page.evaluate(() => {
@@ -151,24 +180,32 @@ async page => {
     return {
       itemHint: item && item.querySelector('.diff-hint') ? item.querySelector('.diff-hint').textContent.trim() : null,
       itemNew: item ? item.classList.contains('new') : false,
-      groupNews: [...document.querySelectorAll('.group-new')].map(g => g.textContent),
     };
   });
   out.steps.push('spec-mutation: ' + JSON.stringify(state));
   if (state.itemHint !== '+1') err('expected spec hint "+1", got ' + state.itemHint);
   if (!state.itemNew) err('spec item should keep its new marker while unopened');
-  if (!state.groupNews.some(t => t.includes('new'))) err('expected a section new-counter');
 
-  // ---- Open the spec: its diff should auto-open on first view ----
+  // ---- Open the spec: toggle appears with NEW badge, diff toggle works ----
   await page.evaluate(async () => { await window.openFile('specs/cap/spec.md'); });
   await page.waitForTimeout(150);
   state = await page.evaluate(() => ({
-    specDiffOpen: document.querySelector('details.diff') ? document.querySelector('details.diff').open : null,
-    specAdds: document.querySelectorAll('details.diff .diff-line.add').length,
+    toggle: document.querySelector('.diff-toggle') ? document.querySelector('.diff-toggle').textContent.replace(/\s+/g, ' ').trim() : null,
+    toggleNew: document.querySelector('.diff-toggle') ? !!document.querySelector('.diff-toggle .diff-new') : false,
+    diffShown: document.querySelector('.diff') !== null,
   }));
   out.steps.push('spec-open: ' + JSON.stringify(state));
-  if (!state.specDiffOpen) err('spec diff should auto-open on first view');
-  if (state.specAdds !== 1) err('expected 1 added line in spec diff, got ' + state.specAdds);
+  if (!state.toggle || !state.toggle.includes('+1')) err('spec toggle should show +1');
+  if (!state.toggleNew) err('spec diff should be marked NEW on first open');
+  if (state.diffShown) err('spec diff should not auto-show');
+  await page.evaluate(() => { document.querySelector('.diff-toggle').click(); });
+  await page.waitForTimeout(150);
+  state = await page.evaluate(() => ({
+    diffShown: document.querySelector('.diff') !== null,
+    specAdds: document.querySelectorAll('.diff-line.add').length,
+  }));
+  out.steps.push('spec-toggle: ' + JSON.stringify(state));
+  if (!state.diffShown || state.specAdds !== 1) err('spec diff should show 1 added line, got ' + JSON.stringify(state));
 
   // ---- Session 2: same folder re-opened (keepSnapshots) with another change ----
   await page.evaluate(() => {
@@ -185,6 +222,31 @@ async page => {
   out.steps.push('session2: ' + JSON.stringify(state));
   if (!state.toast || !state.toast.includes('since your last visit')) err('expected session2 toast, got ' + state.toast);
   if (state.newItems < 1) err('expected new markers after re-open with persisted snapshots');
+
+  // ---- Design tab: NEW badge until viewed; toggle shows its diff ----
+  await page.evaluate(async () => { await window.openChange('changes/alpha', 'changes/alpha/design.md'); });
+  await page.waitForTimeout(150);
+  state = await page.evaluate(() => ({
+    toggle: document.querySelector('.diff-toggle') ? document.querySelector('.diff-toggle').textContent.replace(/\s+/g, ' ').trim() : null,
+    toggleNew: document.querySelector('.diff-toggle') ? !!document.querySelector('.diff-toggle .diff-new') : false,
+    diffShown: document.querySelector('.diff') !== null,
+  }));
+  out.steps.push('design-tab: ' + JSON.stringify(state));
+  if (!state.toggle || !state.toggle.includes('+1')) err('design should show a toggle, got ' + state.toggle);
+  if (!state.toggleNew) err('design diff should be marked NEW before being viewed');
+  if (state.diffShown) err('design diff should not auto-show');
+  await page.evaluate(() => { document.querySelector('.diff-toggle').click(); });
+  await page.waitForTimeout(150);
+  state = await page.evaluate(() => ({
+    addLines: document.querySelectorAll('.diff-line.add').length,
+    delLines: document.querySelectorAll('.diff-line.del').length,
+    hasHdr: document.querySelector('.diff-line.hdr') !== null,
+  }));
+  out.steps.push('design-diff: ' + JSON.stringify(state));
+  if (state.addLines !== 1 || state.delLines !== 1) {
+    err('design diff should be +1 −1, got ' + JSON.stringify(state));
+  }
+  if (!state.hasHdr) err('design diff should include hunk header');
 
   out.ok = out.errors.length === 0;
   console.log('=== DIFF TEST RESULT ===');
