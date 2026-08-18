@@ -12,11 +12,11 @@
 - Basic validation of openspec/ structure and artifacts against the OpenSpec documentation: required files (spec.md, proposal.md, task.md, change.md, ADRs), required sections, frontmatter/header conventions.
 - Show validation issues in the UI (warnings/errors per artifact).
 
-## Highlight exactly what changed in a proposal
+## ~Highlight exactly what changed in a proposal~ ✅ shipped in v1.10.0
 
-- Current change detection is file-level only (lastModified snapshot → "new" marker).
-- Feasible: snapshot each artifact's raw content in IndexedDB per scan, line-diff old vs new, render the diff (unified view or highlighted lines in the pane).
-- The File System Access API exposes no previous versions, so content must be snapshotted ourselves.
+- ~~Current change detection is file-level only (lastModified snapshot → "new" marker).~~
+- ~~Feasible: snapshot each artifact's raw content in IndexedDB per scan, line-diff old vs new, render the diff (unified view or highlighted lines in the pane).~~
+- ~~The File System Access API exposes no previous versions, so content must be snapshotted ourselves.~~
 
 ## ~Reduce live-monitoring poll interval 30s → 10s~ ✅ shipped in v1.4.0
 

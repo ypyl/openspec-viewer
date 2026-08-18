@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- OpenSpec Local Viewer v1.9.0 -->
+<!-- OpenSpec Local Viewer v1.10.0 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -552,6 +552,63 @@
       word-break: break-word;
     }
 
+    /* ---------- Diff view (content change detection) ---------- */
+    .diff {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--panel);
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+    .diff summary {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+      user-select: none;
+      font-size: 12.5px;
+      font-weight: 600;
+      list-style: none;
+    }
+    .diff summary::-webkit-details-marker { display: none; }
+    .diff summary::before { content: '▸'; color: var(--fg-subtle); transition: transform .12s; }
+    .diff[open] summary::before { transform: rotate(90deg); }
+    .diff summary:hover { background: rgba(110,118,129,.06); }
+    .diff-ts { margin-left: auto; font-weight: 400; font-size: 11px; color: var(--fg-subtle); }
+    .dh-add { color: var(--green); font-size: 11px; font-weight: 700; }
+    .dh-del { color: var(--red); font-size: 11px; font-weight: 700; }
+    .diff-view {
+      margin: 0;
+      padding: 4px 0 8px;
+      border-top: 1px solid var(--border-muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12.5px;
+      line-height: 1.55;
+      overflow-x: auto;
+    }
+    .diff-line { display: flex; white-space: pre-wrap; word-break: break-word; }
+    .diff-line .ln {
+      flex-shrink: 0;
+      width: 3.2em;
+      text-align: right;
+      padding: 0 8px;
+      color: var(--fg-subtle);
+      user-select: none;
+    }
+    .diff-line .sign { flex-shrink: 0; width: 1.4em; text-align: center; color: var(--fg-subtle); user-select: none; }
+    .diff-line .code { flex: 1; padding: 0 10px 0 4px; }
+    .diff-line.del .code { background: color-mix(in srgb, var(--red) 13%, transparent); }
+    .diff-line.add .code { background: color-mix(in srgb, var(--green) 13%, transparent); }
+    .diff-line.del .sign { color: var(--red); }
+    .diff-line.add .sign { color: var(--green); }
+    .diff-line.hdr .ln, .diff-line.hdr .sign { color: var(--accent); }
+    .diff-line.hdr .code {
+      color: var(--fg-muted);
+      background: color-mix(in srgb, var(--accent) 9%, transparent);
+    }
+    .diff-hint { flex-shrink: 0; font-size: 10.5px; display: inline-flex; gap: 4px; }
+
     /* ---------- Review: highlights & comments ---------- */
     /* mark.hl wraps commented text as an invisible anchor for scroll-to-focus;
        no background so the file reads cleanly. */
@@ -880,7 +937,7 @@
 <body>
   <header>
     <h1>OpenSpec <span class="dot">•</span> Local Viewer</h1>
-    <span class="version">v1.9.0</span>
+    <span class="version">v1.10.0</span>
     <button id="theme-btn" class="theme-btn" title="Toggle dark / light theme">☀️</button>
     <div id="stats"></div>
     <button id="review-btn" class="review-btn" title="Review comments across all artifacts">💬<span id="review-count" class="review-count" hidden></span></button>
@@ -1127,6 +1184,10 @@
     let isScanning = false;       // guard against overlapping scans
     const fileState = new Map();  // rel -> { handle, lastModified } snapshot for change detection
     const paneCache = new Map();  // rel -> rendered pane HTML
+    const diffInfo = new Map();   // rel -> { hunks, added, removed, ts } line diff vs last snapshot
+    const freshDiffs = new Set(); // rels whose diff came from the latest scan; never cleared —
+                                  // auto-open applies at first render only, and panes are cached
+                                  // afterwards, so the user's open/collapsed choice persists
     const GROUPS = ['Changes', 'Specs', 'Archive', 'Config'];
 
     /* ---------- Derived state: computed + effects re-render the DOM ---------- */
@@ -1266,10 +1327,14 @@
 
     const IDB_NAME = 'osviewer';
     const IDB_STORE = 'handles';
+    const IDB_SNAP = 'snapshots';  // last scan's artifact text, keyed by rel path
     function idbOpen() {
       return new Promise((res, rej) => {
-        const req = indexedDB.open(IDB_NAME, 1);
-        req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE);
+        const req = indexedDB.open(IDB_NAME, 2);
+        req.onupgradeneeded = () => {
+          req.result.createObjectStore(IDB_STORE);
+          req.result.createObjectStore(IDB_SNAP, { keyPath: 'rel' });
+        };
         req.onsuccess = () => res(req.result);
         req.onerror = () => rej(req.error);
       });
@@ -1295,6 +1360,49 @@
           r.onerror = () => rej(r.error);
         });
       } catch (e) { return null; }
+    }
+
+    // Content snapshots for change diffs. The File System Access API exposes
+    // no previous versions, so we store each artifact's raw text (plus the
+    // mtime it was read at) after every scan; the next scan line-diffs against
+    // it. These survive reloads, so diffs hold across page refreshes too.
+    async function getSnapshot(rel) {
+      const db = await idbOpen();
+      return await new Promise((res, rej) => {
+        const tx = db.transaction(IDB_SNAP, 'readonly');
+        const r = tx.objectStore(IDB_SNAP).get(rel);
+        r.onsuccess = () => res(r.result || null);
+        r.onerror = () => rej(r.error);
+      });
+    }
+    async function putSnapshot(rel, snap) {
+      const db = await idbOpen();
+      await new Promise((res, rej) => {
+        const tx = db.transaction(IDB_SNAP, 'readwrite');
+        tx.objectStore(IDB_SNAP).put(snap);
+        tx.oncomplete = res;
+        tx.onerror = () => rej(tx.error);
+      });
+    }
+    async function deleteSnapshot(rel) {
+      const db = await idbOpen();
+      await new Promise((res, rej) => {
+        const tx = db.transaction(IDB_SNAP, 'readwrite');
+        tx.objectStore(IDB_SNAP).delete(rel);
+        tx.oncomplete = res;
+        tx.onerror = () => rej(tx.error);
+      });
+    }
+    async function clearSnapshots() {
+      try {
+        const db = await idbOpen();
+        await new Promise((res, rej) => {
+          const tx = db.transaction(IDB_SNAP, 'readwrite');
+          tx.objectStore(IDB_SNAP).clear();
+          tx.oncomplete = res;
+          tx.onerror = () => rej(tx.error);
+        });
+      } catch (e) { /* non-fatal */ }
     }
 
     pickBtn.addEventListener('click', async () => {
@@ -1349,6 +1457,8 @@
         paneCache.clear();
         fileState.clear();
         recentRels.value = new Set();
+        diffInfo.clear();
+        freshDiffs.clear();
         currentRel.value = null;
         currentKey.value = null;
         pruneHighlights();
@@ -1368,16 +1478,20 @@
 
     /* ---------- Live monitoring ---------- */
 
-    async function startMonitoring(handle) {
+    async function startMonitoring(handle, keepSnapshots) {
       dirHandle.value = handle;
       // The picked folder is the project root (use its name) or openspec itself.
       storePrefix = handle && handle.name && handle.name !== 'openspec'
         ? handle.name + '/openspec/'
         : 'openspec/';
-      // Fresh folder: drop the previous folder's diff baseline and markers
-      // so the first scan doesn't flag every file as newly changed.
+      // Fresh pick: drop the previous folder's baseline and markers so the
+      // first scan doesn't flag everything as newly changed. autoReopen on
+      // reload keeps persisted snapshots so content diffs survive a refresh.
+      if (!keepSnapshots) clearSnapshots();
       fileState.clear();
       recentRels.value = new Set();
+      diffInfo.clear();
+      freshDiffs.clear();
       await scan(true);
       if (!currentRel.value) await autoOpenFirst();
       clearInterval(pollTimer);
@@ -1434,16 +1548,37 @@
         let activeChanged = false;
         const hadPrior = fileState.size > 0;   // false on the very first scan
         const updates = [];
+        const diffsSeen = [];   // rels whose content diffed vs the persisted snapshot this scan
         let removals = 0;
         for (const [rel, info] of current) {
           const prev = fileState.get(rel);
+          const modified = !prev || prev.lastModified !== info.lastModified;
+          if (modified) {
+            // Content-level diff against the persisted snapshot. The File System
+            // Access API exposes no old versions, so snapshots are how we know
+            // exactly what changed; they survive reloads, so diffs hold across
+            // page refreshes too. IndexedDB failure just degrades to the
+            // file-level markers below.
+            try {
+              const text = await handleText(info.handle);
+              const snap = await getSnapshot(rel);
+              if (snap && snap.text !== undefined && snap.text !== text) {
+                const d = diffLines(snap.text, text);
+                if (d) { diffInfo.set(rel, d); diffsSeen.push(rel); }
+                else diffInfo.delete(rel);
+              } else if (!snap) {
+                diffInfo.delete(rel);   // first baseline — nothing to diff yet
+              }
+              await putSnapshot(rel, { rel, text, mtime: info.lastModified });
+            } catch (e) { /* snapshotting unavailable — markers still work */ }
+            paneCache.delete(rel);
+          }
           if (!prev) {
             changed = true;
             if (hadPrior) updates.push(rel);
           } else if (prev.lastModified !== info.lastModified) {
             changed = true;
             if (hadPrior) updates.push(rel);
-            paneCache.delete(rel);
             if (rel === currentRel.value) activeChanged = true;
           }
         }
@@ -1451,7 +1586,12 @@
           if (!current.has(rel)) {
             changed = true;
             paneCache.delete(rel);
-            if (hadPrior) removals++;
+            diffInfo.delete(rel);
+            freshDiffs.delete(rel);
+            if (hadPrior) {
+              removals++;
+              try { await deleteSnapshot(rel); } catch (e) {}   // drop its diff baseline too
+            }
           }
         }
 
@@ -1465,6 +1605,14 @@
         fileState.clear();
         current.forEach((v, k) => fileState.set(k, v));
 
+        // Content diffs drive the same markers as file-level updates, and mark
+        // their panes to auto-open the diff on first view.
+        if (diffsSeen.length) {
+          const fresh = diffsSeen.filter(rel => !recentRels.value.has(rel));
+          diffsSeen.forEach(rel => freshDiffs.add(rel));
+          if (fresh.length) recentRels.value = new Set([...recentRels.value, ...fresh]);
+        }
+
         if (hadPrior && (updates.length || removals)) {
           const added = updates.filter(rel => !recentRels.value.has(rel));
           if (added.length) recentRels.value = new Set([...recentRels.value, ...added]);
@@ -1472,6 +1620,10 @@
           if (added.length) parts.push(`${added.length} artifact${added.length === 1 ? '' : 's'} updated`);
           if (removals) parts.push(`${removals} deleted`);
           if (parts.length) showToast(parts.join(' · '));
+        } else if (!hadPrior && diffsSeen.length) {
+          // Reload or re-open of the same folder: markers come from persisted
+          // snapshots, so changes since the last visit still surface.
+          showToast(`${diffsSeen.length} artifact${diffsSeen.length === 1 ? '' : 's'} changed since your last visit`);
         }
 
         if (changed && fileState.size) {
@@ -1504,6 +1656,16 @@
       if (s.has(g)) s.delete(g); else s.add(g);
       collapsed.value = s;
       try { localStorage.setItem('osviewer.collapsed', JSON.stringify([...s])); } catch (e) {}
+    }
+
+    // Compact +/- counts next to an artifact or change in the list.
+    function diffHint(diffs) {
+      let a = 0, r = 0;
+      for (const d of diffs) { a += d.added; r += d.removed; }
+      if (!a && !r) return '';
+      return html`<span class="diff-hint" title="Line changes since last snapshot">${
+        a ? html`<b class="dh-add">+${a}</b>` : ''} ${
+        r ? html`<b class="dh-del">−${r}</b>` : ''}</span>`;
     }
 
     function buildListHtml() {
@@ -1557,6 +1719,7 @@
                 ${isNew ? html`<span class="new-dot" title="Updated since last scan"></span>` : ''}
                 <span class="path">${m.label}</span>
                 ${cnt ? html`<span class="cmt-count">${cnt}</span>` : ''}
+                ${diffHint(m.files.map(f => diffInfo.get(f.rel)).filter(Boolean))}
                 ${m.date ? html`<span class="date">${m.date}</span>` : ''}
               </div>`;
             });
@@ -1572,6 +1735,7 @@
                 ${isNew ? html`<span class="new-dot" title="Updated since last scan"></span>` : ''}
                 <span class="path">${displayLabel(f.rel, g)}</span>
                 ${cnt ? html`<span class="cmt-count">${cnt}</span>` : ''}
+                ${diffHint([diffInfo.get(f.rel)].filter(Boolean))}
                 ${badge}
               </div>`;
             });
@@ -1607,21 +1771,137 @@
           : html`<span class="seg">${seg}</span><span class="sep">/</span>`));
     }
 
+    // Read raw text from a FileSystemFileHandle or an uploaded File.
+    async function handleText(h) {
+      return typeof h.getFile === 'function' ? await (await h.getFile()).text() : await h.text();
+    }
+
+    function splitLines(s) {
+      const t = String(s).replace(/\r\n?/g, '\n');
+      if (t === '') return [];
+      const lines = t.split('\n');
+      if (lines[lines.length - 1] === '') lines.pop();   // drop the trailing empty line
+      return lines;
+    }
+
+    // Line-by-line diff (LCS with a 3-line context window). Returns null for
+    // identical texts. Fine for small artifacts; very large files degrade to a
+    // single all-changed hunk instead of a giant DP table.
+    function diffLines(oldText, newText) {
+      const a = splitLines(oldText), b = splitLines(newText);
+      if (a.join('\n') === b.join('\n')) return null;
+      const n = a.length, m = b.length;
+      const ops = [];
+      if (n * m > 4000000) {
+        for (let i = 0; i < n; i++) ops.push(['-', i]);
+        for (let j = 0; j < m; j++) ops.push(['+', j]);
+      } else {
+        const dp = Array.from({ length: n + 1 }, () => new Uint32Array(m + 1));
+        for (let i = n - 1; i >= 0; i--)
+          for (let j = m - 1; j >= 0; j--)
+            dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+        let i = 0, j = 0;
+        while (i < n && j < m) {
+          if (a[i] === b[j]) { ops.push(['=', i, j]); i++; j++; }
+          else if (dp[i + 1][j] >= dp[i][j + 1]) { ops.push(['-', i]); i++; }
+          else { ops.push(['+', j]); j++; }
+        }
+        while (i < n) { ops.push(['-', i]); i++; }
+        while (j < m) { ops.push(['+', j]); j++; }
+      }
+
+      // Keep CLOSE lines of context around each change, then group the
+      // contiguous marked runs into hunks.
+      const CLOSE = 3;
+      const max = ops.length;
+      const marked = new Uint8Array(max);
+      for (let k = 0; k < max; k++) {
+        if (ops[k][0] === '=') continue;
+        for (let t = Math.max(0, k - CLOSE); t <= Math.min(max - 1, k + CLOSE); t++) marked[t] = 1;
+      }
+      const hunks = [];
+      let oldPos = 0, newPos = 0;   // 0-based positions consumed so far
+      let k = 0;
+      while (k < max) {
+        if (!marked[k]) {
+          if (ops[k][0] !== '+') oldPos++;
+          if (ops[k][0] !== '-') newPos++;
+          k++;
+          continue;
+        }
+        const oldStart = oldPos + 1, newStart = newPos + 1;
+        const lines = [];
+        let oc = 0, nc = 0;         // old/new line counts inside this hunk
+        while (k < max && marked[k]) {
+          const t = ops[k][0];
+          if (t === '=') { lines.push([' ', oldPos + 1, newPos + 1, a[ops[k][1]]]); oldPos++; newPos++; oc++; nc++; }
+          else if (t === '-') { lines.push(['-', oldPos + 1, 0, a[ops[k][1]]]); oldPos++; oc++; }
+          else { lines.push(['+', 0, newPos + 1, b[ops[k][1]]]); newPos++; nc++; }
+          k++;
+        }
+        hunks.push({ oldStart, newStart, oldCount: oc, newCount: nc, lines });
+      }
+      let added = 0, removed = 0;
+      for (const h of hunks) for (const l of h.lines) {
+        if (l[0] === '+') added++;
+        if (l[0] === '-') removed++;
+      }
+      return { hunks, added, removed, ts: Date.now() };
+    }
+
+    function relTime(ts) {
+      const m = Math.floor((Date.now() - ts) / 60000);
+      if (m < 1) return 'just now';
+      if (m < 60) return m + ' min ago';
+      const h = Math.floor(m / 60);
+      if (h < 24) return h + (h === 1 ? ' hr ago' : ' hrs ago');
+      const d = Math.floor(h / 24);
+      return d + (d === 1 ? ' day ago' : ' days ago');
+    }
+
+    function hunkHeader(h) {
+      const f = (start, count) => count === 1 ? String(start) : `${start},${count}`;
+      return `@@ -${f(h.oldStart, h.oldCount)} +${f(h.newStart, h.newCount)} @@`;
+    }
+
+    // Collapsible unified diff rendered above an artifact pane. Stays out of
+    // .annotatable so highlight offsets keep matching the rendered content.
+    function diffBlock(di, autoOpen) {
+      return html`<details class="diff"${autoOpen ? ' open' : ''}>
+        <summary>
+          <span>Changed since last snapshot</span>
+          ${di.added ? html`<b class="dh-add">+${di.added}</b>` : ''}
+          ${di.removed ? html`<b class="dh-del">−${di.removed}</b>` : ''}
+          <span class="diff-ts">${relTime(di.ts)}</span>
+        </summary>
+        <pre class="diff-view">${
+          joinHtml(di.hunks.map(h => html`
+            <div class="diff-line hdr"><span class="ln">@@</span><span class="sign"></span><span class="code">${hunkHeader(h)}</span></div>
+            ${joinHtml(h.lines.map(l => {
+              const [t, oln, nln, text] = l;
+              const cls = t === '+' ? 'add' : t === '-' ? 'del' : 'ctx';
+              return html`<div class="diff-line ${cls}"><span class="ln">${t === '+' ? nln : oln}</span><span class="sign">${t}</span><span class="code">${text}</span></div>`;
+            }))}
+          `))
+        }</pre>
+      </details>`;
+    }
+
     async function paneHtml(rel) {
       if (paneCache.has(rel)) return paneCache.get(rel);
       const entry = allFiles.value.find(f => f.rel === rel);
       if (!entry) return '<div class="empty">File not found.</div>';
-      const f = entry.handle;
-      // FileSystemFileHandle re-reads the live file; a plain File is a one-shot snapshot.
-      const text = typeof f.getFile === 'function' ? await (await f.getFile()).text() : await f.text();
+      const di = diffInfo.get(rel);
+      const diffHtml = di ? diffBlock(di, freshDiffs.has(rel)) : '';
+      const text = await handleText(entry.handle);
       const name = rel.split('/').pop();
       // config.yaml renders raw only — the metadata card is redundant with the
       // file's own schema/context/rules keys. Metadata files keep the card.
       const isConfig = rel === 'config.yaml';
       const pane = (name.endsWith('.yaml') || name.endsWith('.yml'))
         ? yamlPane(text, !isConfig) : markdownPane(rel, text);
-      paneCache.set(rel, pane);
-      return pane;
+      paneCache.set(rel, diffHtml + pane);
+      return paneCache.get(rel);
     }
 
     // A change artifact (proposal/spec/design/tasks/metadata) opens the whole
@@ -2258,7 +2538,7 @@
         const saved = await loadHandle();
         if (!saved) return;
         if (await saved.queryPermission({ mode: 'read' }) === 'granted') {
-          await startMonitoring(saved);
+          await startMonitoring(saved, true);   // keep snapshots: diffs span reloads
         }
       } catch (e) { /* non-fatal */ }
     }
