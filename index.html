@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- OpenSpec Local Viewer v1.3.0 -->
+<!-- OpenSpec Local Viewer v1.4.0 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -578,7 +578,7 @@
 <body>
   <header>
     <h1>OpenSpec <span class="dot">•</span> Local Viewer</h1>
-    <span class="version">v1.3.0</span>
+    <span class="version">v1.4.0</span>
     <button id="theme-btn" class="theme-btn" title="Toggle dark / light theme">☀️</button>
     <div id="stats"></div>
   </header>
@@ -892,7 +892,7 @@
       await scan(true);
       if (!currentRel) await autoOpenFirst();
       clearInterval(pollTimer);
-      pollTimer = setInterval(() => scan(false), 30000);
+      pollTimer = setInterval(() => scan(false), 10000);
     }
 
     function stopMonitoring() {
