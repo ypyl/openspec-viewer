@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- OpenSpec Local Viewer v1.10.0 -->
+<!-- OpenSpec Local Viewer v1.10.1 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -937,7 +937,7 @@
 <body>
   <header>
     <h1>OpenSpec <span class="dot">•</span> Local Viewer</h1>
-    <span class="version">v1.10.0</span>
+    <span class="version">v1.10.1</span>
     <button id="theme-btn" class="theme-btn" title="Toggle dark / light theme">☀️</button>
     <div id="stats"></div>
     <button id="review-btn" class="review-btn" title="Review comments across all artifacts">💬<span id="review-count" class="review-count" hidden></span></button>
@@ -1332,8 +1332,12 @@
       return new Promise((res, rej) => {
         const req = indexedDB.open(IDB_NAME, 2);
         req.onupgradeneeded = () => {
-          req.result.createObjectStore(IDB_STORE);
-          req.result.createObjectStore(IDB_SNAP, { keyPath: 'rel' });
+          // Guard both stores: on a v1->v2 upgrade 'handles' already exists
+          // and re-creating it throws ConstraintError, which would abort the
+          // upgrade and break handle persistence for returning users.
+          const db = req.result;
+          if (!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE);
+          if (!db.objectStoreNames.contains(IDB_SNAP)) db.createObjectStore(IDB_SNAP, { keyPath: 'rel' });
         };
         req.onsuccess = () => res(req.result);
         req.onerror = () => rej(req.error);
