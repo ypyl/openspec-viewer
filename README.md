@@ -12,6 +12,9 @@ One `index.html` with no build step and no dependencies beyond CDN scripts.
   and polls every 30 seconds, so added, modified, and deleted artifacts appear
   without reloading. Open files hot-refresh in place.
 - Open a change to see its artifacts as tabs: Proposal, Spec(s), Design, Tasks, Metadata.
+- **Review mode**: select text in an artifact and add a comment; highlights are kept
+  per file, then collected with the artifact content into a single LLM fix prompt
+  (copy it or open it in a new tab).
 - Dark and light themes, collapsible sidebar sections, and a filter box.
 - Everything reads locally — nothing is uploaded.
 

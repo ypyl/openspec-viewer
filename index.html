@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- OpenSpec Local Viewer v1.4.0 -->
+<!-- OpenSpec Local Viewer v1.5.0 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -525,6 +525,269 @@
       word-break: break-word;
     }
 
+    /* ---------- Review: highlights & comments ---------- */
+    mark.hl {
+      background: color-mix(in srgb, var(--accent) 22%, transparent);
+      color: inherit;
+      border-radius: 2px;
+      padding: 0 .1em;
+      cursor: pointer;
+      transition: background .12s;
+    }
+    mark.hl:hover { background: color-mix(in srgb, var(--accent) 38%, transparent); }
+    mark.hl.active { outline: 2px solid var(--accent); }
+
+    .review-btn {
+      background: var(--bg);
+      color: var(--fg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      height: 30px;
+      padding: 0 10px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background .15s;
+    }
+    .review-btn:hover { background: var(--panel); }
+    .review-btn.active { border-color: var(--accent); color: var(--accent); }
+    .review-count {
+      font-size: 10px;
+      font-weight: 700;
+      background: var(--accent-dim);
+      color: #fff;
+      border-radius: 10px;
+      min-width: 16px;
+      height: 16px;
+      padding: 0 4px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+    .review-count[hidden] { display: none; }
+
+    .ann-bubble {
+      position: fixed;
+      z-index: 70;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 8px 30px rgba(0,0,0,.4);
+      padding: 6px;
+      max-width: 320px;
+    }
+    .ann-add {
+      background: var(--accent-dim);
+      color: #fff;
+      border: 1px solid rgba(240,246,252,.1);
+      border-radius: var(--radius);
+      padding: 6px 12px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .ann-add:hover { background: #2a6fd9; }
+    .ann-text {
+      width: 100%;
+      background: var(--bg);
+      color: var(--fg);
+      border: 1px solid var(--border-muted);
+      border-radius: var(--radius);
+      padding: 7px 9px;
+      font: inherit;
+      font-size: 13px;
+      resize: vertical;
+      outline: none;
+    }
+    .ann-text:focus { border-color: var(--accent-dim); box-shadow: 0 0 0 3px rgba(31,111,235,.3); }
+    .ann-actions { display: flex; gap: 6px; margin-top: 6px; justify-content: flex-end; }
+    .ann-actions button {
+      background: var(--bg);
+      color: var(--fg);
+      border: 1px solid var(--border-muted);
+      border-radius: var(--radius);
+      padding: 5px 10px;
+      font-size: 12.5px;
+      cursor: pointer;
+    }
+    .ann-actions .ann-save { background: var(--accent-dim); color: #fff; border-color: transparent; font-weight: 500; }
+    .ann-actions button:hover { filter: brightness(1.15); }
+
+    .review-drawer {
+      position: fixed;
+      top: 0; right: 0; bottom: 0;
+      width: 360px;
+      max-width: 94vw;
+      background: var(--panel);
+      border-left: 1px solid var(--border);
+      z-index: 55;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(105%);
+      transition: transform .22s ease;
+      box-shadow: -12px 0 40px rgba(0,0,0,.35);
+    }
+    .review-drawer.open { transform: none; }
+    .review-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border-muted);
+      flex-shrink: 0;
+    }
+    .review-title { font-size: 13px; font-weight: 600; letter-spacing: .3px; }
+    .review-file {
+      font-size: 11.5px;
+      color: var(--fg-muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      word-break: break-all;
+      margin-top: 2px;
+    }
+    .review-close {
+      background: none;
+      border: none;
+      color: var(--fg-muted);
+      font-size: 15px;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .review-close:hover { color: var(--fg); background: rgba(110,118,129,.15); }
+    .review-list { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+    .rv-empty { color: var(--fg-subtle); font-size: 13px; line-height: 1.6; padding: 18px 12px; }
+    .rv-item {
+      display: flex;
+      gap: 10px;
+      padding: 10px 12px;
+      background: var(--bg);
+      border: 1px solid var(--border-muted);
+      border-radius: var(--radius);
+      animation: rv-in .15s ease-out;
+    }
+    @keyframes rv-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+    .rv-item.flash { background: color-mix(in srgb, var(--accent) 18%, var(--bg)); }
+    .rv-num {
+      flex-shrink: 0;
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: color-mix(in srgb, var(--accent) 15%, transparent);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      margin-top: 1px;
+    }
+    .rv-body { flex: 1; min-width: 0; }
+    .rv-text {
+      font-size: 12px;
+      color: var(--fg);
+      background: color-mix(in srgb, var(--accent) 10%, transparent);
+      border-left: 2px solid var(--accent-dim);
+      padding: 3px 8px;
+      border-radius: 0 4px 4px 0;
+      word-break: break-word;
+      margin-bottom: 6px;
+    }
+    .rv-comment { font-size: 13px; color: var(--fg); line-height: 1.5; }
+    .rv-nocomment { color: var(--fg-subtle); font-style: italic; }
+    .rv-stale { font-size: 11px; color: var(--orange); margin-top: 4px; }
+    .rv-item.stale .rv-text { text-decoration: line-through; opacity: .7; }
+    .rv-del {
+      flex-shrink: 0;
+      background: none;
+      border: none;
+      color: var(--fg-subtle);
+      cursor: pointer;
+      font-size: 12px;
+      padding: 2px 4px;
+      border-radius: 4px;
+      align-self: flex-start;
+    }
+    .rv-del:hover { color: var(--red); background: rgba(248,81,73,.12); }
+
+    .review-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 12px 14px;
+      border-top: 1px solid var(--border-muted);
+      flex-shrink: 0;
+    }
+    .review-action {
+      padding: 9px 12px;
+      background: var(--bg);
+      color: var(--fg);
+      border: 1px solid var(--border-muted);
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .review-action:hover:not(:disabled) { background: rgba(110,118,129,.12); }
+    .review-action.primary { background: var(--accent-dim); color: #fff; border-color: transparent; }
+    .review-action.primary:hover:not(:disabled) { background: #2a6fd9; }
+    .review-action:disabled { opacity: .45; cursor: not-allowed; }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 80;
+      background: color-mix(in srgb, var(--bg) 55%, transparent);
+      backdrop-filter: blur(2px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal[hidden] { display: none; }
+    .modal-box {
+      width: min(860px, 100%);
+      max-height: 88vh;
+      display: flex;
+      flex-direction: column;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.5);
+    }
+    .modal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-muted);
+    }
+    .modal-head h3 { margin: 0; font-size: 14px; }
+    #prompt-text {
+      flex: 1;
+      min-height: 320px;
+      margin: 14px;
+      background: var(--code-bg);
+      color: var(--fg);
+      border: 1px solid var(--border-muted);
+      border-radius: var(--radius);
+      padding: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12.5px;
+      line-height: 1.6;
+      resize: vertical;
+      outline: none;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      padding: 0 14px 12px;
+      justify-content: flex-end;
+    }
+    .modal-hint { padding: 0 14px 14px; margin: 0; font-size: 12px; color: var(--fg-subtle); }
+
     /* ---------- Scrollbars ---------- */
     ::-webkit-scrollbar { width: 10px; height: 10px; }
     ::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 5px; border: 2px solid var(--panel); }
@@ -578,8 +841,9 @@
 <body>
   <header>
     <h1>OpenSpec <span class="dot">•</span> Local Viewer</h1>
-    <span class="version">v1.4.0</span>
+    <span class="version">v1.5.0</span>
     <button id="theme-btn" class="theme-btn" title="Toggle dark / light theme">☀️</button>
+    <button id="review-btn" class="review-btn" title="Review comments on the open artifact">💬<span id="review-count" class="review-count" hidden></span></button>
     <div id="stats"></div>
   </header>
 
@@ -600,6 +864,36 @@
     </aside>
 
     <main id="content"></main>
+  </div>
+
+  <div id="review" class="review-drawer" aria-label="Review">
+    <div class="review-head">
+      <div>
+        <div class="review-title">Review</div>
+        <div id="review-file" class="review-file"></div>
+      </div>
+      <button id="review-close" class="review-close" title="Close">✕</button>
+    </div>
+    <div id="review-list" class="review-list"></div>
+    <div class="review-actions">
+      <button id="copy-prompt-btn" class="review-action primary" disabled>📋 Copy fix prompt</button>
+      <button id="send-llm-btn" class="review-action" disabled>🤖 Send to LLM…</button>
+    </div>
+  </div>
+
+  <div id="prompt-modal" class="modal" hidden>
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3>LLM fix prompt</h3>
+        <button id="pmt-close" class="review-close" title="Close">✕</button>
+      </div>
+      <textarea id="prompt-text" spellcheck="false" placeholder="Generated fix prompt…"></textarea>
+      <div class="modal-actions">
+        <button id="pmt-copy" class="review-action primary">📋 Copy</button>
+        <button id="pmt-open" class="review-action">Open in new tab</button>
+      </div>
+      <p class="modal-hint">Paste the prompt into any LLM; it returns the corrected file. Highlights &amp; comments stay local.</p>
+    </div>
   </div>
 
   <div id="loading" class="loading-overlay" hidden>
@@ -855,6 +1149,7 @@
         currentRel = null;
         currentKey = null;
         buildChangeMeta();
+        pruneHighlights();
         renderList();
         updateStats();
         await autoOpenFirst();
@@ -1150,6 +1445,7 @@
     async function openFile(rel) {
       const entry = allFiles.find(f => f.rel === rel);
       if (!entry) return;
+      hideAnnBubble();
       const key = changeOf(rel);
       if (key) { openChange(key, rel); return; }
       currentRel = rel;
@@ -1158,12 +1454,15 @@
       renderList();
       contentEl.innerHTML = `<div class="crumb">${crumbFor(rel)}</div><div class="pane-loading">Loading…</div>`;
       contentEl.querySelector('.pane-loading').outerHTML = await paneHtml(rel);
+      applyHighlights(rel);
+      renderReviewPanel();
       contentEl.scrollTop = 0;
     }
 
     async function openChange(key, initialRel) {
       const meta = changeMeta.get(key);
       if (!meta) return;
+      hideAnnBubble();
       currentKey = key;
       currentRel = initialRel || meta.proposalRel || null;
       meta.files.forEach(f => recentRels.delete(f.rel)); // opening the change reviews it
@@ -1218,6 +1517,8 @@
       const panes = contentEl.querySelector('#tab-panes');
       panes.className = '';
       panes.innerHTML = await paneHtml(t.rel);
+      applyHighlights(t.rel);
+      renderReviewPanel();
       contentEl.scrollTop = 0;
       renderList();
     }
@@ -1235,7 +1536,7 @@
           card = `<div class="meta-error">YAML parse failed: ${esc(err.message)}</div>`;
         }
       }
-      return `${card}<pre class="yaml-view">${esc(text)}</pre>`;
+      return `${card}<pre class="yaml-view annotatable">${esc(text)}</pre>`;
     }
 
     function markdownPane(rel, text) {
@@ -1269,7 +1570,7 @@
 
       return `${progressHtml}
         ${metaHtml}
-        <div class="markdown">${safe}</div>`;
+        <div class="markdown annotatable">${safe}</div>`;
     }
 
     function parseFrontmatter(text) {
@@ -1284,6 +1585,421 @@
       return `<div class="meta-card"><h3>Metadata</h3><table class="meta-table">${
         rows.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${v}</td></tr>`).join('')}</table></div>`;
     }
+
+    /* ---------- Review: highlights & comments → LLM fix prompt ---------- */
+
+    const highlights = new Map();  // rel -> [{ id, start, end, text, comment, ts }]
+    let annBubble = null;          // floating selection toolbar / comment editor
+    let annPending = null;         // { start, end, text } awaiting a comment
+
+    const reviewBtn = document.getElementById('review-btn');
+    const reviewEl = document.getElementById('review');
+    const reviewCountEl = document.getElementById('review-count');
+    const reviewFileEl = document.getElementById('review-file');
+    const reviewListEl = document.getElementById('review-list');
+    const copyPromptBtn = document.getElementById('copy-prompt-btn');
+    const sendLlmBtn = document.getElementById('send-llm-btn');
+    const promptModal = document.getElementById('prompt-modal');
+    const promptTextEl = document.getElementById('prompt-text');
+
+    function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+
+    function loadHighlights() {
+      try {
+        const obj = JSON.parse(localStorage.getItem('osviewer.highlights') || '{}');
+        for (const [rel, list] of Object.entries(obj)) {
+          if (Array.isArray(list)) highlights.set(rel, list);
+        }
+      } catch (e) {}
+    }
+    loadHighlights();
+
+    function persistHighlights() {
+      try {
+        const obj = {};
+        for (const [rel, list] of highlights) if (list.length) obj[rel] = list;
+        localStorage.setItem('osviewer.highlights', JSON.stringify(obj));
+      } catch (e) {}
+    }
+
+    // Drop highlights whose artifact no longer exists (new folder / reload).
+    function pruneHighlights() {
+      for (const rel of [...highlights.keys()]) {
+        if (!allFiles.some(f => f.rel === rel)) highlights.delete(rel);
+      }
+      persistHighlights();
+    }
+
+    async function readFileText(rel) {
+      const entry = allFiles.find(f => f.rel === rel);
+      if (!entry) return '';
+      const f = entry.handle;
+      return typeof f.getFile === 'function' ? await (await f.getFile()).text() : await f.text();
+    }
+
+    /* ---- Selection → floating toolbar ---- */
+
+    function findAnnContainer(range) {
+      const cNode = range.commonAncestorContainer;
+      const cEl = cNode.nodeType === 1 ? cNode : cNode.parentElement;
+      const container = cEl && cEl.closest('.annotatable');
+      if (!container) return null;
+      const startEl = range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentElement;
+      const endEl = range.endContainer.nodeType === 1 ? range.endContainer : range.endContainer.parentElement;
+      if (!container.contains(startEl) || !container.contains(endEl)) return null;
+      return container;
+    }
+
+    // Character offset of a boundary (node, offset) within root's text content.
+    // Counts text nodes directly (never Range.toString) so <br> and element
+    // boundaries don't shift offsets.
+    function textInSubtree(node) {
+      if (node.nodeType === 3) return node.data.length;   // tree walker skips its own root
+      let count = 0;
+      const w = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+      let n;
+      while ((n = w.nextNode())) count += n.data.length;
+      return count;
+    }
+    function textOffsetAt(root, node, offset) {
+      if (node === root && node.nodeType === 1) {           // boundary at the container itself
+        const before = node.childNodes[offset - 1];
+        return before ? textInSubtree(before) : 0;
+      }
+      const w = document.createNodeIterator(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
+      let acc = 0, n;
+      while ((n = w.nextNode())) {
+        if (n === node) {
+          if (n.nodeType === 3) return acc + Math.min(offset, n.data.length);
+          const before = n.childNodes[offset - 1];
+          return acc + (before ? textInSubtree(before) : 0);
+        }
+        if (n.nodeType === 3) acc += n.data.length;
+      }
+      return acc;
+    }
+    function selOffsets(container, range) {
+      const start = textOffsetAt(container, range.startContainer, range.startOffset);
+      const end = textOffsetAt(container, range.endContainer, range.endOffset);
+      const text = container.textContent.slice(start, end);
+      return { start, end, text };
+    }
+
+    function hideAnnBubble() {
+      if (annBubble) { annBubble.remove(); annBubble = null; }
+      annPending = null;
+    }
+
+    function onSelect() {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed || sel.rangeCount === 0) return;
+      const range = sel.getRangeAt(0);
+      const container = findAnnContainer(range);
+      if (!container) return;
+      const info = selOffsets(container, range);
+      if (!info.text.trim()) return;
+      showAnnBubble(range, info);
+    }
+
+    function showAnnBubble(range, info) {
+      hideAnnBubble();
+      const rect = range.getBoundingClientRect();
+      const bub = document.createElement('div');
+      bub.className = 'ann-bubble';
+      bub.innerHTML = '<button type="button" class="ann-add">💬 Comment</button>';
+      bub.style.top = (rect.bottom + 8) + 'px';
+      bub.style.left = Math.max(8, Math.min(rect.left, innerWidth - 230)) + 'px';
+      document.body.appendChild(bub);
+      annBubble = bub;
+      annPending = info;
+      bub.querySelector('.ann-add').addEventListener('click', () => {
+        bub.innerHTML = `
+          <textarea class="ann-text" rows="3" placeholder="What should be fixed?"></textarea>
+          <div class="ann-actions">
+            <button type="button" class="ann-cancel">Cancel</button>
+            <button type="button" class="ann-save">Save comment</button>
+          </div>`;
+        bub.querySelector('.ann-cancel').addEventListener('click', hideAnnBubble);
+        bub.querySelector('.ann-save').addEventListener('click', saveAnnComment);
+        const ta = bub.querySelector('.ann-text');
+        ta.focus();
+        ta.addEventListener('keydown', e => {
+          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) saveAnnComment();
+          if (e.key === 'Escape') hideAnnBubble();
+        });
+      });
+    }
+
+    function saveAnnComment() {
+      const rel = currentRel;
+      if (!rel || !annPending) return;
+      const ta = annBubble && annBubble.querySelector('.ann-text');
+      const comment = ta ? ta.value.trim() : '';
+      const { start, end, text } = annPending;
+      const list = highlights.get(rel) || [];
+      if (list.some(h => h.start < end && start < h.end)) {
+        showToast('Selection overlaps an existing highlight');
+        hideAnnBubble();
+        return;
+      }
+      const isFirst = list.length === 0;
+      list.push({ id: uid(), start, end, text, comment, ts: Date.now() });
+      highlights.set(rel, list);
+      persistHighlights();
+      hideAnnBubble();
+      try { window.getSelection().removeAllRanges(); } catch (e) {}
+      applyHighlights(rel);
+      renderReviewPanel();
+      if (isFirst) openReviewPanel();
+      showToast(comment ? 'Comment added' : 'Highlight added');
+    }
+
+    contentEl.addEventListener('mouseup', onSelect);
+    contentEl.addEventListener('keyup', onSelect);
+    document.addEventListener('mousedown', e => {
+      if (annBubble && !annBubble.contains(e.target)) hideAnnBubble();
+    });
+    contentEl.addEventListener('scroll', () => {
+      if (!annBubble) return;
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0) { hideAnnBubble(); return; }
+      const rect = sel.getRangeAt(0).getBoundingClientRect();
+      annBubble.style.top = (rect.bottom + 8) + 'px';
+      annBubble.style.left = Math.max(8, Math.min(rect.left, innerWidth - 230)) + 'px';
+    }, { passive: true });
+
+    /* ---- Applying highlight marks ---- */
+
+    function findTextNodeAt(root, offset) {
+      const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      let n, acc = 0, last = null;
+      while ((n = w.nextNode())) {
+        last = n;
+        if (acc + n.data.length > offset) return [n, offset - acc];
+        acc += n.data.length;
+      }
+      if (last && offset === acc) return [last, last.data.length];
+      return null;
+    }
+
+    function wrapHighlight(container, h) {
+      const t = container.textContent;
+      if (!h.text || h.start < 0 || h.end > t.length || h.start >= h.end) return null;
+      let start = h.start, end = h.end;
+      // Re-anchor when the file changed and the old offsets no longer line up.
+      if (t.slice(start, end) !== h.text) {
+        const idx = t.indexOf(h.text);
+        if (idx === -1) return null;
+        start = idx;
+        end = idx + h.text.length;
+        h.start = start;
+        h.end = end;
+      }
+      const sn = findTextNodeAt(container, start);
+      const en = findTextNodeAt(container, end);
+      if (!sn || !en) return null;
+      const range = document.createRange();
+      range.setStart(sn[0], sn[1]);
+      range.setEnd(en[0], en[1]);
+      const mark = document.createElement('mark');
+      mark.className = 'hl';
+      mark.dataset.id = h.id;
+      mark.title = h.comment || 'Highlight';
+      mark.addEventListener('click', () => focusComment(h.id));
+      const frag = range.extractContents();
+      mark.appendChild(frag);
+      range.insertNode(mark);
+      return mark;
+    }
+
+    function unwrapMark(mark) {
+      const parent = mark.parentNode;
+      if (!parent) return;
+      while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
+      parent.removeChild(mark);
+    }
+
+    function applyHighlights(rel) {
+      const container = contentEl.querySelector('.annotatable');
+      if (!container) return;
+      container.querySelectorAll('mark.hl').forEach(unwrapMark);
+      for (const h of highlights.get(rel) || []) wrapHighlight(container, h);
+    }
+
+    /* ---- Review panel ---- */
+
+    function currentHighlights() {
+      return currentRel ? (highlights.get(currentRel) || []) : [];
+    }
+
+    function openReviewPanel() {
+      reviewEl.classList.add('open');
+      reviewBtn.classList.add('active');
+    }
+    function closeReviewPanel() {
+      reviewEl.classList.remove('open');
+      reviewBtn.classList.remove('active');
+    }
+
+    function focusComment(id) {
+      openReviewPanel();
+      const item = reviewListEl.querySelector(`[data-id="${id}"]`);
+      if (item) {
+        item.scrollIntoView({ block: 'center' });
+        item.classList.add('flash');
+        setTimeout(() => item.classList.remove('flash'), 1400);
+      }
+    }
+
+    function snippet(text) {
+      const t = text.replace(/\s+/g, ' ').trim();
+      return t.length > 90 ? t.slice(0, 90) + '…' : t;
+    }
+
+    function staleIds(rel) {
+      const container = contentEl.querySelector('.annotatable');
+      const out = new Set();
+      if (container) {
+        const t = container.textContent;
+        for (const h of highlights.get(rel) || []) {
+          const ok = h.text && (t.slice(h.start, h.end) === h.text || t.includes(h.text));
+          if (!ok) out.add(h.id);
+        }
+      }
+      return out;
+    }
+
+    function renderReviewPanel() {
+      const rel = currentRel;
+      const list = rel ? (highlights.get(rel) || []) : [];
+      reviewCountEl.textContent = list.length;
+      reviewCountEl.hidden = list.length === 0;
+      reviewFileEl.textContent = rel || '';
+      const stale = staleIds(rel);
+
+      reviewListEl.innerHTML = list.length ? list.map((h, i) => `
+        <div class="rv-item${stale.has(h.id) ? ' stale' : ''}" data-id="${esc(h.id)}">
+          <div class="rv-num">${i + 1}</div>
+          <div class="rv-body">
+            <div class="rv-text">${esc(snippet(h.text))}</div>
+            <div class="rv-comment">${h.comment ? esc(h.comment) : '<span class="rv-nocomment">no comment</span>'}</div>
+            ${stale.has(h.id) ? '<div class="rv-stale">text not found in current content</div>' : ''}
+          </div>
+          <button class="rv-del" title="Delete" data-id="${esc(h.id)}">✕</button>
+        </div>`).join('')
+        : '<div class="rv-empty">Select text in the artifact and press <b>💬 Comment</b> to flag it for fixing.<br><br>Highlights and comments are collected into a single fix prompt for an LLM.</div>';
+
+      reviewListEl.querySelectorAll('.rv-del').forEach(b =>
+        b.addEventListener('click', () => deleteHighlight(rel, b.dataset.id)));
+      reviewListEl.querySelectorAll('.rv-item').forEach(item =>
+        item.addEventListener('click', e => {
+          if (e.target.closest('.rv-del')) return;
+          const mark = contentEl.querySelector(`mark.hl[data-id="${item.dataset.id}"]`);
+          if (mark) {
+            mark.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            mark.classList.add('active');
+            setTimeout(() => mark.classList.remove('active'), 1400);
+          }
+        }));
+
+      const hasComments = list.some(h => h.comment);
+      copyPromptBtn.disabled = !hasComments;
+      sendLlmBtn.disabled = !hasComments;
+      const hint = hasComments ? '' : 'Add a comment first';
+      copyPromptBtn.title = hint;
+      sendLlmBtn.title = hint;
+    }
+
+    function deleteHighlight(rel, id) {
+      const list = (highlights.get(rel) || []).filter(h => h.id !== id);
+      if (list.length) highlights.set(rel, list); else highlights.delete(rel);
+      persistHighlights();
+      applyHighlights(rel);
+      renderReviewPanel();
+    }
+
+    reviewBtn.addEventListener('click', () => {
+      if (reviewEl.classList.contains('open')) closeReviewPanel();
+      else { renderReviewPanel(); openReviewPanel(); }
+    });
+    document.getElementById('review-close').addEventListener('click', closeReviewPanel);
+
+    /* ---- LLM fix prompt ---- */
+
+    async function buildPrompt() {
+      const rel = currentRel;
+      if (!rel) return null;
+      const list = currentHighlights();
+      if (!list.some(h => h.comment)) return null;
+      const raw = await readFileText(rel);
+      const fence = raw.includes('```') ? '````' : '```';
+      const lines = [
+        'You are reviewing an OpenSpec artifact. Apply every review comment below, then return the complete corrected file.',
+        '',
+        'Rules:',
+        '- Preserve frontmatter and any content not mentioned in the comments exactly as-is.',
+        '- Output only the corrected file content, with no preamble or explanation.',
+        '',
+        '# Artifact',
+        `File: ${rel}`,
+        `Type: ${artifactOf(rel)}`,
+        '',
+        '# Current content',
+        fence + 'markdown',
+        raw,
+        fence,
+        '',
+        '# Review comments',
+      ];
+      list.forEach((h, i) => {
+        lines.push(`${i + 1}. ${h.comment || '(no comment — review this section for issues)'}`);
+        lines.push(`   Referenced text: "${snippet(h.text)}"`);
+      });
+      return lines.join('\n');
+    }
+
+    async function copyText(text) {
+      if (navigator.clipboard && window.isSecureContext) {
+        try { await navigator.clipboard.writeText(text); return true; } catch (e) {}
+      }
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      let ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) {}
+      ta.remove();
+      return ok;
+    }
+
+    copyPromptBtn.addEventListener('click', async () => {
+      const prompt = await buildPrompt();
+      if (!prompt) return;
+      showToast((await copyText(prompt)) ? 'Fix prompt copied to clipboard' : 'Copy failed — use Send to LLM');
+    });
+
+    sendLlmBtn.addEventListener('click', async () => {
+      const prompt = await buildPrompt();
+      if (!prompt) return;
+      promptTextEl.value = prompt;
+      promptModal.hidden = false;
+    });
+    document.getElementById('pmt-close').addEventListener('click', () => { promptModal.hidden = true; });
+    document.getElementById('pmt-copy').addEventListener('click', async () => {
+      showToast((await copyText(promptTextEl.value)) ? 'Prompt copied to clipboard' : 'Copy failed');
+    });
+    document.getElementById('pmt-open').addEventListener('click', () => {
+      const url = URL.createObjectURL(new Blob([promptTextEl.value], { type: 'text/plain;charset=utf-8' }));
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    });
+    promptModal.addEventListener('click', e => { if (e.target === promptModal) promptModal.hidden = true; });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && !promptModal.hidden) promptModal.hidden = true;
+    });
 
     // Welcome state
     contentEl.innerHTML = `
