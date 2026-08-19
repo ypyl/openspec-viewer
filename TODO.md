@@ -18,10 +18,10 @@
 - ~~Feasible: snapshot each artifact's raw content in IndexedDB per scan, line-diff old vs new, render the diff (unified view or highlighted lines in the pane).~~
 - ~~The File System Access API exposes no previous versions, so content must be snapshotted ourselves.~~
 
-## Mark diff (changes) as read
+## ~Mark diff (changes) as read~ ✅ shipped in v2.2.0
 
-- Allow marking a file's changes as read; a file is marked automatically as soon as its diff view is opened.
-- Persist read state so it survives reloads (IndexedDB), and reflect it in the file list (e.g. dim/clear the "new" marker, no longer count it in group counters).
+- ~~Allow marking a file's changes as read; a file is marked automatically as soon as its diff view is opened.~~
+- ~~Persist read state so it survives reloads (IndexedDB), and reflect it in the file list (e.g. dim/clear the "new" marker, no longer count it in group counters).~~
 
 ## ~Reduce live-monitoring poll interval 30s → 10s~ ✅ shipped in v1.4.0
 
