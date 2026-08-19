@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- OpenSpec Local Viewer v1.11.1 -->
+<!-- OpenSpec Local Viewer v1.12.0 -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -463,6 +463,16 @@
     .tab.spec     { --tabc: var(--green); }
     .tab.metadata { --tabc: var(--pink); }
     .tab.config   { --tabc: var(--fg); }
+    .tab-diff {
+      margin-left: 6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 1px 5px;
+      border-radius: 9px;
+      background: rgba(110, 118, 129, .16);
+      font-size: 10.5px;
+    }
 
     /* ---------- Archive rows ---------- */
     .item .date {
@@ -976,7 +986,7 @@
 <body>
   <header>
     <h1>OpenSpec <span class="dot">•</span> Local Viewer</h1>
-    <span class="version">v1.11.1</span>
+    <span class="version">v1.12.0</span>
     <button id="theme-btn" class="theme-btn" title="Toggle dark / light theme">☀️</button>
     <div id="stats"></div>
     <button id="review-btn" class="review-btn" title="Review comments across all artifacts">💬<span id="review-count" class="review-count" hidden></span></button>
@@ -1677,6 +1687,9 @@
             .map(([rel, info]) => ({ rel, handle: info.handle }))
             .sort((a, b) => a.rel.localeCompare(b.rel));
           if (activeChanged) await rerenderCurrent();
+          // A sibling file diffed or a file was deleted: keep the change tabs'
+          // diff badges in sync without swapping panes.
+          if (currentKey.value) refreshTabBadges();
         }
       } finally {
         isScanning = false;
@@ -1963,6 +1976,28 @@
       if (slot) slot.innerHTML = diffToggleHtml(rel, diffViews.get(rel));
     }
 
+    // Compact +a −r counts for a change tab; empty when that file has no diff.
+    function diffTabBadgeHtml(di) {
+      if (!di || (!di.added && !di.removed)) return '';
+      return html`<span class="tab-diff">${
+        di.added ? html`<b class="dh-add">+${di.added}</b>` : ''}${
+        di.removed ? html`<b class="dh-del">−${di.removed}</b>` : ''}</span>`;
+    }
+
+    // Live updates: re-render only the tab diff badges (no pane reload).
+    function refreshTabBadges() {
+      const bar = contentEl.querySelector('.tabs');
+      if (!bar) return;
+      currentTabs.forEach((t, i) => {
+        const btn = bar.querySelector(`.tab[data-i="${i}"]`);
+        if (!btn) return;
+        const old = btn.querySelector('.tab-diff');
+        if (old) old.remove();
+        const badge = diffTabBadgeHtml(diffInfo.get(t.rel));
+        if (badge) btn.insertAdjacentHTML('beforeend', badge);
+      });
+    }
+
     // The current view for an artifact: the unified diff, or the artifact.
     async function viewFor(rel) {
       return diffViews.get(rel) && diffInfo.get(rel) ? diffViewHtml(rel) : await paneHtml(rel);
@@ -2043,7 +2078,7 @@
       currentTabs = tabs;
 
       const tabBar = joinHtml(tabs.map((t, i) =>
-        html`<button class="tab ${artifactOf(t.rel).toLowerCase()}${t.rel === currentRel.value ? ' active' : ''}" data-i="${i}">${t.label}</button>`));
+        html`<button class="tab ${artifactOf(t.rel).toLowerCase()}${t.rel === currentRel.value ? ' active' : ''}" data-i="${i}">${t.label}${diffTabBadgeHtml(diffInfo.get(t.rel))}</button>`));
 
       contentEl.innerHTML = html`
         ${paneBarHtml(html`<div class="crumb">${crumbFor(meta.key)}</div>`, currentRel.value)}

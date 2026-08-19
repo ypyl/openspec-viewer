@@ -18,6 +18,11 @@
 - ~~Feasible: snapshot each artifact's raw content in IndexedDB per scan, line-diff old vs new, render the diff (unified view or highlighted lines in the pane).~~
 - ~~The File System Access API exposes no previous versions, so content must be snapshotted ourselves.~~
 
+## Mark diff (changes) as read
+
+- Allow marking a file's changes as read; a file is marked automatically as soon as its diff view is opened.
+- Persist read state so it survives reloads (IndexedDB), and reflect it in the file list (e.g. dim/clear the "new" marker, no longer count it in group counters).
+
 ## ~Reduce live-monitoring poll interval 30s → 10s~ ✅ shipped in v1.4.0
 
 - ~~Change the monitor polling interval from 30s to 10s.~~
@@ -42,3 +47,16 @@
 - ~~Re-evaluate CDN deps: marked (markdown), js-yaml (frontmatter), DOMPurify (sanitizing markdown output) all kept — html-literal replaced the hand-rolled encoder, not these; none has a sensible vanilla equivalent.~~
 - Use jsebrech/tiny-context (web components context protocol) to pass state across component boundaries. Vendored but dormant: nothing crosses a component boundary in this single-file app. Wire it in only when UI is extracted into custom elements.
   - Alternative: split into ES modules/web components served as plain files (no build step, deployment unchanged) only if the app grows beyond one file.
+
+## Review: generate two types of prompts
+
+- Extend the review panel to offer two prompt modes from the collected highlights + comments + artifact content:
+  - **fix/modify** — the current behavior: prompt the LLM to apply the requested changes. Not only corrections: if the highlighted artifact has an open-question section (e.g. design open questions), the prompt also asks the model to answer those.
+  - **explain** — new: user asks the model to explain what was highlighted because it is not clear to them; the prompt asks for an explanation instead of edits.
+- Add a mode selector in the review panel; the copy-prompt / send-to-LLM action uses the selected mode.
+
+## Collect review history per project
+
+- Persist completed reviews (highlights, comments, chosen prompt mode, sent prompt) per project folder, e.g. in IndexedDB keyed by project.
+- Treat them as a history of corrections to enable insight extraction over time: recurring issues, which sections/artifacts get most feedback, process health.
+- Keep an eye on storage growth: prune/export/clear old history.

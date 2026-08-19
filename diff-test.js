@@ -1,4 +1,4 @@
-/* End-to-end test for content-level change diffs (v1.11.0).
+/* End-to-end test for content-level change diffs (v1.11.0, extended in v1.12.0).
  *
  * Run (from repo root):
  *   python -m http.server 8743        # serve the app
@@ -9,7 +9,9 @@
  * real scan -> snapshot (IndexedDB) -> line-diff -> render pipeline:
  * fresh-pick baseline, in-session mutation, flat (non-change) artifacts, the
  * breadcrumb Diff/Artifact toggle (default view is the artifact, never the
- * diff), NEW badges, and the reload-equivalent keepSnapshots path.
+ * diff), NEW badges, per-tab diff badges (+a −r), live badge updates when a
+ * sibling file in the open change diffs, and the reload-equivalent
+ * keepSnapshots path.
  * Serves as: async page => { ... } single function expression. */
 async page => {
   const out = { steps: [], errors: [] };
@@ -90,6 +92,7 @@ async page => {
     const blk = String(diffHunksHtml({ hunks: [{ oldStart: 2, newStart: 2, oldCount: 1, newCount: 1, lines: [['-', 2, 0, 'old'], ['+', 0, 2, 'new']] }] }));
     r.hunks = blk.includes('diff-line del') && blk.includes('diff-line add') && blk.includes('@@ -2 +2 @@');
     r.hint = String(diffHint([{ added: 2, removed: 1 }])).includes('+2') && diffHint([]) === '';
+    r.tabBadge = String(diffTabBadgeHtml({ added: 2, removed: 1 })).includes('+2') && diffTabBadgeHtml(null) === '' && diffTabBadgeHtml({ added: 0, removed: 0 }) === '';
     return r;
   });
   out.steps.push('unit: ' + JSON.stringify(unit));
@@ -128,6 +131,7 @@ async page => {
       toggleNew: b ? !!b.querySelector('.diff-new') : false,
       adds: b ? b.querySelectorAll('.dh-add').length : 0,
       del: b ? b.querySelectorAll('.dh-del').length : 0,
+      tabs: [...document.querySelectorAll('.tab')].map(x => x.textContent.replace(/\s+/g, ' ').trim()),
     };
   });
   out.steps.push('after-mutation: ' + JSON.stringify(state));
@@ -137,6 +141,12 @@ async page => {
     err('toggle should read "Diff +4 −2", got ' + state.toggle);
   }
   if (!state.toggleNew) err('unseen diff should carry a NEW badge');
+  const proposalTab = state.tabs.find(t => t.startsWith('Proposal'));
+  const designTab = state.tabs.find(t => t.startsWith('Design'));
+  const tasksTab = state.tabs.find(t => t.startsWith('Tasks'));
+  if (!proposalTab || !proposalTab.includes('+4') || !proposalTab.includes('−2')) err('Proposal tab should carry the +4 −2 badge, got ' + proposalTab);
+  if (designTab && designTab !== 'Design') err('Design tab should have no diff badge yet, got ' + designTab);
+  if (tasksTab && tasksTab !== 'Tasks') err('Tasks tab should have no diff badge yet, got ' + tasksTab);
 
   // ---- Click the toggle: diff view ----
   await page.evaluate(() => { document.querySelector('.diff-toggle').click(); });
@@ -247,6 +257,29 @@ async page => {
     err('design diff should be +1 −1, got ' + JSON.stringify(state));
   }
   if (!state.hasHdr) err('design diff should include hunk header');
+
+  // ---- Sibling diff while the change view is open: tab badge updates live - -
+  // The Tasks file is not the active tab, so the pane must NOT reload; only the
+  // tab badge should gain the new +1 count.
+  await page.evaluate(() => {
+    const d = window.__fsData['openspec/changes/alpha/tasks.md'];
+    d.mtime = 5000;
+    d.text = '- [ ] do it\n- [ ] also this\n';
+  });
+  await page.evaluate(async () => { await window.scan(false); });
+  await page.waitForTimeout(200);
+  state = await page.evaluate(() => ({
+    tabs: [...document.querySelectorAll('.tab')].map(x => x.textContent.replace(/\s+/g, ' ').trim()),
+    active: document.querySelector('.tab.active') ? document.querySelector('.tab.active').textContent.replace(/\s+/g, ' ').trim() : null,
+    diffShown: !!document.querySelector('#tab-panes .diff'),
+    toggle: document.querySelector('.diff-toggle') ? document.querySelector('.diff-toggle').textContent.replace(/\s+/g, ' ').trim() : null,
+  }));
+  out.steps.push('tasks-live: ' + JSON.stringify(state));
+  const liveTasks = state.tabs.find(t => t.startsWith('Tasks'));
+  if (!liveTasks || !liveTasks.includes('+1')) err('Tasks tab should gain a +1 badge live, got ' + liveTasks);
+  if (!state.active || !state.active.startsWith('Design')) err('active tab should stay Design after a sibling diff, got ' + state.active);
+  if (!state.diffShown) err('active pane should keep its current view (design diff) after a sibling diff');
+  if (!state.toggle || !state.toggle.startsWith('Artifact')) err('diff toggle should stay untouched after a sibling diff, got ' + state.toggle);
 
   out.ok = out.errors.length === 0;
   console.log('=== DIFF TEST RESULT ===');
