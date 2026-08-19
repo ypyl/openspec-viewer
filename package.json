@@ -1,0 +1,10 @@
+{
+  "name": "openspec-viewer",
+  "private": true,
+  "version": "2.0.1",
+  "description": "OpenSpec Local Viewer - offline-capable single-page viewer (Plain Vanilla Web).",
+  "type": "module",
+  "scripts": {
+    "test": "node --test \"tools/test-*.mjs\""
+  }
+}

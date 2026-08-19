@@ -76,28 +76,6 @@ async page => {
   await page.waitForFunction(() => window.__makeFs !== undefined);
   await page.waitForTimeout(300);
 
-  // ---- Unit tests against the page's own functions ----
-  const unit = await page.evaluate(() => {
-    const r = {};
-    r.identical = diffLines('a\nb\nc\n', 'a\nb\nc\n') === null;
-    const d1 = diffLines('a\nb\nc\n', 'a\nX\nc\n');
-    r.replace = d1.added === 1 && d1.removed === 1 && d1.hunks.length === 1;
-    r.hdr = d1.hunks[0].oldStart === 1 && hunkHeader(d1.hunks[0]) === '@@ -1,3 +1,3 @@';
-    const d2 = diffLines('', 'hello\nworld\n');
-    r.fromEmpty = d2 && d2.added === 2 && d2.removed === 0;
-    const d3 = diffLines('x\n', '');
-    r.toEmpty = d3 && d3.added === 0 && d3.removed === 1;
-    const d4 = diffLines('l1\nl2\nl3\nl4\nl5\nl6\nl7\nl8\nl9\nl10\n', 'l1\nl2\nCHG\nl4\nl5\nl6\nl7\nl8\nl9\nl10\n');
-    r.context = d4.hunks.length === 1 && d4.hunks[0].lines.length === 7;   // ctx(2)+del+add+ctx(3)
-    const blk = String(diffHunksHtml({ hunks: [{ oldStart: 2, newStart: 2, oldCount: 1, newCount: 1, lines: [['-', 2, 0, 'old'], ['+', 0, 2, 'new']] }] }));
-    r.hunks = blk.includes('diff-line del') && blk.includes('diff-line add') && blk.includes('@@ -2 +2 @@');
-    r.hint = String(diffHint([{ added: 2, removed: 1 }])).includes('+2') && diffHint([]) === '';
-    r.tabBadge = String(diffTabBadgeHtml({ added: 2, removed: 1 })).includes('+2') && diffTabBadgeHtml(null) === '' && diffTabBadgeHtml({ added: 0, removed: 0 }) === '';
-    return r;
-  });
-  out.steps.push('unit: ' + JSON.stringify(unit));
-  for (const [k, v] of Object.entries(unit)) if (!v) err('unit check ' + k);
-
   // ---- Session 1: fresh pick, baseline scan ----
   await page.evaluate(async () => { await window.startMonitoring(window.__makeFs(), false); });
   await page.waitForTimeout(200);
@@ -126,7 +104,7 @@ async page => {
     return {
       // default view is the artifact, not the diff
       diffShown: document.querySelector('.diff') !== null,
-      artifactShown: !!document.querySelector('#current-pane .markdown, #tab-panes .markdown'),
+      artifactShown: !!document.querySelector('.pane-body .markdown'),
       toggle: b ? b.textContent.replace(/\s+/g, ' ').trim() : null,
       toggleNew: b ? !!b.querySelector('.diff-new') : false,
       adds: b ? b.querySelectorAll('.dh-add').length : 0,
@@ -171,7 +149,7 @@ async page => {
   await page.waitForTimeout(150);
   state = await page.evaluate(() => ({
     diffShown: document.querySelector('.diff') !== null,
-    artifactShown: !!document.querySelector('#current-pane .markdown, #tab-panes .markdown'),
+    artifactShown: !!document.querySelector('.pane-body .markdown'),
   }));
   out.steps.push('toggle-off: ' + JSON.stringify(state));
   if (state.diffShown) err('diff should hide after toggling back');
@@ -271,7 +249,7 @@ async page => {
   state = await page.evaluate(() => ({
     tabs: [...document.querySelectorAll('.tab')].map(x => x.textContent.replace(/\s+/g, ' ').trim()),
     active: document.querySelector('.tab.active') ? document.querySelector('.tab.active').textContent.replace(/\s+/g, ' ').trim() : null,
-    diffShown: !!document.querySelector('#tab-panes .diff'),
+    diffShown: !!document.querySelector('.pane-body .diff'),
     toggle: document.querySelector('.diff-toggle') ? document.querySelector('.diff-toggle').textContent.replace(/\s+/g, ' ').trim() : null,
   }));
   out.steps.push('tasks-live: ' + JSON.stringify(state));
