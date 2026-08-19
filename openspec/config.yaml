@@ -1,0 +1,73 @@
+schema: spec-driven
+
+# Project background injected into every artifact-generation prompt.
+context: |
+  Product: OpenSpec Local Viewer — a single-page, offline-capable browser app that
+  browses OpenSpec artifacts (change proposals, specs, design, tasks, metadata) from
+  a local openspec/ folder. It live-monitors changes via the File System Access API,
+  shows content-level diffs rebuilt from IndexedDB snapshots, and collects text
+  highlights/comments into a single LLM fix prompt.
+
+  Architecture: Plain Vanilla Web (https://plainvanillaweb.com). No build step, no
+  framework, no npm — files are served as-is and run in the browser. ES modules; the
+  UI is web components prefixed osv-*, one folder per component under components/
+  (osv-*/name.js + name.css); app logic lives in app/*.js modules (state, store,
+  render, diff, annotations, prompt); state is tiny-signals; HTML is generated via
+  html-literal (entity-encoding by default); styles are split into styles/ + per-
+  component CSS and composed by @import in index.css. Vendored libraries (html-literal,
+  tiny-signals, tiny-context, marked, js-yaml, DOMPurify) live in lib/; module loads
+  are centralized in imports.js.
+
+  Conventions:
+  - Serve over HTTP(S): the app cannot run from file:// (ES modules + service worker);
+    it shows a "needs a web server" message there.
+  - Deploys automatically to GitHub Pages on push to master; verify the version badge
+    after pushing.
+  - Version policy: MAJOR = breaking, MINOR = feature/visible change, PATCH = fix/tweak.
+    Bump the version in the SAME commit across all three markers: the index.html
+    first-line comment, the header badge, and sw.js CACHE_VERSION.
+  - Tread lightly when re-rendering: patch DOM in place and preserve scroll/focus/selection.
+  - osv-pane renders into light DOM and exposes an onRendered hook so annotations can
+    re-apply highlights after each render.
+
+# Per-artifact rules (applied only when writing that artifact).
+rules:
+  proposal:
+    - Note breaking changes and the version bump they imply (MAJOR for dropped features
+      or layout overhauls).
+    - Flag any change to how the app is served/installed (file:// support, service worker,
+      CDN dependencies) so the app-delivery capability stays accurate.
+  specs:
+    - Write observable, testable behavior only (no internal function/class names or
+      framework choices).
+    - Give every requirement at least one WHEN/THEN scenario (4-hashtag headers).
+    - Route serving/offline/versioning concerns to the existing app-delivery capability
+      rather than fragmenting them across new capabilities.
+  design:
+    - Follow Plain Vanilla Web; prefer browser-native features and the vendored libs;
+      reject build tools and new runtime dependencies unless unavoidable.
+    - Keep the app a single-page site; split into modules/components only where
+      maintainability demands it.
+    - Preserve the light-DOM osv-pane + onRendered annotation contract and
+      patch-in-place re-rendering.
+  tasks:
+    - Make each task verifiable in one session.
+    - Include the version-marker bump (index.html comment + header badge + sw.js
+      CACHE_VERSION) in the same group as any user-visible change.
+    - Include a test/verification step (diff-test.js / migration-test.js via
+      playwright-cli against python -m http.server 8743) when behavior changes.
+
+# Per-operation guidance (advisory; does not constrain artifact content).
+operations:
+  apply:
+    guidance:
+      - After implementing, run the Playwright e2e tests (diff-test.js and
+        migration-test.js) against a local server (python -m http.server 8743)
+        and report the results.
+      - Confirm the version markers are bumped together in the same commit when the
+        change is user-visible.
+      - Keep edits minimal and scoped to the change.
+  archive:
+    guidance:
+      - Keep the completion summary concise.
+      - Verify main specs are synced from the change's delta specs before finalizing.
