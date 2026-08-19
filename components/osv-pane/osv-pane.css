@@ -1,0 +1,378 @@
+/* osv-pane: change tabs, breadcrumb + diff toggle, artifact/diff body,
+   annotation highlighting. Renders into light DOM so selection works. */
+
+osv-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+osv-pane main {
+  flex: 1;
+  overflow-y: auto;
+  /* Reserve vertical scrollbar space always so short/long tab content
+     doesn't cause the page to jump when the scrollbar appears/disappears. */
+  scrollbar-gutter: stable;
+  padding: 16px;
+  min-width: 0;
+  min-height: 0;
+}
+/* Cap the content column at a readable width and center it on wide screens. */
+osv-pane main > * {
+  max-width: 980px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+osv-pane .crumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  color: var(--fg-muted);
+  margin-bottom: 16px;
+}
+osv-pane .crumb .seg { color: var(--accent); text-decoration: none; }
+osv-pane .crumb .sep { color: var(--fg-subtle); }
+osv-pane .crumb .file { color: var(--fg); font-weight: 500; word-break: break-all; }
+
+osv-pane .meta-card {
+  background: var(--panel);
+  border: 1px solid var(--border-muted);
+  border-left: 3px solid var(--accent-dim);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 20px;
+  font-size: 13px;
+}
+osv-pane .meta-card h3 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  color: var(--fg-subtle);
+}
+osv-pane .meta-table { width: 100%; border-collapse: collapse; }
+osv-pane .meta-table td { padding: 3px 8px 3px 0; vertical-align: top; }
+osv-pane .meta-table td:first-child {
+  width: 130px;
+  color: var(--fg-muted);
+  white-space: nowrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+osv-pane .meta-table td:last-child { color: var(--fg); word-break: break-word; }
+osv-pane .meta-error { color: var(--red); font-size: 12px; }
+osv-pane .progress { margin: 6px 0 2px; }
+osv-pane .progress-track {
+  height: 6px;
+  background: var(--border-muted);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+osv-pane .progress-fill {
+  height: 100%;
+  background: var(--green);
+  border-radius: 3px;
+  transition: width .3s;
+}
+
+osv-pane .pane-loading { color: var(--fg-subtle); padding: 10px 0; }
+
+osv-pane .change-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+osv-pane .change-head h2 { margin: 0; font-size: 20px; color: var(--fg); }
+osv-pane .change-head .date-badge {
+  font-size: 11px;
+  color: var(--fg-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  border: 1px solid var(--border-muted);
+  border-radius: 12px;
+  padding: 1px 8px;
+}
+osv-pane .tabs {
+  display: flex;
+  gap: 2px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+osv-pane .tab {
+  padding: 7px 14px;
+  background: transparent;
+  color: var(--tabc, var(--fg-muted));
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: var(--radius) var(--radius) 0 0;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+}
+osv-pane .tab:hover { color: var(--tabc, var(--fg)); background: rgba(110,118,129,.08); }
+osv-pane .tab.active { color: var(--tabc, var(--accent)); border-bottom-color: var(--tabc, var(--accent)); background: rgba(110,118,129,.12); }
+osv-pane .tab.proposal { --tabc: var(--accent); }
+osv-pane .tab.design   { --tabc: var(--purple); }
+osv-pane .tab.tasks    { --tabc: var(--orange); }
+osv-pane .tab.spec     { --tabc: var(--green); }
+osv-pane .tab.metadata { --tabc: var(--pink); }
+osv-pane .tab.config   { --tabc: var(--fg); }
+osv-pane .tab-diff {
+  margin-left: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 5px;
+  border-radius: 9px;
+  background: rgba(110, 118, 129, .16);
+  font-size: 10.5px;
+}
+
+osv-pane .markdown h1, osv-pane .markdown h2, osv-pane .markdown h3, osv-pane .markdown h4 {
+  border-bottom: 1px solid var(--border-muted);
+  padding-bottom: .3em;
+  margin-top: 1.5em;
+  font-weight: 600;
+  line-height: 1.25;
+}
+osv-pane .markdown h1 { font-size: 1.7em; }
+osv-pane .markdown h2 { font-size: 1.4em; }
+osv-pane .markdown h3 { font-size: 1.15em; }
+osv-pane .markdown h4 { font-size: 1em; }
+osv-pane .markdown a { color: var(--accent); text-decoration: none; }
+osv-pane .markdown a:hover { text-decoration: underline; }
+osv-pane .markdown code {
+  background: rgba(110,118,129,.2);
+  border-radius: 4px;
+  padding: .1em .35em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 85%;
+}
+osv-pane .markdown pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius);
+  padding: 14px;
+  overflow-x: auto;
+  line-height: 1.45;
+}
+osv-pane .markdown pre code { background: none; padding: 0; font-size: 12.5px; }
+osv-pane .markdown blockquote {
+  margin: 0 0 16px;
+  padding: 0 1em;
+  border-left: .25em solid var(--border);
+  color: var(--fg-muted);
+}
+osv-pane .markdown table {
+  border-collapse: collapse;
+  display: block;
+  max-width: 100%;
+  overflow: auto;
+  margin: 16px 0;
+}
+osv-pane .markdown table th, osv-pane .markdown table td {
+  border: 1px solid var(--border-muted);
+  padding: 6px 13px;
+}
+osv-pane .markdown table th { background: var(--panel); font-weight: 600; }
+osv-pane .markdown img { max-width: 100%; }
+osv-pane .markdown hr { border: none; border-top: 1px solid var(--border-muted); margin: 24px 0; }
+osv-pane .markdown li.task-done { color: var(--fg-subtle); }
+osv-pane .markdown li.task-done input { opacity: .5; }
+
+osv-pane .welcome {
+  max-width: 560px;
+  margin: 80px auto;
+  text-align: center;
+  color: var(--fg-muted);
+}
+osv-pane .welcome .icon { font-size: 44px; }
+osv-pane .welcome h2 { color: var(--fg); font-size: 20px; margin: 12px 0 8px; }
+osv-pane .welcome p { font-size: 13.5px; line-height: 1.7; }
+osv-pane .welcome code { background: rgba(110,118,129,.2); border-radius: 4px; padding: .1em .35em; font-size: 12.5px; }
+
+osv-pane .yaml-view {
+  background: var(--code-bg);
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius);
+  padding: 16px;
+  overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+osv-pane .pane-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+osv-pane .pane-bar .crumb { flex: 1; margin-bottom: 0; min-width: 0; }
+/* Reserve the toggle's height even when the active tab has no diff, so the
+   bar (and everything below it) never jumps when switching tabs. */
+osv-pane .diff-toggle-slot {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+}
+osv-pane .diff-toggle {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--bg);
+  color: var(--fg-muted);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+}
+osv-pane .diff-toggle:hover { background: var(--panel); color: var(--fg); }
+osv-pane .diff-toggle.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+osv-pane .diff-new {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .6px;
+  color: var(--green);
+  background: color-mix(in srgb, var(--green) 15%, transparent);
+  border-radius: 10px;
+  padding: 0 5px;
+  line-height: 14px;
+}
+osv-pane .diff {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  overflow: hidden;
+}
+osv-pane .diff-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-muted);
+}
+osv-pane .diff-ts { margin-left: auto; font-weight: 400; font-size: 11px; color: var(--fg-subtle); }
+osv-pane .dh-add { color: var(--green); font-size: 11px; font-weight: 700; }
+osv-pane .dh-del { color: var(--red); font-size: 11px; font-weight: 700; }
+osv-pane .diff-view {
+  margin: 0;
+  padding: 4px 0 8px;
+  border-top: 1px solid var(--border-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.55;
+  overflow-x: auto;
+}
+osv-pane .diff-line { display: flex; white-space: pre-wrap; word-break: break-word; }
+osv-pane .diff-line .ln {
+  flex-shrink: 0;
+  width: 3.2em;
+  text-align: right;
+  padding: 0 8px;
+  color: var(--fg-subtle);
+  user-select: none;
+}
+osv-pane .diff-line .sign { flex-shrink: 0; width: 1.4em; text-align: center; color: var(--fg-subtle); user-select: none; }
+osv-pane .diff-line .code { flex: 1; padding: 0 10px 0 4px; }
+osv-pane .diff-line.del .code { background: color-mix(in srgb, var(--red) 13%, transparent); }
+osv-pane .diff-line.add .code { background: color-mix(in srgb, var(--green) 13%, transparent); }
+osv-pane .diff-line.del .sign { color: var(--red); }
+osv-pane .diff-line.add .sign { color: var(--green); }
+osv-pane .diff-line.hdr .ln, osv-pane .diff-line.hdr .sign { color: var(--accent); }
+osv-pane .diff-line.hdr .code {
+  color: var(--fg-muted);
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+}
+
+/* mark.hl wraps commented text as an invisible anchor for scroll-to-focus;
+   no background so the file reads cleanly. */
+osv-pane mark.hl { background: transparent; color: inherit; }
+osv-pane mark.hl.active { outline: 2px solid var(--accent); }
+
+/* Selection toolbar / comment editor (floating). */
+osv-pane .ann-bubble {
+  position: fixed;
+  z-index: 70;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 30px rgba(0,0,0,.4);
+  max-width: min(960px, calc(100vw - 16px));
+}
+/* Editor (textarea + actions) state gets comfortable padding. */
+osv-pane .ann-bubble:has(.ann-text) { padding: 6px; }
+osv-pane .ann-add {
+  width: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  border: none;
+  border-radius: 0;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+osv-pane .ann-add:hover { background: var(--panel); }
+osv-pane .ann-text {
+  width: 100%;
+  min-width: 300px;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius);
+  padding: 7px 9px;
+  font: inherit;
+  font-size: 13px;
+  resize: vertical;
+  outline: none;
+}
+osv-pane .ann-text:focus { border-color: var(--accent-dim); box-shadow: 0 0 0 3px rgba(31,111,235,.3); }
+osv-pane .ann-actions { display: flex; gap: 6px; margin-top: 6px; justify-content: flex-end; }
+osv-pane .ann-actions button {
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius);
+  padding: 5px 10px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+osv-pane .ann-actions .ann-save { background: var(--accent-dim); color: #fff; border-color: transparent; font-weight: 500; }
+osv-pane .ann-actions button:hover { filter: brightness(1.15); }
+
+/* Responsive content padding: these must come AFTER the base `osv-pane main`
+   rule above so the media queries win the cascade. */
+@media (max-width: 36em) {
+  osv-pane main { padding: 16px 12px 40px; }
+}
+@media (min-width: 48em) {
+  osv-pane main { padding: 24px 32px 60px; }
+}
+@media (min-width: 75em) {
+  osv-pane main { padding: 28px 40px 60px; }
+}
+@media (min-width: 88em) {
+  osv-pane main > * { max-width: 1080px; }
+}

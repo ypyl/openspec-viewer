@@ -1,0 +1,43 @@
+/* Theme tokens — single source of truth for dark/light. Everything else
+   consumes these via var(). */
+
+:root {
+  --bg: #0d1117;
+  --panel: #161b22;
+  --border: #30363d;
+  --border-muted: #21262d;
+  --fg: #c9d1d9;
+  --fg-muted: #8b949e;
+  --fg-subtle: #6e7681;
+  --accent: #58a6ff;
+  --accent-dim: #1f6feb;
+  --green: #3fb950;
+  --purple: #bc8cff;
+  --orange: #d29922;
+  --red: #f85149;
+  --pink: #f778ba;
+  --code-bg: #0d1117;
+  --scroll-thumb: #484f58;
+  --radius: 6px;
+  color-scheme: dark;
+}
+/* GitHub-light palette */
+:root[data-theme="light"] {
+  --bg: #ffffff;
+  --panel: #f6f8fa;
+  --border: #d0d7de;
+  --border-muted: #d8dee4;
+  --fg: #1f2328;
+  --fg-muted: #59636e;
+  --fg-subtle: #818b98;
+  --accent: #0969da;
+  --accent-dim: #0969da;
+  --green: #1a7f37;
+  --purple: #8250df;
+  --orange: #9a6700;
+  --red: #cf222e;
+  --pink: #bf3989;
+  --code-bg: #f6f8fa;
+  --scroll-thumb: #c8d1d9;
+  color-scheme: light;
+}

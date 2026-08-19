@@ -1,0 +1,13 @@
+/* Root stylesheet: compose reset, tokens, global layout, then per-component. */
+
+@import 'styles/reset.css';
+@import 'styles/variables.css';
+@import 'styles/global.css';
+
+@import 'components/osv-header/osv-header.css';
+@import 'components/osv-file-list/osv-file-list.css';
+@import 'components/osv-pane/osv-pane.css';
+@import 'components/osv-review/osv-review.css';
+@import 'components/osv-prompt-modal/osv-prompt-modal.css';
+@import 'components/osv-loading/osv-loading.css';
+@import 'components/osv-toast/osv-toast.css';

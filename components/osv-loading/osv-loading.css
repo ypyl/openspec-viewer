@@ -1,0 +1,35 @@
+/* osv-loading: full-screen overlay while scanning/monitoring. */
+
+osv-loading .loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--bg) 60%, transparent);
+  backdrop-filter: blur(2px);
+}
+osv-loading .loading-overlay[hidden] { display: none; }
+osv-loading .loading-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 30px rgba(0,0,0,.4);
+  color: var(--fg);
+  font-size: 13.5px;
+}
+osv-loading .spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--border-muted);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }

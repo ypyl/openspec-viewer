@@ -1,0 +1,197 @@
+/* osv-file-list: folder picker, search, group sections, file rows. */
+
+osv-file-list {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  max-height: 42vh;
+  min-height: 0;
+}
+osv-file-list aside {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+osv-file-list .controls {
+  padding: 12px;
+  border-bottom: 1px solid var(--border-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+osv-file-list .pick-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--accent-dim);
+  color: #fff;
+  border: 1px solid rgba(240,246,252,.1);
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .15s;
+}
+osv-file-list .pick-btn:hover { background: #2a6fd9; }
+osv-file-list .file-picker { display: none; }
+osv-file-list .search-row { position: relative; display: flex; align-items: center; }
+osv-file-list .search-row svg {
+  position: absolute; left: 10px; pointer-events: none;
+  color: var(--fg-subtle); width: 14px; height: 14px;
+}
+osv-file-list .search {
+  width: 100%;
+  padding: 7px 10px 7px 30px;
+  background: var(--bg);
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius);
+  color: var(--fg);
+  font-size: 13px;
+  outline: none;
+}
+osv-file-list .search:focus { border-color: var(--accent-dim); box-shadow: 0 0 0 3px rgba(31,111,235,.3); }
+osv-file-list .search::placeholder { color: var(--fg-subtle); }
+
+osv-file-list .list-scroll { flex: 1; overflow-y: auto; scrollbar-gutter: stable; padding: 8px 0; }
+
+osv-file-list .group-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 10px 8px 14px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  color: var(--gc, var(--fg-subtle));
+  border-top: 1px solid var(--border-muted);
+  transition: color .12s, background .12s;
+}
+osv-file-list .group-label.sticky {
+  position: sticky;
+  top: 0;
+  background: var(--panel);
+  z-index: 2;
+}
+osv-file-list .group-label:hover { color: var(--gc, var(--fg)); background: rgba(110,118,129,.06); }
+osv-file-list .group-label .chevron {
+  font-size: 9px;
+  color: var(--gc, var(--fg-subtle));
+  display: inline-block;
+  transition: transform .12s;
+}
+osv-file-list .group-label.collapsed .chevron { transform: rotate(-90deg); }
+osv-file-list .group-label .group-name { flex: 1; }
+osv-file-list .group-label.g-changes { --gc: var(--accent); }
+osv-file-list .group-label.g-archive { --gc: var(--purple); }
+osv-file-list .group-label.g-specs   { --gc: var(--green); }
+osv-file-list .group-label.g-config  { --gc: var(--orange); }
+osv-file-list .group-count {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--gc, var(--fg-subtle));
+  background: color-mix(in srgb, var(--gc, var(--fg-subtle)) 12%, transparent);
+  border-radius: 10px;
+  padding: 0 7px;
+  line-height: 16px;
+}
+
+osv-file-list .item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 14px;
+  cursor: pointer;
+  color: var(--fg-muted);
+  border-left: 2px solid transparent;
+  word-break: break-all;
+}
+osv-file-list .item:hover { background: rgba(110,118,129,.1); color: var(--fg); }
+osv-file-list .item.active { background: rgba(31,111,235,.15); border-left-color: var(--accent); color: var(--fg); }
+osv-file-list .item .path { font-size: 12.5px; }
+osv-file-list .item.active .path { color: var(--fg); }
+osv-file-list .badge {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  padding: 1px 6px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  color: var(--fg-muted);
+}
+osv-file-list .badge.proposal { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+osv-file-list .badge.design   { color: var(--purple); border-color: color-mix(in srgb, var(--purple) 45%, transparent); }
+osv-file-list .badge.tasks    { color: var(--orange); border-color: color-mix(in srgb, var(--orange) 45%, transparent); }
+osv-file-list .badge.spec     { color: var(--green);  border-color: color-mix(in srgb, var(--green) 45%, transparent); }
+osv-file-list .badge.metadata { color: var(--pink);   border-color: color-mix(in srgb, var(--pink) 45%, transparent); }
+osv-file-list .badge.config   { color: var(--fg);     border-color: var(--border); }
+osv-file-list .cmt-count {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+  border-radius: 10px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+/* Recent-change highlighting */
+osv-file-list .item.new { background: color-mix(in srgb, var(--green) 9%, transparent); }
+osv-file-list .item.new:hover { background: color-mix(in srgb, var(--green) 16%, transparent); }
+osv-file-list .new-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  flex-shrink: 0;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 22%, transparent);
+}
+osv-file-list .group-new {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--green);
+  text-transform: none;
+  letter-spacing: 0;
+}
+osv-file-list .diff-hint { flex-shrink: 0; font-size: 10.5px; display: inline-flex; gap: 4px; }
+osv-file-list .item .date {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--fg-subtle);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  flex-shrink: 0;
+}
+
+/* ≥ md (992px): sidebar gets fixed width and full height. These rules live
+   AFTER the base rules above so the higher viewport wins the cascade. */
+@media (min-width: 62em) {
+  osv-file-list {
+    width: 280px;
+    max-height: none;
+  }
+  osv-file-list aside {
+    border-bottom: none;
+    border-right: 1px solid var(--border);
+  }
+}
+
+/* ≥ lg (1200px): default desktop proportions. */
+@media (min-width: 75em) {
+  osv-file-list { width: 340px; }
+}

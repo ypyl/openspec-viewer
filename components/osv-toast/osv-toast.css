@@ -1,0 +1,27 @@
+/* osv-toast: transient notification bottom-right. */
+
+osv-toast .toast {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 90;
+  background: color-mix(in srgb, var(--green) 12%, var(--panel));
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--green);
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  color: var(--fg);
+  font-size: 13px;
+  box-shadow: 0 8px 30px rgba(0,0,0,.35);
+  animation: toast-in .25s ease-out;
+}
+/* Keep the toast clear of the open review drawer (360px) so it never
+   covers the Copy fix prompt / Send to LLM buttons. */
+body:has(.review-drawer.open) osv-toast .toast {
+  right: 376px;
+}
+osv-toast .toast.error {
+  border-left-color: var(--red);
+  background: color-mix(in srgb, var(--red) 12%, var(--panel));
+}
+@keyframes toast-in { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }

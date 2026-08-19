@@ -1,26 +1,52 @@
 /* OpenSpec Local Viewer service worker.
    Bump CACHE_VERSION together with the app version in index.html
    (see AGENTS.md) so each release deploys a fresh cache. */
-const CACHE_VERSION = 'osviewer-1.12.0';
+const CACHE_VERSION = 'osviewer-2.0.0';
 
 const SHELL = [
   './',
   './index.html',
+  './index.js',
+  './index.css',
+  './imports.js',
+  './styles/reset.css',
+  './styles/variables.css',
+  './styles/global.css',
+  './lib/html-literal.js',
+  './lib/tiny-signals.js',
+  './lib/tiny-context.js',
+  './lib/marked.umd.min.js',
+  './lib/js-yaml.min.js',
+  './lib/purify.min.js',
+  './app/state.js',
+  './app/render.js',
+  './app/diff.js',
+  './app/store.js',
+  './app/annotations.js',
+  './app/prompt.js',
+  './components/osv-header/osv-header.js',
+  './components/osv-header/osv-header.css',
+  './components/osv-file-list/osv-file-list.js',
+  './components/osv-file-list/osv-file-list.css',
+  './components/osv-pane/osv-pane.js',
+  './components/osv-pane/osv-pane.css',
+  './components/osv-review/osv-review.js',
+  './components/osv-review/osv-review.css',
+  './components/osv-prompt-modal/osv-prompt-modal.js',
+  './components/osv-prompt-modal/osv-prompt-modal.css',
+  './components/osv-loading/osv-loading.js',
+  './components/osv-loading/osv-loading.css',
+  './components/osv-toast/osv-toast.js',
+  './components/osv-toast/osv-toast.css',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',
 ];
 
-const CDN_LIBS = [
-  'https://cdn.jsdelivr.net/npm/marked@18/lib/marked.umd.min.js',
-  'https://cdn.jsdelivr.net/npm/js-yaml@4/dist/js-yaml.min.js',
-  'https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js',
-];
-
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE_VERSION)
-      .then((c) => c.addAll([...SHELL, ...CDN_LIBS]))
+      .then((c) => c.addAll(SHELL))
       .then(() => self.skipWaiting())
   );
 });
@@ -56,7 +82,7 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // Everything else (app shell, CDN libs, icons): cache-first.
+  // Everything else (app shell, libs, icons): cache-first.
   e.respondWith(
     caches.match(req).then((cached) => {
       if (cached) return cached;

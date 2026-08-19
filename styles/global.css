@@ -1,0 +1,20 @@
+/* App-wide layout scaffolding shared by the components. */
+
+/* Mobile-first: base styles are the stacked layout; min-width media queries
+   below progressively restore the two-pane desktop layout.
+   Breakpoints follow Mantine defaults (em): xs=36em sm=48em md=62em
+   lg=75em xl=88em. */
+.layout { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+
+/* Generic empty state (sidebar list + pane). */
+.empty {
+  padding: 24px 14px;
+  text-align: center;
+  color: var(--fg-subtle);
+  font-size: 13px;
+}
+
+/* ≥ md (992px): sidebar and content side by side. */
+@media (min-width: 62em) {
+  .layout { flex-direction: row; }
+}
