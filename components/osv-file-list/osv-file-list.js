@@ -122,7 +122,7 @@ function buildListHtml() {
       <div class="group-label g-${g.toLowerCase()}${stickyCls}${isCollapsed ? ' collapsed' : ''}" data-group="${g}">
         <span class="chevron">▾</span>
         <span class="group-name">${g}</span>
-        ${newCount ? html`<span class="group-new">+${newCount} new</span>` : ''}
+        ${newCount ? html`<span class="group-new">+${newCount} unread</span>` : ''}
         <span class="group-count">${items.length}</span>
       </div>`;
     if (!isCollapsed) {
@@ -132,10 +132,10 @@ function buildListHtml() {
           const isNew = m.files.some(f => recentRels.value.has(f.rel));
           const cnt = m.files.reduce((s, f) => s + (highlights.value.get(f.rel) || []).length, 0);
           out += html`<div class="item change-row${active ? ' active' : ''}${isNew ? ' new' : ''}" data-key="${m.key}">
-            ${isNew ? html`<span class="new-dot" title="Updated since last scan"></span>` : ''}
+            ${isNew ? html`<span class="new-dot" title="Unread changes"></span>` : ''}
             <span class="path">${m.label}</span>
             ${cnt ? html`<span class="cmt-count">${cnt}</span>` : ''}
-            ${diffHint(m.files.map(f => diffInfo.get(f.rel)).filter(Boolean))}
+            ${diffHint(m.files.filter(f => recentRels.value.has(f.rel)).map(f => diffInfo.get(f.rel)).filter(Boolean))}
             ${m.date ? html`<span class="date">${m.date}</span>` : ''}
           </div>`;
         });
@@ -148,10 +148,10 @@ function buildListHtml() {
           const badge = (g === 'Specs' || g === 'Config') ? '' :
             html`<span class="badge ${artifactOf(f.rel).toLowerCase()}">${artifactOf(f.rel)}</span>`;
           out += html`<div class="item${active ? ' active' : ''}${isNew ? ' new' : ''}" data-rel="${f.rel}">
-            ${isNew ? html`<span class="new-dot" title="Updated since last scan"></span>` : ''}
+            ${isNew ? html`<span class="new-dot" title="Unread changes"></span>` : ''}
             <span class="path">${displayLabel(f.rel, g)}</span>
             ${cnt ? html`<span class="cmt-count">${cnt}</span>` : ''}
-            ${diffHint([diffInfo.get(f.rel)].filter(Boolean))}
+            ${diffHint(recentRels.value.has(f.rel) ? [diffInfo.get(f.rel)].filter(Boolean) : [])}
             ${badge}
           </div>`;
         });

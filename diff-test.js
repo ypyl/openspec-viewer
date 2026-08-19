@@ -76,6 +76,28 @@ async page => {
   await page.waitForFunction(() => window.__makeFs !== undefined);
   await page.waitForTimeout(300);
 
+  // ---- Bypass a stale service-worker / HTTP cache from earlier sessions so the
+  // test always exercises the current on-disk modules (see AGENTS.md: the SW
+  // serves same-origin assets cache-first, so local edits can look stale). ----
+  await page.evaluate(async () => {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+    }
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+  });
+  try {
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Network.clearBrowserCache');
+    await cdp.send('Network.clearBrowserCookies');
+  } catch (e) { /* CDP unavailable — the SW/unregister + hard reload still help */ }
+  await page.reload({ ignoreCache: true });
+  await page.waitForFunction(() => window.__makeFs !== undefined);
+  await page.waitForTimeout(300);
+
   // ---- Session 1: fresh pick, baseline scan ----
   await page.evaluate(async () => { await window.startMonitoring(window.__makeFs(), false); });
   await page.waitForTimeout(200);
@@ -143,6 +165,23 @@ async page => {
   if (state.delLines !== 2) err('expected 2 deleted lines, got ' + state.delLines);
   if (!state.hasHdr) err('diff should include hunk header');
   if (!state.toggle.startsWith('Artifact')) err('toggle should now offer to switch back, got ' + state.toggle);
+
+  // ---- After reading the diff, the read file's tab badge and list hints clear ----
+  state = await page.evaluate(() => {
+    const alpha = [...document.querySelectorAll('.change-row[data-key]')].find(r => r.dataset.key === 'changes/alpha');
+    const toggle = document.querySelector('.diff-toggle');
+    return {
+      activeTab: document.querySelector('.tab.active') ? document.querySelector('.tab.active').textContent.replace(/\s+/g, ' ').trim() : null,
+      alphaNew: alpha ? alpha.classList.contains('new') : false,
+      alphaHint: alpha && alpha.querySelector('.diff-hint') ? alpha.querySelector('.diff-hint').textContent.trim() : null,
+      toggleCount: toggle ? (!!toggle.querySelector('.dh-add') || !!toggle.querySelector('.dh-del')) : false,
+    };
+  });
+  out.steps.push('read-clears-labels: ' + JSON.stringify(state));
+  if (state.activeTab !== 'Proposal') err('reading a diff should clear its tab count badge, got ' + state.activeTab);
+  if (state.alphaNew) err('a change with all files read should lose its unread marker');
+  if (state.alphaHint) err('list hint should show only unread changes, got ' + state.alphaHint);
+  if (state.toggleCount) err('reading a diff should clear its +a −r counts on the toggle button');
 
   // ---- Toggle back: artifact view ----
   await page.evaluate(() => { document.querySelector('.diff-toggle').click(); });
@@ -258,6 +297,145 @@ async page => {
   if (!state.active || !state.active.startsWith('Design')) err('active tab should stay Design after a sibling diff, got ' + state.active);
   if (!state.diffShown) err('active pane should keep its current view (design diff) after a sibling diff');
   if (!state.toggle || !state.toggle.startsWith('Artifact')) err('diff toggle should stay untouched after a sibling diff, got ' + state.toggle);
+
+  // ================= Read-state scenarios (mark-diff-as-read) =================
+  // Adding a new file to the stub requires a re-pick (the running directory
+  // handle is a static snapshot), which is exactly a reload: startMonitoring
+  // with keepSnapshots re-reads the tree and rescans.
+
+  // ---- R1: a brand-new artifact is unread; opening its content acknowledges it ----
+  await page.evaluate(() => {
+    window.__fsData['openspec/specs/epsilon/spec.md'] = { text: '# Epsilon Spec\n\nA new capability spec.\n', mtime: 6000 };
+  });
+  await page.evaluate(async () => { await window.startMonitoring(window.__makeFs(), true); });
+  await page.waitForTimeout(250);
+  state = await page.evaluate(() => {
+    const item = [...document.querySelectorAll('.item[data-rel]')].find(i => i.dataset.rel === 'specs/epsilon/spec.md');
+    const gl = [...document.querySelectorAll('.group-label')].find(l => l.dataset.group === 'Specs');
+    return {
+      itemNew: item ? item.classList.contains('new') : false,
+      counter: gl && gl.querySelector('.group-new') ? gl.querySelector('.group-new').textContent.trim() : null,
+    };
+  });
+  out.steps.push('r1-new: ' + JSON.stringify(state));
+  if (!state.itemNew) err('brand-new spec should be unread, got ' + JSON.stringify(state));
+  if (!state.counter || !state.counter.includes('unread')) err('Specs counter should show "+N unread", got ' + state.counter);
+
+  await page.evaluate(async () => { await window.openFile('specs/epsilon/spec.md'); });
+  await page.waitForTimeout(250);
+  state = await page.evaluate(() => {
+    const item = [...document.querySelectorAll('.item[data-rel]')].find(i => i.dataset.rel === 'specs/epsilon/spec.md');
+    const gl = [...document.querySelectorAll('.group-label')].find(l => l.dataset.group === 'Specs');
+    return {
+      itemNew: item ? item.classList.contains('new') : false,
+      counter: gl && gl.querySelector('.group-new') ? gl.querySelector('.group-new').textContent.trim() : null,
+      artifactShown: !!document.querySelector('.pane-body .markdown'),
+    };
+  });
+  out.steps.push('r1-open: ' + JSON.stringify(state));
+  if (state.itemNew) err('opening a brand-new artifact content should acknowledge it, got new=' + state.itemNew);
+  if (state.counter) err('Specs unread counter should clear after reading the new spec, got ' + state.counter);
+  if (!state.artifactShown) err('brand-new file should show its artifact view');
+
+  // ---- R2: read state survives a reload (keepSnapshots) ----
+  // The just-read epsilon stays read; a change with an unread file stays unread.
+  await page.evaluate(async () => { await window.startMonitoring(window.__makeFs(), true); });
+  await page.waitForTimeout(250);
+  state = await page.evaluate(() => {
+    const eps = document.querySelector('.item[data-rel="specs/epsilon/spec.md"]');
+    const alpha = [...document.querySelectorAll('.change-row[data-key]')].find(r => r.dataset.key === 'changes/alpha');
+    return {
+      epsNew: eps ? eps.classList.contains('new') : false,
+      alphaNew: alpha ? alpha.classList.contains('new') : false,
+    };
+  });
+  out.steps.push('r2-reload: ' + JSON.stringify(state));
+  if (state.epsNew) err('read spec should stay read across reload, got epsNew=' + state.epsNew);
+  if (!state.alphaNew) err('unread change (unread tasks) should stay unread across reload, got alphaNew=' + state.alphaNew);
+
+  // ---- R3: editing a read file re-flags it unread ----
+  await page.evaluate(() => {
+    const d = window.__fsData['openspec/specs/epsilon/spec.md'];
+    d.mtime = 7000;
+    d.text = '# Epsilon Spec\n\nA new capability spec, revised.\n\n- REQ-add\n';
+  });
+  await page.evaluate(async () => { await window.scan(false); });
+  await page.waitForTimeout(200);
+  state = await page.evaluate(() => {
+    const item = document.querySelector('.item[data-rel="specs/epsilon/spec.md"]');
+    const gl = [...document.querySelectorAll('.group-label')].find(l => l.dataset.group === 'Specs');
+    return {
+      itemNew: item ? item.classList.contains('new') : false,
+      counter: gl && gl.querySelector('.group-new') ? gl.querySelector('.group-new').textContent.trim() : null,
+    };
+  });
+  out.steps.push('r3-reflag: ' + JSON.stringify(state));
+  if (!state.itemNew) err('editing a read file should re-flag it unread, got ' + JSON.stringify(state));
+  if (!state.counter || !state.counter.includes('unread')) err('Specs counter should reappear, got ' + state.counter);
+
+  // ---- R4: two changes while unread collapse to the latest change only ----
+  // Read epsilon (baseline acknowledged), then edit it twice without reading:
+  // unread stays a single marker and the shown diff is only the latest change.
+  await page.evaluate(async () => { await window.openFile('specs/epsilon/spec.md'); });
+  await page.waitForTimeout(150);
+  await page.evaluate(() => { document.querySelector('.diff-toggle').click(); });
+  await page.waitForTimeout(200);
+  await page.evaluate(() => { document.querySelector('.diff-toggle').click(); }); // back to artifact, keep it read
+  await page.waitForTimeout(150);
+  await page.evaluate(async () => { await window.openFile('specs/cap/spec.md'); }); // move active away
+  await page.waitForTimeout(150);
+  await page.evaluate(() => {
+    const d = window.__fsData['openspec/specs/epsilon/spec.md'];
+    d.mtime = 7001; d.text += '// first-edit-marker\n';
+  });
+  await page.evaluate(async () => { await window.scan(false); });
+  await page.waitForTimeout(200);
+  await page.evaluate(() => {
+    const d = window.__fsData['openspec/specs/epsilon/spec.md'];
+    d.mtime = 7002; d.text = d.text.replace('// first-edit-marker', '// second-edit-marker');
+  });
+  await page.evaluate(async () => { await window.scan(false); });
+  await page.waitForTimeout(200);
+  state = await page.evaluate(() => {
+    const item = document.querySelector('.item[data-rel="specs/epsilon/spec.md"]');
+    return { itemNew: item ? item.classList.contains('new') : false };
+  });
+  out.steps.push('r4-twice-unread: ' + JSON.stringify(state));
+  if (!state.itemNew) err('epsilon should be unread after two edits, got ' + JSON.stringify(state));
+  await page.evaluate(async () => { await window.openFile('specs/epsilon/spec.md'); });
+  await page.waitForTimeout(150);
+  await page.evaluate(() => { document.querySelector('.diff-toggle').click(); });
+  await page.waitForTimeout(200);
+  state = await page.evaluate(() => ({
+    addLines: document.querySelectorAll('.diff-line.add').length,
+    delLines: document.querySelectorAll('.diff-line.del').length,
+    diffText: (document.querySelector('.diff-view') || {}).textContent || '',
+  }));
+  out.steps.push('r4-latest-diff: ' + JSON.stringify(state));
+  if (state.addLines !== 1 || state.delLines !== 1) err('only the latest change should be diffed (expected +1 −1), got ' + JSON.stringify(state));
+  if (!state.diffText.includes('second-edit-marker')) err('latest diff should contain the second-edit-marker');
+
+  // ---- R5: a file edited while its artifact view is open stays unread ----
+  // cap is open in its artifact view (never toggled); editing it live re-renders
+  // but the "diff exists -> don't acknowledge" branch keeps it unread.
+  await page.evaluate(async () => { await window.openFile('specs/cap/spec.md'); });
+  await page.waitForTimeout(150);
+  await page.evaluate(() => {
+    const d = window.__fsData['openspec/specs/cap/spec.md'];
+    d.mtime = 10000;
+    d.text = '# Cap Spec\n\n## Requirements\n\n- REQ-1\n- REQ-2\n- REQ-3\n- REQ-4\n\n## Notes\n\nKeep notes here.\n';
+  });
+  await page.evaluate(async () => { await window.scan(false); });
+  await page.waitForTimeout(250);
+  state = await page.evaluate(() => {
+    const item = document.querySelector('.item[data-rel="specs/cap/spec.md"]');
+    return {
+      itemNew: item ? item.classList.contains('new') : false,
+      artifactShown: !!document.querySelector('.pane-body .markdown'),
+    };
+  });
+  out.steps.push('r5-live-artifact: ' + JSON.stringify(state));
+  if (!state.itemNew) err('a file edited while its artifact view is open should stay unread, got ' + JSON.stringify(state));
 
   out.ok = out.errors.length === 0;
   console.log('=== DIFF TEST RESULT ===');

@@ -23,7 +23,7 @@ export const allFiles = signal([]);    // [{ rel, handle }] handle = FileSystemF
 export const currentRel = signal(null); // selected artifact
 export const currentKey = signal(null); // selected change (active or archived)
 export const dirHandle = signal(null);  // FileSystemDirectoryHandle being monitored
-export const recentRels = signal(new Set()); // rels added/updated since the last scan, not yet opened
+export const recentRels = signal(new Set()); // rels with unacknowledged changes, keyed to the persisted readHash
 
 // Archive is collapsed by default on first visit; the persisted choice lives in the signal.
 let storedCollapsed = null;
@@ -44,8 +44,7 @@ export const GROUPS = ['Changes', 'Specs', 'Archive', 'Config'];
 
 export const fileState = new Map();  // rel -> { handle, lastModified } snapshot for change detection
 export const paneCache = new Map();  // rel -> rendered pane HTML
-export const diffInfo = new Map();   // rel -> { hunks, added, removed, ts } line diff vs last snapshot
-export const freshDiffs = new Set(); // rels with a diff the user hasn't seen yet -> "NEW" badge on the Diff button
+export const diffInfo = new Map();   // rel -> { hunks, added, removed, ts, hash } line diff vs last snapshot
 export const diffViews = new Map();  // rel -> true when the pane shows the diff view instead of the artifact
 
 // Tabs in the open change view (imperative, not reactive). Importers read this

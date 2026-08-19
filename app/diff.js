@@ -11,6 +11,23 @@ export function splitLines(s) {
   return lines;
 }
 
+// Fast, dependency-free 53-bit string hash (cyrb53) over the normalized text
+// (same line-ending normalization as splitLines). Fingerprints the exact
+// content version a file was acknowledged at; see components/osv-pane for the
+// unread/read model.
+export function hashText(s) {
+  const t = String(s).replace(/\r\n?/g, '\n');
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0; i < t.length; i++) {
+    const ch = t.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return 4294967296 * (2097151 & h2) + (h1 >>> 0);
+}
+
 // Line-by-line diff (LCS with a 3-line context window). Returns null for
 // identical texts. Fine for small artifacts; very large files degrade to a
 // single all-changed hunk instead of a giant DP table.
@@ -73,7 +90,8 @@ export function diffLines(oldText, newText) {
     if (l[0] === '+') added++;
     if (l[0] === '-') removed++;
   }
-  return { hunks, added, removed, ts: Date.now() };
+  // hash of the NEW text: the exact version acknowledging this diff marks read.
+  return { hunks, added, removed, ts: Date.now(), hash: hashText(newText) };
 }
 
 export function relTime(ts) {
@@ -121,16 +139,18 @@ export function diffViewHtml(di) {
 
 // The Diff/Artifact toggle shown next to the breadcrumb when the artifact
 // has a recorded diff. A "NEW" badge marks diffs the user hasn't seen yet.
-// Pure: takes its data as arguments (di, active = diff view shown, fresh =
-// has an unseen change) instead of reading state maps.
-export function diffToggleHtml(rel, di, active, fresh) {
+// Pure: takes its data as arguments (di, active = diff view shown, unread =
+// the artifact has an unacknowledged change) instead of reading state maps.
+export function diffToggleHtml(rel, di, active, unread) {
   if (!di) return '';
-  const showNew = fresh && !active;
+  const showNew = unread && !active;
+  // +a −r counts also clear once the artifact is read, matching the tab badge
+  // and the file-list hint: they represent an unacknowledged change.
   return html`<button class="diff-toggle${active ? ' active' : ''}" data-rel="${rel}" title="Toggle artifact / diff view">
     ${active ? 'Artifact' : 'Diff'}
     ${showNew ? html`<span class="diff-new">NEW</span>` : ''}
-    ${di.added ? html`<b class="dh-add">+${di.added}</b>` : ''}
-    ${di.removed ? html`<b class="dh-del">−${di.removed}</b>` : ''}
+    ${unread && di.added ? html`<b class="dh-add">+${di.added}</b>` : ''}
+    ${unread && di.removed ? html`<b class="dh-del">−${di.removed}</b>` : ''}
   </button>`;
 }
 
@@ -144,9 +164,11 @@ export function diffHint(diffs) {
     r ? html`<b class="dh-del">−${r}</b>` : ''}</span>`;
 }
 
-// Compact +a −r counts for a change tab; empty when that file has no diff.
-export function diffTabBadgeHtml(di) {
-  if (!di || (!di.added && !di.removed)) return '';
+// Compact +a −r counts for a change tab; empty when that file has no diff or
+// its change has been acknowledged (seen). unread = the rel has an
+// unacknowledged change.
+export function diffTabBadgeHtml(di, unread) {
+  if (!di || !unread || (!di.added && !di.removed)) return '';
   return html`<span class="tab-diff">${
     di.added ? html`<b class="dh-add">+${di.added}</b>` : ''}${
     di.removed ? html`<b class="dh-del">−${di.removed}</b>` : ''}</span>`;

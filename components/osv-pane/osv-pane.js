@@ -8,11 +8,12 @@ import { html, joinHtml } from '../../imports.js';
 import {
   crumbFor, handleText, markdownPane, yamlPane, artifactOf, changeOf, groupOf,
 } from '../../app/render.js';
-import { diffViewHtml, diffToggleHtml, diffTabBadgeHtml } from '../../app/diff.js';
+import { diffViewHtml, diffToggleHtml, diffTabBadgeHtml, hashText } from '../../app/diff.js';
 import {
   allFiles, currentRel, currentKey, changeMeta, diffInfo, diffViews,
-  freshDiffs, recentRels, paneCache, currentTabs, setCurrentTabs,
+  recentRels, paneCache, currentTabs, setCurrentTabs,
 } from '../../app/state.js';
+import { markRead as markReadStore, readFileText } from '../../app/store.js';
 import { applyHighlights, hideAnnBubble, onSelection, repositionBubble } from '../../app/annotations.js';
 
 const WELCOME = `
@@ -43,8 +44,10 @@ export class OsvPane extends HTMLElement {
       const b = e.target.closest('.diff-toggle');
       if (!b) return;
       const rel = b.dataset.rel;
-      diffViews.set(rel, !diffViews.get(rel));
-      freshDiffs.delete(rel);
+      const showingDiff = !diffViews.get(rel);
+      diffViews.set(rel, showingDiff);
+      // Opening the diff view acknowledges the artifact (see acknowledgeShown).
+      if (showingDiff) await this.markRead(rel, diffInfo.get(rel) && diffInfo.get(rel).hash);
       this.refreshToggle(rel);
       if (this._body && this._main.contains(this._body)) {
         this._body.innerHTML = await this.viewFor(rel);
@@ -75,9 +78,8 @@ export class OsvPane extends HTMLElement {
     if (key) { this.openChange(key, rel); return; }
     currentRel.value = rel;
     currentKey.value = null;
-    this.clearRecent(rel);
     // The artifact is now viewed; the diff toggle may still show NEW until
-    // the user actually switches to the diff view (cleared in the toggle handler).
+    // the user actually switches to the diff view (handled in acknowledgeShown).
     this._main.innerHTML = this.paneBarHtml(html`<div class="crumb">${crumbFor(rel)}</div>`, rel)
       + '<div class="pane-body pane-loading">Loading…</div>';
     this._body = this._main.querySelector('.pane-body');
@@ -85,6 +87,7 @@ export class OsvPane extends HTMLElement {
     this._body.innerHTML = await this.viewFor(rel);
     applyHighlights(rel);
     this._main.scrollTop = 0;
+    await this.acknowledgeShown(rel);
   }
 
   async openChange(key, initialRel) {
@@ -93,7 +96,6 @@ export class OsvPane extends HTMLElement {
     hideAnnBubble();
     currentKey.value = key;
     currentRel.value = initialRel || meta.proposalRel || null;
-    this.clearRecentForMeta(meta);
 
     // Tabs in order: proposal, specs…, design, tasks, metadata
     const tabs = [];
@@ -117,7 +119,7 @@ export class OsvPane extends HTMLElement {
     setCurrentTabs(tabs);
 
     const tabBar = joinHtml(tabs.map((t, i) =>
-      html`<button class="tab ${artifactOf(t.rel).toLowerCase()}${t.rel === currentRel.value ? ' active' : ''}" data-i="${i}">${t.label}${diffTabBadgeHtml(diffInfo.get(t.rel))}</button>`));
+      html`<button class="tab ${artifactOf(t.rel).toLowerCase()}${t.rel === currentRel.value ? ' active' : ''}" data-i="${i}">${t.label}${diffTabBadgeHtml(diffInfo.get(t.rel), recentRels.value.has(t.rel))}</button>`));
 
     this._main.innerHTML = html`
       ${this.paneBarHtml(html`<div class="crumb">${crumbFor(meta.key)}</div>`, currentRel.value)}
@@ -147,6 +149,7 @@ export class OsvPane extends HTMLElement {
     this._body.innerHTML = await this.viewFor(t.rel);
     applyHighlights(t.rel);
     this._main.scrollTop = 0;
+    await this.acknowledgeShown(t.rel);
   }
 
   async viewFor(rel) {
@@ -169,13 +172,13 @@ export class OsvPane extends HTMLElement {
   }
 
   paneBarHtml(crumb, rel) {
-    return html`<div class="pane-bar">${crumb}<span class="diff-toggle-slot">${diffToggleHtml(rel, diffInfo.get(rel), diffViews.get(rel), freshDiffs.has(rel))}</span></div>`;
+    return html`<div class="pane-bar">${crumb}<span class="diff-toggle-slot">${diffToggleHtml(rel, diffInfo.get(rel), diffViews.get(rel), recentRels.value.has(rel))}</span></div>`;
   }
 
   // Re-render just the toggle after a tab switch or a click.
   refreshToggle(rel) {
     const slot = this._main.querySelector('.diff-toggle-slot');
-    if (slot) slot.innerHTML = diffToggleHtml(rel, diffInfo.get(rel), diffViews.get(rel), freshDiffs.has(rel));
+    if (slot) slot.innerHTML = diffToggleHtml(rel, diffInfo.get(rel), diffViews.get(rel), recentRels.value.has(rel));
   }
 
   // Live updates: re-render only the tab diff badges (no pane reload).
@@ -187,7 +190,7 @@ export class OsvPane extends HTMLElement {
       if (!btn) return;
       const old = btn.querySelector('.tab-diff');
       if (old) old.remove();
-      const badge = diffTabBadgeHtml(diffInfo.get(t.rel));
+      const badge = diffTabBadgeHtml(diffInfo.get(t.rel), recentRels.value.has(t.rel));
       if (badge) btn.insertAdjacentHTML('beforeend', badge);
     });
   }
@@ -219,20 +222,33 @@ export class OsvPane extends HTMLElement {
     }
   }
 
-  async clearRecent(rel) {
+  // Acknowledge the currently shown view of rel once the user has seen
+  // everything there is to see (see design.md D4): the diff view always
+  // acknowledges; the artifact view acknowledges only when there is no pending
+  // diff for the artifact — its content is then the whole change (e.g. a
+  // brand-new file). A pending diff keeps the artifact unread until opened.
+  async acknowledgeShown(rel) {
+    const di = diffInfo.get(rel);
+    if (diffViews.get(rel) && di) {
+      await this.markRead(rel, di.hash);
+    } else if (!di) {
+      try { await this.markRead(rel, hashText(await readFileText(rel))); }
+      catch (e) { /* non-fatal */ }
+    }
+    // else: artifact view with a pending diff → stay unread
+  }
+
+  async markRead(rel, hash) {
+    if (hash == null) return;
+    await markReadStore(rel, hash);
     if (recentRels.value.has(rel)) {
       const s = new Set(recentRels.value);
       s.delete(rel);
       recentRels.value = s;
     }
-  }
-
-  async clearRecentForMeta(meta) {
-    if (meta.files.some(f => recentRels.value.has(f.rel))) {
-      const s = new Set(recentRels.value);
-      meta.files.forEach(f => s.delete(f.rel));
-      recentRels.value = s;
-    }
+    // Tab count badges are imperative (not reactive) — drop the read file's
+    // +a −r label on the fly; the file list updates via recentRels reactivity.
+    this.refreshTabBadges();
   }
 }
 

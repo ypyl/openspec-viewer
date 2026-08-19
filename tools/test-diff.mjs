@@ -83,10 +83,11 @@ test('diffHint: sums added/removed across diffs; empty when no changes', () => {
   assert.equal(diffHint([{ added: 0, removed: 0 }]), '');
 });
 
-test('diffTabBadgeHtml: shows counts only when nonzero', () => {
-  assert.ok(String(diffTabBadgeHtml({ added: 2, removed: 1 })).includes('+2'));
-  assert.equal(diffTabBadgeHtml(null), '');
-  assert.equal(diffTabBadgeHtml({ added: 0, removed: 0 }), '');
+test('diffTabBadgeHtml: shows counts only when nonzero and unread', () => {
+  assert.ok(String(diffTabBadgeHtml({ added: 2, removed: 1 }, true)).includes('+2'));
+  assert.equal(diffTabBadgeHtml({ added: 2, removed: 1 }, false), '');
+  assert.equal(diffTabBadgeHtml(null, true), '');
+  assert.equal(diffTabBadgeHtml({ added: 0, removed: 0 }, true), '');
 });
 
 test('relTime: just-now for a fresh timestamp', () => {

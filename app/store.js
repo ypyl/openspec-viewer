@@ -7,11 +7,11 @@
 
 import { normPath, isRelevant, groupOf, changeOf } from './model.js';
 import { handleText } from './render.js';
-import { diffLines } from './diff.js';
+import { diffLines, hashText } from './diff.js';
 import { pruneHighlights } from './annotations.js';
 import {
   allFiles, currentRel, currentKey, dirHandle, recentRels,
-  fileState, paneCache, diffInfo, freshDiffs, diffViews, setStorePrefix,
+  fileState, paneCache, diffInfo, diffViews, setStorePrefix,
 } from './state.js';
 import { showToast } from '../components/osv-toast/osv-toast.js';
 import { setLoading } from '../components/osv-loading/osv-loading.js';
@@ -96,6 +96,23 @@ export async function deleteSnapshot(rel) {
   });
 }
 
+// Acknowledge a rel's current content version as read (the version `hash` was
+// computed from). Fire-and-forget and non-fatal like saveHandle: updates only
+// readHash + unread on the snapshot row, preserving text/mtime. If no snapshot
+// exists yet (a brand-new file opened before its first snapshot), read the live
+// text so the row stays complete. Only this clears the persisted unread flag;
+// the scan never does.
+export async function markRead(rel, hash) {
+  try {
+    const snap = await getSnapshot(rel);
+    if (snap) {
+      await putSnapshot(rel, { ...snap, readHash: hash, unread: false });
+    } else {
+      await putSnapshot(rel, { rel, text: await readFileText(rel), mtime: Date.now(), readHash: hash, unread: false });
+    }
+  } catch (e) { /* non-fatal */ }
+}
+
 async function clearSnapshots() {
   try {
     const db = await idbOpen();
@@ -145,7 +162,6 @@ export async function loadFiles(raw) {
     fileState.clear();
     recentRels.value = new Set();
     diffInfo.clear();
-    freshDiffs.clear();
     diffViews.clear();
     currentRel.value = null;
     currentKey.value = null;
@@ -160,6 +176,7 @@ export async function loadFiles(raw) {
 
 let pollTimer = null;      // setInterval id for the poll loop
 let isScanning = false;    // guard against overlapping scans
+let baselineFresh = true;  // true only for the initial scan of a fresh pick (snapshots cleared)
 
 export async function startMonitoring(handle, keepSnapshots) {
   dirHandle.value = handle;
@@ -171,12 +188,14 @@ export async function startMonitoring(handle, keepSnapshots) {
   // first scan doesn't flag everything as newly changed. autoReopen on
   // reload keeps persisted snapshots so content diffs survive a refresh.
   if (!keepSnapshots) clearSnapshots();
+  baselineFresh = !keepSnapshots;   // a fresh pick establishes the baseline (nothing is new);
+                                    // a reload keeps snapshots, so genuinely-new files surface.
   fileState.clear();
   recentRels.value = new Set();
   diffInfo.clear();
-  freshDiffs.clear();
   diffViews.clear();
   await scan(true);
+  baselineFresh = false;   // only the very first scan is the baseline; later scans flag new files
   if (!currentRel.value) document.dispatchEvent(new CustomEvent('osv:auto-open'));
   clearInterval(pollTimer);
   pollTimer = setInterval(() => scan(false), 10000);
@@ -255,6 +274,8 @@ export async function scan(initial) {
     const updates = [];
     const diffsSeen = [];   // rels whose content diffed vs the persisted snapshot this scan
     let removals = 0;
+    const prevUnread = recentRels.value;        // carry forward last scan's unread set
+    const nextUnread = new Set(prevUnread);     // rebuilt by this scan, assigned back below
     for (const [rel, info] of current) {
       const prev = fileState.get(rel);
       const modified = !prev || prev.lastModified !== info.lastModified;
@@ -267,14 +288,34 @@ export async function scan(initial) {
         try {
           const text = await handleText(info.handle);
           const snap = await getSnapshot(rel);
+          let changedContent = false;
           if (snap && snap.text !== undefined && snap.text !== text) {
             const d = diffLines(snap.text, text);
-            if (d) { diffInfo.set(rel, d); diffsSeen.push(rel); }
+            if (d) { diffInfo.set(rel, d); diffsSeen.push(rel); changedContent = true; }
             else diffInfo.delete(rel);
           } else if (!snap) {
             diffInfo.delete(rel);   // first baseline — nothing to diff yet
           }
-          await putSnapshot(rel, { rel, text, mtime: info.lastModified });
+          // Unread seeding (see design.md D2): a rel is unread iff there is an
+          // unacknowledged change. Brand-new files appearing during operation
+          // (no prior snapshot) are unread; files whose content changed and is
+          // not the version in readHash are unread (a previously read file that
+          // changes again re-flags); unchanged files keep their persisted unread
+          // state. The fresh-pick baseline (!hadPrior, snapshots cleared) is read.
+          // readHash drives re-flagging here; the persisted `unread` flag carries
+          // unreadness across reloads once the snapshot has already advanced to
+          // the unread version (indistinguishable from an unchanged file by
+          // readHash alone).
+          let isUnread;
+          if (!snap) isUnread = !baselineFresh;   // a genuinely-new file is unread; the fresh-pick baseline is not
+          else if (changedContent) isUnread = snap.readHash !== hashText(text);
+          else isUnread = !!snap.unread;
+          if (isUnread) nextUnread.add(rel); else nextUnread.delete(rel);
+          await putSnapshot(rel, {
+            rel, text, mtime: info.lastModified,
+            readHash: snap ? snap.readHash : undefined,
+            unread: isUnread,
+          });
         } catch (e) { /* snapshotting unavailable — markers still work */ }
         paneCache.delete(rel);
       }
@@ -292,7 +333,7 @@ export async function scan(initial) {
         changed = true;
         paneCache.delete(rel);
         diffInfo.delete(rel);
-        freshDiffs.delete(rel);
+        nextUnread.delete(rel);
         diffViews.delete(rel);
         if (hadPrior) {
           removals++;
@@ -311,17 +352,13 @@ export async function scan(initial) {
     fileState.clear();
     current.forEach((v, k) => fileState.set(k, v));
 
-    // Content diffs drive the same markers as file-level updates, and mark
-    // their panes to auto-open the diff on first view.
-    if (diffsSeen.length) {
-      const fresh = diffsSeen.filter(rel => !recentRels.value.has(rel));
-      diffsSeen.forEach(rel => freshDiffs.add(rel));
-      if (fresh.length) recentRels.value = new Set([...recentRels.value, ...fresh]);
-    }
+    // Commit the unread set: last scan's set plus this scan's adds/removes,
+    // keyed to the persisted readHash, so it survives reloads (on the first
+    // scan after re-opening, old read pointers vs current text reseed it).
+    recentRels.value = nextUnread;
 
     if (hadPrior && (updates.length || removals)) {
-      const added = updates.filter(rel => !recentRels.value.has(rel));
-      if (added.length) recentRels.value = new Set([...recentRels.value, ...added]);
+      const added = updates.filter(rel => !prevUnread.has(rel));
       const parts = [];
       if (added.length) parts.push(`${added.length} artifact${added.length === 1 ? '' : 's'} updated`);
       if (removals) parts.push(`${removals} deleted`);
