@@ -7,15 +7,15 @@ import { html, htmlRaw, joinHtml } from '../imports.js';
 import { marked, jsyaml, DOMPurify } from '../imports.js';
 import {
   normPath, artifactOf, isRelevant, isArchived, groupOf, displayLabel,
-  changeOf, prettyChangeName, derivePrefix, crumbFor, refLines, snippet,
-  searchLabel, searchTitle, matchLines, snippetSegments,
+  changeOf, prettyChangeName, crumbFor, refLines, snippet,
+  searchLabel, searchTitle, snippetSegments,
 } from './model.js';
 
 // Re-export the pure model helpers for the browser app.
 export {
   normPath, artifactOf, isRelevant, isArchived, groupOf, displayLabel,
-  changeOf, prettyChangeName, derivePrefix, crumbFor, refLines, snippet,
-  searchLabel, searchTitle, matchLines, snippetSegments,
+  changeOf, prettyChangeName, crumbFor, refLines, snippet,
+  searchLabel, searchTitle, snippetSegments,
 };
 
 // Read raw text from a FileSystemFileHandle or an uploaded File.

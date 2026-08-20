@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { searchLabel, searchTitle, matchLines, snippetSegments } from '../app/model.js';
+import { searchLabel, searchTitle, snippetSegments } from '../app/model.js';
 
 test('searchLabel: change pretty name / capability path / file path', () => {
   assert.equal(searchLabel('changes/mark-diff-as-read/design.md'), 'Mark Diff As Read');
@@ -17,16 +17,6 @@ test('searchTitle: change name + artifact segment, capability path, file', () =>
   assert.equal(searchTitle('changes/archive/2026-08-19-mark-diff-as-read/tasks.md'), 'Mark Diff As Read tasks.md');
   assert.equal(searchTitle('specs/acct/spec.md'), 'acct');
   assert.equal(searchTitle('config.yaml'), 'config.yaml');
-});
-
-test('matchLines: 1-based line numbers covered by [start, end) ranges', () => {
-  const text = 'l1\nl2\nl3\nl4\nl5\nl6\nl7\n';   // line starts at offsets 0,3,6,9,12,15,18
-  assert.deepEqual(matchLines(text, [[6, 8]]), [3]);    // 'l3'
-  assert.deepEqual(matchLines(text, [[0, 3]]), [1]);    // 'l1'
-  assert.deepEqual(matchLines(text, [[6, 12]]), [3, 4]); // 'l3\nl4'
-  assert.deepEqual(matchLines(text, [[18, 21]]), [7]);   // last line (trailing \n)
-  assert.deepEqual(matchLines(text, [[100, 120]]), []);  // out of range → ignored
-  assert.deepEqual(matchLines(text, []), []);
 });
 
 test('snippetSegments: context window around the first match with hit flags', () => {

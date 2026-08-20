@@ -73,13 +73,6 @@ export function prettyChangeName(dir) {
   return { label, date };
 }
 
-// Extract the leading 'project/openspec' path from a raw upload path
-// (e.g. 'llmclip/openspec/specs/…' -> 'llmclip/openspec/').
-export function derivePrefix(rawPath) {
-  const m = String(rawPath).match(/^(.*?\bopenspec\b)(?=\/|$)/);
-  return m ? m[0] + '/' : '';
-}
-
 export function crumbFor(rel) {
   let segs = rel.split('/');
   // Spec files: show the capability path, not a trailing spec.md.
@@ -131,29 +124,6 @@ export function searchTitle(rel) {
     return prettyChangeName(dir).label + ' ' + parts[parts.length - 1];
   }
   return searchLabel(rel);
-}
-
-// 1-based line numbers covered by [start, end) ranges in `text`.
-export function matchLines(text, ranges) {
-  if (!ranges.length) return [];
-  const starts = [0];
-  for (let i = 0; i < text.length; i++) if (text[i] === '\n') starts.push(i + 1);
-  const lineAt = (off) => {
-    let lo = 0, hi = starts.length - 1;
-    while (lo < hi) {
-      const mid = (lo + hi + 1) >> 1;
-      if (starts[mid] <= off) lo = mid; else hi = mid - 1;
-    }
-    return lo;
-  };
-  const set = new Set();
-  for (const [s, e] of ranges) {
-    if (e <= 0 || s >= text.length || s >= e) continue;
-    const a = lineAt(s);
-    const b = lineAt(Math.min(e - 1, Math.max(0, text.length - 1)));
-    for (let i = a; i <= b; i++) set.add(i + 1);
-  }
-  return [...set].sort((x, y) => x - y);
 }
 
 // Build a snippet window around the first match. Returns

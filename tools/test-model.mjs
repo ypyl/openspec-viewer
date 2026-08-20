@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 
 import {
   normPath, artifactOf, isRelevant, isArchived, groupOf, displayLabel,
-  changeOf, prettyChangeName, derivePrefix, crumbFor, refLines, snippet,
+  changeOf, prettyChangeName, crumbFor, refLines, snippet,
 } from '../app/model.js';
 
 test('normPath: strips any leading path up to the first openspec segment', () => {
@@ -62,12 +62,6 @@ test('changeOf: returns change key for active and archived, null otherwise', () 
 test('prettyChangeName: title-cases and extracts an optional date', () => {
   assert.deepEqual(prettyChangeName('my-change'), { label: 'My Change', date: '' });
   assert.deepEqual(prettyChangeName('2026-01-01-my-change'), { label: 'My Change', date: '2026-01-01' });
-});
-
-test('derivePrefix: captures the leading project/openspec path', () => {
-  assert.equal(derivePrefix('llmclip/openspec/specs/a/spec.md'), 'llmclip/openspec/');
-  assert.equal(derivePrefix('openspec/config.yaml'), 'openspec/');
-  assert.equal(derivePrefix('specs/a/spec.md'), '');
 });
 
 test('crumbFor: renders path segments and drops a trailing spec.md', () => {

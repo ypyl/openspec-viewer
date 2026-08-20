@@ -85,3 +85,12 @@
 - ~~Search across the whole openspec tree, index artifacts by content in IndexedDB to keep searches fast.~~
 - ~~Show results with snippet/matches and link to the containing artifact; highlight matching lines when the artifact is opened.~~
 - ~~Use **Fuse.js v7** (vendored as lib/fuse.min.js, UMD loaded off window, re-exported via imports.js — same pattern as marked/js-yaml). Full build with bitap for real fuzzy matching; at ~24KB minified. Load matches index order on file list, reuse its highlight/matches info for snippets.~~
+
+## Over-engineering cleanup (ponytail-audit) ✅ v2.11.2
+
+- ~~Delete one-shot Playwright scripts from archived changes (verify-search.js, tools/verify-review.js)~~ ✅
+- ~~Delete dead `matchLines()` export~~ ✅
+- ~~Delete dead `derivePrefix()` in app/model.js (store keeps its live copy)~~ ✅
+- ~~Delete empty osv-loading constructor~~ ✅
+- ~~Collapse the 8 IDB transaction wrappers in app/store.js into a `storeTx()` helper~~ ✅
+- ~~Unify the +a −r fragment into `diffCountsHtml()` in app/diff.js~~ ✅

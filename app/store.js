@@ -38,28 +38,28 @@ function idbOpen() {
   });
 }
 
+// One transaction helper instead of per-op promise boilerplate. `fn` gets the
+// object store and may return a request (its result is resolved on success);
+// otherwise resolves when the transaction commits. Rejects on error.
+async function storeTx(storeName, mode, fn) {
+  const db = await idbOpen();
+  return await new Promise((res, rej) => {
+    const tx = db.transaction(storeName, mode);
+    const r = fn(tx.objectStore(storeName));
+    if (r) r.onsuccess = () => res(r.result);
+    else tx.oncomplete = res;
+    tx.onerror = () => rej(tx.error);
+  });
+}
+
 export async function saveHandle(handle) {
-  try {
-    const db = await idbOpen();
-    await new Promise((res, rej) => {
-      const tx = db.transaction(IDB_STORE, 'readwrite');
-      tx.objectStore(IDB_STORE).put(handle, 'dir');
-      tx.oncomplete = res;
-      tx.onerror = () => rej(tx.error);
-    });
-  } catch (e) { /* non-fatal */ }
+  try { await storeTx(IDB_STORE, 'readwrite', s => { s.put(handle, 'dir'); }); }
+  catch (e) { /* non-fatal */ }
 }
 
 export async function loadHandle() {
-  try {
-    const db = await idbOpen();
-    return await new Promise((res, rej) => {
-      const tx = db.transaction(IDB_STORE, 'readonly');
-      const r = tx.objectStore(IDB_STORE).get('dir');
-      r.onsuccess = () => res(r.result || null);
-      r.onerror = () => rej(r.error);
-    });
-  } catch (e) { return null; }
+  try { return (await storeTx(IDB_STORE, 'readonly', s => s.get('dir'))) || null; }
+  catch (e) { return null; }
 }
 
 // Content snapshots for change diffs. The File System Access API exposes
@@ -67,33 +67,15 @@ export async function loadHandle() {
 // mtime it was read at) after every scan; the next scan line-diffs against
 // it. These survive reloads, so diffs hold across page refreshes too.
 export async function getSnapshot(rel) {
-  const db = await idbOpen();
-  return await new Promise((res, rej) => {
-    const tx = db.transaction(IDB_SNAP, 'readonly');
-    const r = tx.objectStore(IDB_SNAP).get(rel);
-    r.onsuccess = () => res(r.result || null);
-    r.onerror = () => rej(r.error);
-  });
+  return (await storeTx(IDB_SNAP, 'readonly', s => s.get(rel))) || null;
 }
 
 export async function putSnapshot(rel, snap) {
-  const db = await idbOpen();
-  await new Promise((res, rej) => {
-    const tx = db.transaction(IDB_SNAP, 'readwrite');
-    tx.objectStore(IDB_SNAP).put(snap);
-    tx.oncomplete = res;
-    tx.onerror = () => rej(tx.error);
-  });
+  await storeTx(IDB_SNAP, 'readwrite', s => { s.put(snap); });
 }
 
 export async function deleteSnapshot(rel) {
-  const db = await idbOpen();
-  await new Promise((res, rej) => {
-    const tx = db.transaction(IDB_SNAP, 'readwrite');
-    tx.objectStore(IDB_SNAP).delete(rel);
-    tx.oncomplete = res;
-    tx.onerror = () => rej(tx.error);
-  });
+  await storeTx(IDB_SNAP, 'readwrite', s => { s.delete(rel); });
 }
 
 // Acknowledge a rel's current content version as read (the version `hash` was
@@ -114,15 +96,8 @@ export async function markRead(rel, hash) {
 }
 
 async function clearSnapshots() {
-  try {
-    const db = await idbOpen();
-    await new Promise((res, rej) => {
-      const tx = db.transaction(IDB_SNAP, 'readwrite');
-      tx.objectStore(IDB_SNAP).clear();
-      tx.oncomplete = res;
-      tx.onerror = () => rej(tx.error);
-    });
-  } catch (e) { /* non-fatal */ }
+  try { await storeTx(IDB_SNAP, 'readwrite', s => { s.clear(); }); }
+  catch (e) { /* non-fatal */ }
 }
 
 /* ---------- File input fallback ---------- */
@@ -142,13 +117,8 @@ export async function readFileText(rel) {
 // files or persisting a second index.
 async function getAllSnapshots() {
   try {
-    const db = await idbOpen();
-    return await new Promise((res, rej) => {
-      const tx = db.transaction(IDB_SNAP, 'readonly');
-      const r = tx.objectStore(IDB_SNAP).getAll();
-      r.onsuccess = () => res(new Map((r.result || []).map(s => [s.rel, s])));
-      r.onerror = () => rej(r.error);
-    });
+    const rows = await storeTx(IDB_SNAP, 'readonly', s => s.getAll());
+    return new Map((rows || []).map(s => [s.rel, s]));
   } catch (e) { return new Map(); }
 }
 

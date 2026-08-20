@@ -154,14 +154,21 @@ export function diffToggleHtml(rel, di, active, unread) {
   </button>`;
 }
 
+// Shared +a −r badge bodies: the <b> spans emitted inside a container.
+function diffCountsHtml(added, removed) {
+  return joinHtml([
+    added ? html`<b class="dh-add">+${added}</b>` : html``,
+    added && removed ? ' ' : '',
+    removed ? html`<b class="dh-del">−${removed}</b>` : html``,
+  ]);
+}
+
 // Compact +a −r counts next to an artifact or change in the list.
 export function diffHint(diffs) {
   let a = 0, r = 0;
   for (const d of diffs) { a += d.added; r += d.removed; }
   if (!a && !r) return '';
-  return html`<span class="diff-hint" title="Line changes since last snapshot">${
-    a ? html`<b class="dh-add">+${a}</b>` : ''} ${
-    r ? html`<b class="dh-del">−${r}</b>` : ''}</span>`;
+  return html`<span class="diff-hint" title="Line changes since last snapshot">${diffCountsHtml(a, r)}</span>`;
 }
 
 // Compact +a −r counts for a change tab; empty when that file has no diff or
@@ -169,7 +176,5 @@ export function diffHint(diffs) {
 // unacknowledged change.
 export function diffTabBadgeHtml(di, unread) {
   if (!di || !unread || (!di.added && !di.removed)) return '';
-  return html`<span class="tab-diff">${
-    di.added ? html`<b class="dh-add">+${di.added}</b>` : ''}${
-    di.removed ? html`<b class="dh-del">−${di.removed}</b>` : ''}</span>`;
+  return html`<span class="tab-diff">${diffCountsHtml(di.added, di.removed)}</span>`;
 }

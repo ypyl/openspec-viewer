@@ -2,7 +2,6 @@
 // Other modules call setLoading().
 
 export class OsvLoading extends HTMLElement {
-  constructor() { super(); }
   connectedCallback() {
     if (this._init) return;
     this._init = true;
