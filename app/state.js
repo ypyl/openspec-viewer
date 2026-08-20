@@ -33,6 +33,8 @@ export const collapsed = signal(new Set(storedCollapsed === null ? ['Archive'] :
 export const search = signal('');
 export const highlights = signal(new Map()); // rel -> [{ id, start, end, text, comment, ts, rel, lines }]
 export const staleTick = signal(0);          // bumped after a file renders so stale checks re-run on the right content
+export const searchVersion = signal(0);      // bumped whenever the folder's contents could have changed (search index invalidates)
+export const searchMarks = signal(new Map()); // rel -> [[start, end), ...] transient search-match ranges (not persisted)
 
 function safeParseCollapsed(v) {
   try { const a = JSON.parse(v); return Array.isArray(a) ? a : []; } catch (e) { return []; }

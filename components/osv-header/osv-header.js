@@ -6,7 +6,7 @@ import { groupOf, changeOf, isArchived } from '../../app/render.js';
 
 // Single source for the visible version badge (AGENTS.md keeps the version
 // in the header badge, the first-line comment, and sw.js in sync).
-export const VERSION = '2.2.0';
+export const VERSION = '2.3.0';
 
 export class OsvHeader extends HTMLElement {
   connectedCallback() {
@@ -15,11 +15,16 @@ export class OsvHeader extends HTMLElement {
 
     this.innerHTML = `
       <header>
-        <h1>OpenSpec <span class="dot">•</span> Local Viewer</h1>
-        <span class="version">v${VERSION}</span>
-        <button class="theme-btn" title="Following system theme — click to override">💻</button>
-        <div class="stats"></div>
-        <button class="review-btn" title="Review comments across all artifacts">💬<span class="review-count" hidden></span></button>
+        <div class="brand">
+          <h1>OpenSpec <span class="dot">•</span> Local Viewer</h1>
+          <span class="version">v${VERSION}</span>
+          <button class="theme-btn" title="Following system theme — click to override">💻</button>
+        </div>
+        <osv-search></osv-search>
+        <div class="side">
+          <div class="stats"></div>
+          <button class="review-btn" title="Review comments across all artifacts">💬<span class="review-count" hidden></span></button>
+        </div>
       </header>`;
 
     const themeBtn = this.querySelector('.theme-btn');

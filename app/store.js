@@ -5,13 +5,13 @@
 // open file, update tab badges, show a "deleted" notice), it dispatches a
 // document-level CustomEvent that the bootstrap (index.js) wires to osv-pane.
 
-import { normPath, isRelevant, groupOf, changeOf } from './model.js';
+import { normPath, isRelevant, groupOf, changeOf, searchTitle } from './model.js';
 import { handleText } from './render.js';
 import { diffLines, hashText } from './diff.js';
 import { pruneHighlights } from './annotations.js';
 import {
   allFiles, currentRel, currentKey, dirHandle, recentRels,
-  fileState, paneCache, diffInfo, diffViews, setStorePrefix,
+  fileState, paneCache, diffInfo, diffViews, searchVersion, setStorePrefix,
 } from './state.js';
 import { showToast } from '../components/osv-toast/osv-toast.js';
 import { setLoading } from '../components/osv-loading/osv-loading.js';
@@ -135,6 +135,40 @@ export async function readFileText(rel) {
   return typeof f.getFile === 'function' ? await (await f.getFile()).text() : await f.text();
 }
 
+/* ---------- Search corpus ---------- */
+
+// All persisted snapshots in one read; the search corpus is rebuilt from these
+// (they already hold every scanned artifact's raw text) rather than re-reading
+// files or persisting a second index.
+async function getAllSnapshots() {
+  try {
+    const db = await idbOpen();
+    return await new Promise((res, rej) => {
+      const tx = db.transaction(IDB_SNAP, 'readonly');
+      const r = tx.objectStore(IDB_SNAP).getAll();
+      r.onsuccess = () => res(new Map((r.result || []).map(s => [s.rel, s])));
+      r.onerror = () => rej(r.error);
+    });
+  } catch (e) { return new Map(); }
+}
+
+// One search record per artifact: { rel, title, text }. `text` comes from the
+// persisted snapshot when present, else a live read (upload-mode folders have
+// no snapshots).
+export async function buildSearchCorpus() {
+  const snaps = await getAllSnapshots();
+  const out = [];
+  for (const f of allFiles.value) {
+    const snap = snaps.get(f.rel);
+    let text = snap && snap.text !== undefined ? snap.text : null;
+    if (text === null) {
+      try { text = await readFileText(f.rel); } catch (e) { continue; }
+    }
+    out.push({ rel: f.rel, title: searchTitle(f.rel), text });
+  }
+  return out;
+}
+
 export async function handlePickedFiles(fileList) {
   const files = Array.from(fileList);
   if (!files.length) return;
@@ -158,6 +192,7 @@ export async function loadFiles(raw) {
     allFiles.value = raw
       .filter(f => isRelevant(f.rel) && groupOf(f.rel))
       .sort((a, b) => a.rel.localeCompare(b.rel));
+    searchVersion.value++;   // the corpus changed
     paneCache.clear();
     fileState.clear();
     recentRels.value = new Set();
@@ -270,6 +305,7 @@ export async function scan(initial) {
 
     let changed = false;
     let activeChanged = false;
+    let corpusChanged = false;   // any copied/removed snapshot dirties the search index
     const hadPrior = fileState.size > 0;   // false on the very first scan
     const updates = [];
     const diffsSeen = [];   // rels whose content diffed vs the persisted snapshot this scan
@@ -280,6 +316,7 @@ export async function scan(initial) {
       const prev = fileState.get(rel);
       const modified = !prev || prev.lastModified !== info.lastModified;
       if (modified) {
+        corpusChanged = true;
         // Content-level diff against the persisted snapshot. The File System
         // Access API exposes no old versions, so snapshots are how we know
         // exactly what changed; they survive reloads, so diffs hold across
@@ -331,6 +368,7 @@ export async function scan(initial) {
     for (const rel of fileState.keys()) {
       if (!current.has(rel)) {
         changed = true;
+        corpusChanged = true;
         paneCache.delete(rel);
         diffInfo.delete(rel);
         nextUnread.delete(rel);
@@ -356,6 +394,8 @@ export async function scan(initial) {
     // keyed to the persisted readHash, so it survives reloads (on the first
     // scan after re-opening, old read pointers vs current text reseed it).
     recentRels.value = nextUnread;
+
+    if (corpusChanged) searchVersion.value++;   // snapshots changed → rebuild the search index
 
     if (hadPrior && (updates.length || removals)) {
       const added = updates.filter(rel => !prevUnread.has(rel));

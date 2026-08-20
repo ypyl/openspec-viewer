@@ -2,6 +2,7 @@
 // Registers the web components and starts the app.
 
 import './components/osv-header/osv-header.js';
+import './components/osv-search/osv-search.js';
 import './components/osv-file-list/osv-file-list.js';
 import './components/osv-pane/osv-pane.js';
 import './components/osv-review/osv-review.js';

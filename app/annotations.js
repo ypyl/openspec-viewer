@@ -8,7 +8,7 @@
 // document-level CustomEvents that index.js wires to the components.
 
 import { html } from '../imports.js';
-import { highlights, currentRel, staleTick, allFiles } from './state.js';
+import { highlights, currentRel, staleTick, allFiles, searchMarks } from './state.js';
 import { refLines, snippet } from './render.js';
 import { readFileText } from './store.js';
 import { showToast } from '../components/osv-toast/osv-toast.js';
@@ -197,13 +197,15 @@ function findTextNodeAt(root, offset) {
   return null;
 }
 
-function wrapTextNode(node, from, to, h) {
+function wrapTextNode(node, from, to, cls, h) {
   if (to <= from) return;
   const mark = document.createElement('mark');
-  mark.className = 'hl';
-  mark.dataset.id = h.id;
-  mark.title = h.comment || 'Highlight';
-  mark.addEventListener('click', () => focusComment(h.id));
+  mark.className = cls;
+  if (h) {
+    mark.dataset.id = h.id;
+    mark.title = h.comment || 'Highlight';
+    mark.addEventListener('click', () => focusComment(h.id));
+  }
   const text = node.data;
   const frag = document.createDocumentFragment();
   if (from > 0) frag.appendChild(document.createTextNode(text.slice(0, from)));
@@ -213,27 +215,15 @@ function wrapTextNode(node, from, to, h) {
   node.parentNode.replaceChild(frag, node);
 }
 
-function wrapHighlight(container, h) {
-  const t = container.textContent;
-  if (!h.text || h.start < 0 || h.end > t.length || h.start >= h.end) return null;
-  let start = h.start, end = h.end;
-  // Re-anchor when the file changed and the old offsets no longer line up.
-  if (t.slice(start, end) !== h.text) {
-    const idx = t.indexOf(h.text);
-    if (idx === -1) return null;
-    start = idx;
-    end = idx + h.text.length;
-    h.start = start;
-    h.end = end;
-  }
+// The text nodes intersecting [start, end), each with the sub-range to wrap.
+// Collected first, then mutated, so the live NodeIterator never revisits the
+// fragment nodes we insert (which caused an infinite wrap loop). A <mark>
+// never spans a block boundary (that would nest a <li> inside <mark> and break
+// the DOM) because each intersecting text node is wrapped on its own.
+function rangeNodes(container, start, end) {
   const sn = findTextNodeAt(container, start);
   const en = findTextNodeAt(container, end);
   if (!sn || !en) return null;
-  // Wrap each intersecting text node on its own so a <mark> never spans a
-  // block boundary (which would nest a <li> inside <mark> and break the DOM)
-  // while still covering the full referenced range. Collect the target text
-  // nodes first, then mutate, so the live NodeIterator never revisits the
-  // fragment nodes we insert (which caused an infinite wrap loop).
   const nodes = [];
   if (sn[0] === en[0]) {
     nodes.push({ node: sn[0], from: sn[1], to: en[1] });
@@ -251,7 +241,36 @@ function wrapHighlight(container, h) {
       if (n === en[0]) break;
     }
   }
-  for (const p of nodes) wrapTextNode(p.node, p.from, p.to, h);
+  return nodes;
+}
+
+function wrapHighlight(container, h) {
+  const t = container.textContent;
+  if (!h.text || h.start < 0 || h.end > t.length || h.start >= h.end) return null;
+  let start = h.start, end = h.end;
+  // Re-anchor when the file changed and the old offsets no longer line up.
+  if (t.slice(start, end) !== h.text) {
+    const idx = t.indexOf(h.text);
+    if (idx === -1) return null;
+    start = idx;
+    end = idx + h.text.length;
+    h.start = start;
+    h.end = end;
+  }
+  const nodes = rangeNodes(container, start, end);
+  if (!nodes) return null;
+  for (const p of nodes) wrapTextNode(p.node, p.from, p.to, 'hl', h);
+  return nodes.length ? nodes[0].node : null;
+}
+
+// Transient search marks: same range machinery, distinct class, no persistence
+// and no click/review behavior. Offsets are relative to the artifact's raw text.
+function wrapSearchRange(container, start, end) {
+  const t = container.textContent;
+  if (start < 0 || end > t.length || start >= end) return null;
+  const nodes = rangeNodes(container, start, end);
+  if (!nodes) return null;
+  for (const p of nodes) wrapTextNode(p.node, p.from, p.to, 'sq', null);
   return nodes.length ? nodes[0].node : null;
 }
 
@@ -268,13 +287,18 @@ export function applyHighlights(rel) {
   const pane = paneEl();
   const container = pane && pane.querySelector('.annotatable');
   if (!container) return;
+  container.querySelectorAll('mark.sq').forEach(unwrapMark);
   container.querySelectorAll('mark.hl').forEach(unwrapMark);
   for (const h of highlights.value.get(rel) || []) wrapHighlight(container, h);
+  for (const [s, e] of searchMarks.value.get(rel) || []) wrapSearchRange(container, s, e);
   // The open file has now been rendered; re-check staleness against it.
   // (Signals update synchronously, so without this the review panel would
   //  compare against the previous file's content right after a switch.)
   staleTick.value++;
 }
+
+// Drop all transient search marks (e.g. when the search query is cleared).
+export function clearSearchMarks() { searchMarks.value = new Map(); }
 
 /* ---------- Review coordination ---------- */
 

@@ -45,7 +45,11 @@ export class OsvFileList extends HTMLElement {
     /* ---- Search + / shortcut ---- */
     searchEl.addEventListener('input', () => { search.value = searchEl.value; });
     document.addEventListener('keydown', e => {
-      if (e.key === '/' && document.activeElement !== searchEl) {
+      // '/ ' only hijacks when not already typing in an input, so the header
+      // content-search box (and other inputs) keep receiving their characters.
+      const typing = document.activeElement &&
+        ((document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA'));
+      if (e.key === '/' && !typing) {
         e.preventDefault();
         searchEl.focus();
       }

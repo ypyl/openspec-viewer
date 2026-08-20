@@ -11,10 +11,10 @@ import {
 import { diffViewHtml, diffToggleHtml, diffTabBadgeHtml, hashText } from '../../app/diff.js';
 import {
   allFiles, currentRel, currentKey, changeMeta, diffInfo, diffViews,
-  recentRels, paneCache, currentTabs, setCurrentTabs,
+  recentRels, paneCache, currentTabs, setCurrentTabs, searchMarks,
 } from '../../app/state.js';
 import { markRead as markReadStore, readFileText } from '../../app/store.js';
-import { applyHighlights, hideAnnBubble, onSelection, repositionBubble } from '../../app/annotations.js';
+import { applyHighlights, hideAnnBubble, onSelection, repositionBubble, clearSearchMarks } from '../../app/annotations.js';
 
 const WELCOME = `
   <div class="welcome">
@@ -57,8 +57,8 @@ export class OsvPane extends HTMLElement {
     });
 
     /* ---- Navigation / refresh events from other components & store ---- */
-    document.addEventListener('osv:select-rel', e => this.openFile(e.detail.rel));
-    document.addEventListener('osv:select-change', e => this.openChange(e.detail.key));
+    document.addEventListener('osv:select-rel', e => { clearSearchMarks(); this.openFile(e.detail.rel); });
+    document.addEventListener('osv:select-change', e => { clearSearchMarks(); this.openChange(e.detail.key); });
     document.addEventListener('osv:auto-open', () => this.autoOpenFirst());
     document.addEventListener('osv:refresh-current', () => this.rerenderCurrent());
     document.addEventListener('osv:refresh-tab-badges', () => this.refreshTabBadges());
@@ -67,6 +67,33 @@ export class OsvPane extends HTMLElement {
       const { rel, id } = e.detail;
       if (rel !== currentRel.value) await this.openFile(rel);
       this.scrollToMark(id);
+    });
+
+    // Content-search result: open the artifact at its match, then scroll to it.
+    document.addEventListener('osv:open-search-result', async e => {
+      const { rel, ranges } = e.detail;
+      searchMarks.value = new Map([[rel, ranges]]);
+      const key = changeOf(rel);
+      if (key && currentKey.value === key) {
+        const idx = currentTabs.findIndex(t => t.rel === rel);
+        if (idx >= 0 && currentRel.value === rel) applyHighlights(rel);
+        else if (idx >= 0) await this.activateTab(idx);
+        else await this.openChange(key, rel);
+      } else if (key) {
+        await this.openChange(key, rel);
+      } else if (currentRel.value !== rel) {
+        await this.openFile(rel);
+      } else {
+        applyHighlights(rel);
+      }
+      this.scrollToSearchMark();
+    });
+
+    // Re-apply transient marks when the query is cleared or a new result is
+    // chosen (the search component mutates searchMarks; applyHighlights reads it).
+    searchMarks.addEventListener('change', () => {
+      const rel = currentRel.value;
+      if (rel) applyHighlights(rel);
     });
   }
 
@@ -215,6 +242,16 @@ export class OsvPane extends HTMLElement {
 
   scrollToMark(id) {
     const mark = this._main.querySelector(`mark.hl[data-id="${id}"]`);
+    if (mark) {
+      mark.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      mark.classList.add('active');
+      setTimeout(() => mark.classList.remove('active'), 1400);
+    }
+  }
+
+  // Scroll the first search match into view when a search result opens.
+  scrollToSearchMark() {
+    const mark = this._main.querySelector('mark.sq');
     if (mark) {
       mark.scrollIntoView({ block: 'center', behavior: 'smooth' });
       mark.classList.add('active');

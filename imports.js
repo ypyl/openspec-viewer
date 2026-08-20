@@ -14,3 +14,4 @@ export { ContextProvider, ContextRequestEvent } from './lib/tiny-context.js';
 export const marked = window.marked;
 export const jsyaml = window.jsyaml;
 export const DOMPurify = window.DOMPurify;
+export const Fuse = window.Fuse;

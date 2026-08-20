@@ -5,13 +5,36 @@ osv-header {
   flex-shrink: 0;
 }
 osv-header header {
-  display: flex;
+  /* Left + right auto-size to their content; the middle 1fr column is the free
+     space between them, and osv-search takes a share of it (see osv-search css). */
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 12px;
+  column-gap: 12px;
   padding: 10px 16px;
   background: var(--panel);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+}
+osv-header .brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-self: start;
+  min-width: 0;
+}
+osv-header .side {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-self: end;
+  min-width: 0;
+}
+osv-header osv-search {
+  /* Stretch across the middle column, then center the input inside it. */
+  justify-self: stretch;
+  display: flex;
+  justify-content: center;
 }
 osv-header h1 {
   margin: 0;
@@ -47,7 +70,7 @@ osv-header .theme-btn {
   transition: background .15s;
 }
 osv-header .theme-btn:hover { background: var(--panel); }
-osv-header .stats { font-size: 12px; color: var(--fg-muted); margin-left: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+osv-header .stats { font-size: 12px; color: var(--fg-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 osv-header .stats b { color: var(--fg); font-weight: 600; }
 
 osv-header .review-btn {
@@ -86,4 +109,20 @@ osv-header .live-dot { color: var(--green); font-weight: 600; }
 /* Below xs: tighten the header so stats don't crowd the title. */
 @media (max-width: 36em) {
   osv-header .stats { max-width: 45vw; }
+}
+
+/* Narrow screens: the centered search box would collide with the brand and
+   side groups on one row, so wrap it onto its own centered row below them. */
+@media (max-width: 44em) {
+  osv-header header {
+    display: flex;
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+  osv-header osv-search {
+    order: 3;
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+  osv-header .side { margin-left: auto; }
 }

@@ -103,3 +103,104 @@ export function snippet(text) {
   const t = text.replace(/\s+/g, ' ').trim();
   return t.length > 90 ? t.slice(0, 90) + '…' : t;
 }
+
+/* ---------- Content-search helpers (pure, Fuse-backed) ---------- */
+
+// Human-readable location of an artifact for search results: the change's
+// pretty name for change/archive files, the capability path for specs, the
+// file path otherwise.
+export function searchLabel(rel) {
+  const g = groupOf(rel);
+  if (g === 'Changes' || g === 'Archive') {
+    const parts = rel.split('/');
+    const dir = g === 'Changes' ? parts[1] : parts[2];
+    return prettyChangeName(dir).label;
+  }
+  if (g === 'Specs') return displayLabel(rel, g);
+  return rel;
+}
+
+// Fuse title key: what a user is most likely to type. Change/archive artifacts
+// index under the change's pretty name plus the artifact file; specs index
+// under the capability path; everything else under its file path.
+export function searchTitle(rel) {
+  const g = groupOf(rel);
+  if (g === 'Changes' || g === 'Archive') {
+    const parts = rel.split('/');
+    const dir = g === 'Changes' ? parts[1] : parts[2];
+    return prettyChangeName(dir).label + ' ' + parts[parts.length - 1];
+  }
+  return searchLabel(rel);
+}
+
+// 1-based line numbers covered by [start, end) ranges in `text`.
+export function matchLines(text, ranges) {
+  if (!ranges.length) return [];
+  const starts = [0];
+  for (let i = 0; i < text.length; i++) if (text[i] === '\n') starts.push(i + 1);
+  const lineAt = (off) => {
+    let lo = 0, hi = starts.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (starts[mid] <= off) lo = mid; else hi = mid - 1;
+    }
+    return lo;
+  };
+  const set = new Set();
+  for (const [s, e] of ranges) {
+    if (e <= 0 || s >= text.length || s >= e) continue;
+    const a = lineAt(s);
+    const b = lineAt(Math.min(e - 1, Math.max(0, text.length - 1)));
+    for (let i = a; i <= b; i++) set.add(i + 1);
+  }
+  return [...set].sort((x, y) => x - y);
+}
+
+// Build a snippet window around the first match. Returns
+// { segments: [{ t, hit }], line } where `segments` is the window text split
+// into plain/marked parts (the caller renders `hit` parts inside <mark> and
+// html-escapes everything via html-literal) and `line` is the 1-based line of
+// the first match (0 when there is no match). With no ranges the window is the
+// first few lines of the document.
+export function snippetSegments(text, ranges, contextLines = 2) {
+  const lines = text.split('\n');
+  if (!ranges.length) {
+    return {
+      segments: [{ t: lines.slice(0, Math.min(3, lines.length)).join('\n'), hit: false }],
+      line: 0,
+    };
+  }
+  // Normalize + merge overlapping ranges.
+  const merged = [];
+  for (const [a, b] of [...ranges].sort((x, y) => x[0] - y[0] || x[1] - y[1])) {
+    if (b <= a) continue;
+    const last = merged[merged.length - 1];
+    if (last && a <= last[1]) last[1] = Math.max(last[1], b);
+    else merged.push([a, b]);
+  }
+  if (!merged.length) return { segments: [], line: 0 };
+  // Locate the line containing the first match start.
+  const starts = [0];
+  for (let i = 0; i < text.length; i++) if (text[i] === '\n') starts.push(i + 1);
+  let li = 0;
+  while (li < starts.length - 1 && starts[li + 1] <= merged[0][0]) li++;
+  const wStart = Math.max(0, li - contextLines);
+  const wEnd = Math.min(lines.length - 1, li + contextLines);
+  const winOff = starts[wStart];
+  const winEnd = starts[wEnd] + lines[wEnd].length;
+  const winText = text.slice(winOff, winEnd);
+  const winRanges = merged
+    .map(([a, b]) => [a - winOff, b - winOff])
+    .filter(([a, b]) => b > 0 && a < winText.length)
+    .map(([a, b]) => [Math.max(0, a), Math.min(winText.length, b)]);
+  const segments = [];
+  let pos = 0;
+  for (const [a, b] of winRanges) {
+    if (b <= a) continue;
+    if (a > pos) segments.push({ t: winText.slice(pos, a), hit: false });
+    segments.push({ t: winText.slice(a, b), hit: true });
+    pos = b;
+  }
+  if (pos < winText.length) segments.push({ t: winText.slice(pos), hit: false });
+  return { segments, line: li + 1 };
+}

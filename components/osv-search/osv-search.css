@@ -1,0 +1,111 @@
+/* osv-search: header content search input + grouped results dropdown. */
+
+osv-search { position: relative; }
+osv-search .osv-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  /* Roughly half of the free middle region of the header. */
+  width: min(50%, 640px);
+  min-width: 200px;
+}
+osv-search .s-input {
+  width: 100%;
+  padding: 7px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius);
+  color: var(--fg);
+  font-size: 13px;
+  outline: none;
+}
+osv-search .s-input:focus { border-color: var(--accent-dim); box-shadow: 0 0 0 3px rgba(31,111,235,.3); }
+osv-search .s-input::placeholder { color: var(--fg-subtle); }
+
+osv-search .s-drop {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(680px, calc(100vw - 24px));
+  max-height: min(70vh, 560px);
+  overflow: auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 32px rgba(0,0,0,.35);
+  z-index: 50;
+  scrollbar-gutter: stable;
+}
+osv-search .s-drop[hidden] { display: none; }
+
+osv-search .s-head {
+  position: sticky; top: 0;
+  background: var(--panel);
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  color: var(--gc, var(--fg-subtle));
+  border-bottom: 1px solid var(--border-muted);
+}
+osv-search .s-head.g-changes { --gc: var(--accent); }
+osv-search .s-head.g-archive { --gc: var(--purple); }
+osv-search .s-head.g-specs   { --gc: var(--green); }
+osv-search .s-head.g-config  { --gc: var(--orange); }
+
+osv-search .s-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border-muted);
+  padding: 8px 12px;
+  cursor: pointer;
+  color: var(--fg);
+}
+osv-search .s-item:hover { background: rgba(110,118,129,.12); }
+osv-search .s-line1 { display: flex; align-items: center; gap: 8px; }
+osv-search .s-loc {
+  font-size: 12.5px; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+osv-search .s-snip {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--fg-muted);
+  line-height: 1.45;
+}
+osv-search .s-empty { padding: 14px 12px; color: var(--fg-subtle); font-size: 13px; }
+osv-search .s-more { padding: 6px 12px; color: var(--fg-subtle); font-size: 11.5px; }
+
+osv-search .badge {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  padding: 1px 6px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  color: var(--fg-muted);
+}
+osv-search .badge.proposal { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+osv-search .badge.design   { color: var(--purple); border-color: color-mix(in srgb, var(--purple) 45%, transparent); }
+osv-search .badge.tasks    { color: var(--orange); border-color: color-mix(in srgb, var(--orange) 45%, transparent); }
+osv-search .badge.spec     { color: var(--green);  border-color: color-mix(in srgb, var(--green) 45%, transparent); }
+osv-search .badge.metadata { color: var(--pink);   border-color: color-mix(in srgb, var(--pink) 45%, transparent); }
+osv-search .badge.config   { color: var(--fg);     border-color: var(--border); }
+
+/* Snippet match highlight inside the dropdown. */
+osv-search mark.sq {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  color: var(--fg);
+  border-radius: 2px;
+}

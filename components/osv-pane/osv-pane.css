@@ -311,6 +311,11 @@ osv-pane .diff-line.hdr .code {
 osv-pane mark.hl { background: transparent; color: inherit; }
 osv-pane mark.hl.active { outline: 2px solid var(--accent); }
 
+/* mark.sq is a transient content-search anchor in the pane. It is kept as an
+   invisible anchor so a result can still open scrolled to the match, but the
+   text is not highlighted (matching the request to not highlight on open). */
+osv-pane mark.sq { background: transparent; color: inherit; }
+
 /* Selection toolbar / comment editor (floating). */
 osv-pane .ann-bubble {
   position: fixed;
