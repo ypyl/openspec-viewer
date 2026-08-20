@@ -29,4 +29,4 @@
 
 ## 6. Ship
 
-- [ ] 6.1 Commit and push to `master`; after the GitHub Pages build (~1 min), open https://ypyl.github.io/openspec-viewer/ and confirm the header badge reads v2.4.0 (optionally verify the panel reflow in the hosted build).
+- [x] 6.1 Commit and push to `master`; after the GitHub Pages build (~1 min), open https://ypyl.github.io/openspec-viewer/ and confirm the header badge reads v2.4.0 (optionally verify the panel reflow in the hosted build).
