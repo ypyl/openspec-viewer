@@ -7,6 +7,18 @@
 - ~~Collect highlights + comments + artifact content into a single final prompt for an LLM to fix them.~~
 - ~~Need a "copy prompt" / "send to LLM" action.~~
 
+## Comments popup positioning at bottom of screen
+
+- The comments popup does not display well when the highlighted range / comment anchor is near the bottom of the screen: it overflows the viewport instead of flipping or repositioning above the anchor.
+- Fix: detect available space below the anchor and open the popup upward (or clamp within the viewport) when there is not enough room below.
+
+## Whole-file review comments
+
+- Support adding a review comment that targets the entire artifact (proposal, design, task, change, ADR) rather than only a highlighted text range.
+- For feedback that applies to the whole document, e.g. formatting, general language, tone, structure.
+- Whole-file comments show up in the review panel alongside range-based highlights and are folded into the generated LLM prompt.
+- Provide a discoverable affordance (e.g. comment button on the artifact header) so it is not hidden behind text selection.
+
 ## Validate artifacts against the OpenSpec spec
 
 - Basic validation of openspec/ structure and artifacts against the OpenSpec documentation: required files (spec.md, proposal.md, task.md, change.md, ADRs), required sections, frontmatter/header conventions.
@@ -60,3 +72,10 @@
 - Persist completed reviews (highlights, comments, chosen prompt mode, sent prompt) per project folder, e.g. in IndexedDB keyed by project.
 - Treat them as a history of corrections to enable insight extraction over time: recurring issues, which sections/artifacts get most feedback, process health.
 - Keep an eye on storage growth: prune/export/clear old history.
+
+## ~Fuzzy search within all documents' content~ ✅ shipped in v2.3.0
+
+- ~~Add a fuzzy search that matches against the content of all documents (specs, ADRs, tasks, changes), not just filenames/headings.~~
+- ~~Search across the whole openspec tree, index artifacts by content in IndexedDB to keep searches fast.~~
+- ~~Show results with snippet/matches and link to the containing artifact; highlight matching lines when the artifact is opened.~~
+- ~~Use **Fuse.js v7** (vendored as lib/fuse.min.js, UMD loaded off window, re-exported via imports.js — same pattern as marked/js-yaml). Full build with bitap for real fuzzy matching; at ~24KB minified. Load matches index order on file list, reuse its highlight/matches info for snippets.~~
