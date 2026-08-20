@@ -7,10 +7,10 @@
 - ~~Collect highlights + comments + artifact content into a single final prompt for an LLM to fix them.~~
 - ~~Need a "copy prompt" / "send to LLM" action.~~
 
-## Comments popup positioning at bottom of screen
+## Comments popup positioning at bottom of screen ✅ shipped
 
-- The comments popup does not display well when the highlighted range / comment anchor is near the bottom of the screen: it overflows the viewport instead of flipping or repositioning above the anchor.
-- Fix: detect available space below the anchor and open the popup upward (or clamp within the viewport) when there is not enough room below.
+- ~~The comments popup does not display well when the highlighted range / comment anchor is near the bottom of the screen: it overflows the viewport instead of flipping or repositioning above the anchor.~~
+- ~~Fix: detect available space below the anchor and open the popup upward (or clamp within the viewport) when there is not enough room below.~~ (positionBubble in app/annotations.js flips above and clamps horizontally)
 
 ## ~Open the review panel as a side panel (not on top of content)~ ✅ shipped in v2.4.0
 
