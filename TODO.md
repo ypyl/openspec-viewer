@@ -12,6 +12,12 @@
 - The comments popup does not display well when the highlighted range / comment anchor is near the bottom of the screen: it overflows the viewport instead of flipping or repositioning above the anchor.
 - Fix: detect available space below the anchor and open the popup upward (or clamp within the viewport) when there is not enough room below.
 
+## ~Open the review panel as a side panel (not on top of content)~ ✅ shipped in v2.4.0
+
+- ~~The review drawer is currently a fixed overlay (`position: fixed; top/right/bottom: 0`) that slides in and sits on top of the content pane, covering what is underneath.~~
+- ~~Rebuild it as a true side panel that is part of the layout: the content pane shrinks to make room rather than being hidden behind the drawer, and the page scrolls naturally (no full-height overlay).~~
+- ~~On desktop, reserve the right-hand column in-place (content reflows); on narrow/mobile widths keep an acceptable behavior (e.g. still overlay or full-width drawer) so the pane stays usable.~~
+
 ## Whole-file review comments
 
 - Support adding a review comment that targets the entire artifact (proposal, design, task, change, ADR) rather than only a highlighted text range.

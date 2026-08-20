@@ -127,3 +127,24 @@ osv-review .review-action:hover:not(:disabled) { background: rgba(110,118,129,.1
 osv-review .review-action.primary { background: var(--accent-dim); color: #fff; border-color: transparent; }
 osv-review .review-action.primary:hover:not(:disabled) { background: #2a6fd9; }
 osv-review .review-action:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ≥ 80em (1280px): turn the review into a real right-hand layout column so the
+   content pane shrinks to make room instead of being covered. The base rules
+   above stay as the overlay fallback for narrow widths; the open/close class on
+   .review-drawer still drives everything (no JS changes). */
+@media (min-width: 80em) {
+  osv-review {
+    width: 0;
+    overflow: hidden;
+    transition: width .22s ease;
+  }
+  osv-review:has(.review-drawer.open) { width: 380px; }
+  osv-review .review-drawer {
+    position: static;
+    width: 100%;
+    height: 100%;
+    transform: none;
+    box-shadow: none;
+    border-left: 1px solid var(--border);
+  }
+}
