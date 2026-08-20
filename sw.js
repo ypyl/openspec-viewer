@@ -1,7 +1,7 @@
 /* OpenSpec Local Viewer service worker.
    Bump CACHE_VERSION together with the app version in index.html
    (see AGENTS.md) so each release deploys a fresh cache. */
-const CACHE_VERSION = 'osviewer-2.11.2';
+const CACHE_VERSION = 'osviewer-2.12.0';
 
 const SHELL = [
   './',
@@ -36,8 +36,6 @@ const SHELL = [
   './components/osv-pane/osv-pane.css',
   './components/osv-review/osv-review.js',
   './components/osv-review/osv-review.css',
-  './components/osv-prompt-modal/osv-prompt-modal.js',
-  './components/osv-prompt-modal/osv-prompt-modal.css',
   './components/osv-loading/osv-loading.js',
   './components/osv-loading/osv-loading.css',
   './components/osv-toast/osv-toast.js',

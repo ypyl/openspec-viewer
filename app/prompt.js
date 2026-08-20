@@ -1,46 +1,27 @@
-// app/prompt.js — assemble the LLM fix prompt from collected highlights, and
-// clipboard helpers.
+// app/prompt.js — assemble the self-describing LLM prompt from the collected
+// highlights + comments, and clipboard helpers.
 
-import { storePrefix, changeMeta } from './state.js';
-import { changeOf, snippet } from './render.js';
+import { storePrefix } from './state.js';
+import { snippet } from './render.js';
 import { allHighlights } from './annotations.js';
 
 export function buildPrompt() {
-  const items = allHighlights();
-  if (!items.some(h => h.comment)) return null;
+  const items = allHighlights().filter(h => h.comment);
+  if (!items.length) return null;
   const lines = [
-    'Please fix only the OpenSpec artifacts below, based on the provided review comments. Keep it simple and focused.',
+    'Here are my review comments on my OpenSpec artifacts. Act on each comment based on what it asks:',
     '',
-    'Each artifact belongs to a change proposal. Read the whole proposal (all of its artifacts: proposal, specs, design, tasks) from the repository — they are not included here — and make each fix so all artifacts in the proposal stay consistent with each other.',
+    '- If the comment asks me to fix, adjust, or edit the referenced text, apply that change.',
+    '- If the comment is itself a question about the referenced text (e.g. "what does this mean?"), do NOT change the spec. Just answer / explain it in place.',
     '',
-    'Rules:',
-    '- Only change content referenced by a comment; preserve everything else exactly as-is.',
-    '- Align each fix with the proposal the artifact belongs to (its proposal path is listed under the file).',
-    '- If consistency requires it, fix the whole proposal so all its artifacts do not contradict each other.',
+    'Where an edit is needed, also update any other artifacts in the same proposal that the change affects, so the whole proposal stays consistent.',
     '',
-    '# Review comments',
   ];
-  let prevRel = null, n = 0;
-  for (const h of items) {
-    if (h.rel !== prevRel) {
-      prevRel = h.rel;
-      n = 0;
-      lines.push('', `## ${storePrefix}${h.rel}`);
-      const key = changeOf(h.rel);
-      const meta = key && changeMeta.value.get(key);
-      const prop = meta && meta.proposalRel;
-      if (prop) {
-        lines.push(`Proposal: ${storePrefix}${prop}`);
-        if (meta.files && meta.files.length) {
-          lines.push('Artifacts in this proposal:');
-          for (const f of meta.files) lines.push(`- ${storePrefix}${f.rel}`);
-        }
-      }
-    }
-    n++;
-    lines.push(`${n}. ${h.comment || '(no comment — review this section for issues)'}`);
+  items.forEach((h, i) => {
+    lines.push(`${i + 1}. File: ${storePrefix}${h.rel}`);
     lines.push(`   Referenced text: "${snippet(h.text)}"`);
-  }
+    lines.push(`   Comment: ${h.comment}`);
+  });
   return lines.join('\n');
 }
 

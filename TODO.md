@@ -66,12 +66,13 @@
 - Use jsebrech/tiny-context (web components context protocol) to pass state across component boundaries. Vendored but dormant: nothing crosses a component boundary in this single-file app. Wire it in only when UI is extracted into custom elements.
   - Alternative: split into ES modules/web components served as plain files (no build step, deployment unchanged) only if the app grows beyond one file.
 
-## Review: generate two types of prompts
+## ~Review: generate two types of prompts~ ✅ shipped in v2.12.0
 
-- Extend the review panel to offer two prompt modes from the collected highlights + comments + artifact content:
-  - **fix/modify** — the current behavior: prompt the LLM to apply the requested changes. Not only corrections: if the highlighted artifact has an open-question section (e.g. design open questions), the prompt also asks the model to answer those.
-  - **explain** — new: user asks the model to explain what was highlighted because it is not clear to them; the prompt asks for an explanation instead of edits.
-- Add a mode selector in the review panel; the copy-prompt / send-to-LLM action uses the selected mode.
+- ~~Extend the review panel to offer two prompt modes from the collected highlights + comments + artifact content:~~
+  - ~~**fix/modify** — the current behavior: prompt the LLM to apply the requested changes.~~
+  - ~~**explain** — new: user asks the model to explain what was highlighted because it is not clear to them; the prompt asks for an explanation instead of edits.~~
+- ~~Add a mode selector in the review panel; the copy-prompt / send-to-LLM action uses the selected mode.~~
+- ~~Shipped instead as a single self-describing prompt (no mode selector): it lists each comment as File / Referenced text / Comment and tells the model to disambiguate by intent — fix/adjust/edit the referenced text, or, when the comment is itself a question, explain it without changing the spec; where an edit is needed, keep the rest of the proposal consistent. One **Copy prompt** button replaces the Copy-fix / Send-to-LLM pair and the preview modal is removed entirely.~~
 
 ## Collect review history per project
 

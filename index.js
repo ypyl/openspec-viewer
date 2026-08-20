@@ -6,7 +6,6 @@ import './components/osv-search/osv-search.js';
 import './components/osv-file-list/osv-file-list.js';
 import './components/osv-pane/osv-pane.js';
 import './components/osv-review/osv-review.js';
-import './components/osv-prompt-modal/osv-prompt-modal.js';
 import './components/osv-loading/osv-loading.js';
 import './components/osv-toast/osv-toast.js';
 

@@ -22,15 +22,13 @@ export class OsvReview extends HTMLElement {
         </div>
         <div class="review-list"></div>
         <div class="review-actions">
-          <button class="review-action primary copy-btn" disabled>📋 Copy fix</button>
-          <button class="review-action send-btn" disabled>🤖 Send to LLM</button>
+          <button class="review-action primary copy-btn" disabled>📋 Copy prompt</button>
         </div>
       </div>`;
 
     this._fileEl = this.querySelector('.review-file');
     this._listEl = this.querySelector('.review-list');
     this._copyBtn = this.querySelector('.copy-btn');
-    this._sendBtn = this.querySelector('.send-btn');
 
     /* ---- Render the review list + actions from highlights ---- */
     const reviewHtml = computed(buildReviewHtml, [currentRel, highlights, staleTick]);
@@ -50,10 +48,8 @@ export class OsvReview extends HTMLElement {
         }));
       const hasComments = items.some(h => h.comment);
       this._copyBtn.disabled = !hasComments;
-      this._sendBtn.disabled = !hasComments;
       const hint = hasComments ? '' : 'Add a comment first';
       this._copyBtn.title = hint;
-      this._sendBtn.title = hint;
     });
 
     /* ---- Actions ---- */
@@ -61,12 +57,7 @@ export class OsvReview extends HTMLElement {
       const prompt = await buildPrompt();
       if (!prompt) return;
       const ok = await copyText(prompt);
-      showToast(ok ? 'Fix prompt copied to clipboard' : 'Copy failed — use Send to LLM', ok ? undefined : 'error');
-    });
-    this._sendBtn.addEventListener('click', async () => {
-      const prompt = await buildPrompt();
-      if (!prompt) return;
-      document.dispatchEvent(new CustomEvent('osv:show-prompt', { detail: { text: prompt } }));
+      showToast(ok ? 'Prompt copied to clipboard' : 'Copy failed', ok ? undefined : 'error');
     });
 
     /* ---- Focus a review item (panel is always visible) ---- */
