@@ -5,9 +5,10 @@ osv-search .osv-search {
   position: relative;
   display: flex;
   align-items: center;
-  /* Roughly half of the free middle region of the header. */
-  width: min(50%, 640px);
-  min-width: 200px;
+  /* Match the content column's readable width. (In the single-row flex header
+     the flex container shrinks it; in the ≥80em grid it fills the content
+     column so it lines up and matches width.) */
+  width: min(980px, 100%);
 }
 osv-search .s-input {
   width: 100%;
@@ -25,9 +26,8 @@ osv-search .s-input::placeholder { color: var(--fg-subtle); }
 osv-search .s-drop {
   position: absolute;
   top: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(680px, calc(100vw - 24px));
+  left: 0;
+  width: 100%;
   max-height: min(70vh, 560px);
   overflow: auto;
   background: var(--panel);

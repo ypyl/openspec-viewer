@@ -1,12 +1,12 @@
 // osv-header: title, version badge, theme toggle, stats, review button.
 
 import { html, computed } from '../../imports.js';
-import { theme, allFiles, dirHandle, changeMeta, highlights } from '../../app/state.js';
+import { theme, allFiles, dirHandle, changeMeta } from '../../app/state.js';
 import { groupOf, changeOf, isArchived } from '../../app/render.js';
 
 // Single source for the visible version badge (AGENTS.md keeps the version
 // in the header badge, the first-line comment, and sw.js in sync).
-export const VERSION = '2.4.0';
+export const VERSION = '2.11.0';
 
 export class OsvHeader extends HTMLElement {
   connectedCallback() {
@@ -23,14 +23,11 @@ export class OsvHeader extends HTMLElement {
         <osv-search></osv-search>
         <div class="side">
           <div class="stats"></div>
-          <button class="review-btn" title="Review comments across all artifacts">💬<span class="review-count" hidden></span></button>
         </div>
       </header>`;
 
     const themeBtn = this.querySelector('.theme-btn');
     const statsEl = this.querySelector('.stats');
-    const reviewBtn = this.querySelector('.review-btn');
-    const reviewCount = this.querySelector('.review-count');
 
     /* ---- Theme ---- */
     const mql = window.matchMedia('(prefers-color-scheme: dark)');
@@ -62,19 +59,6 @@ export class OsvHeader extends HTMLElement {
         (dirHandle.value ? html` · <span class="live-dot">● live</span>` : '');
     }, [allFiles, dirHandle, changeMeta]);
     stats.effect(() => { statsEl.innerHTML = stats.value; });
-
-    /* ---- Review count + button ---- */
-    const updateCount = () => {
-      const items = [...highlights.value.values()].reduce((s, l) => s + l.length, 0);
-      reviewCount.textContent = items;
-      reviewCount.hidden = items === 0;
-    };
-    highlights.addEventListener('change', updateCount);
-    updateCount();
-    reviewBtn.addEventListener('click', () =>
-      document.dispatchEvent(new CustomEvent('osv:toggle-review')));
-    document.addEventListener('osv:review-visibility', e =>
-      reviewBtn.classList.toggle('active', !!e.detail.open));
   }
 }
 

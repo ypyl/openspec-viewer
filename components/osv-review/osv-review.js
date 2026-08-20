@@ -13,13 +13,12 @@ export class OsvReview extends HTMLElement {
     this._init = true;
 
     this.innerHTML = `
-      <div class="review-drawer" aria-label="Review">
+      <div class="review-drawer open" aria-label="Review">
         <div class="review-head">
           <div>
             <div class="review-title">Review</div>
             <div class="review-file"></div>
           </div>
-          <button class="review-close" title="Close">✕</button>
         </div>
         <div class="review-list"></div>
         <div class="review-actions">
@@ -28,7 +27,6 @@ export class OsvReview extends HTMLElement {
         </div>
       </div>`;
 
-    this._drawer = this.querySelector('.review-drawer');
     this._fileEl = this.querySelector('.review-file');
     this._listEl = this.querySelector('.review-list');
     this._copyBtn = this.querySelector('.copy-btn');
@@ -70,25 +68,12 @@ export class OsvReview extends HTMLElement {
       if (!prompt) return;
       document.dispatchEvent(new CustomEvent('osv:show-prompt', { detail: { text: prompt } }));
     });
-    this.querySelector('.review-close').addEventListener('click', () => this.close());
 
-    /* ---- Open/close/focus events ---- */
-    document.addEventListener('osv:toggle-review', () => this.toggle());
-    document.addEventListener('osv:open-review', () => this.open());
+    /* ---- Focus a review item (panel is always visible) ---- */
     document.addEventListener('osv:focus-review', e => this.focus(e.detail.id));
   }
 
-  open() { this.setOpen(true); }
-  close() { this.setOpen(false); }
-  toggle() { this.setOpen(!this._drawer.classList.contains('open')); }
-
-  setOpen(open) {
-    this._drawer.classList.toggle('open', open);
-    document.dispatchEvent(new CustomEvent('osv:review-visibility', { detail: { open } }));
-  }
-
   focus(id) {
-    this.open();
     const item = this._listEl.querySelector(`[data-id="${id}"]`);
     if (item) {
       item.scrollIntoView({ block: 'center' });

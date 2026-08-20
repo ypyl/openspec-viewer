@@ -182,7 +182,7 @@ osv-file-list .item .date {
    AFTER the base rules above so the higher viewport wins the cascade. */
 @media (min-width: 62em) {
   osv-file-list {
-    width: 280px;
+    width: var(--sidebar-w);
     max-height: none;
   }
   osv-file-list aside {
@@ -193,5 +193,5 @@ osv-file-list .item .date {
 
 /* ≥ lg (1200px): default desktop proportions. */
 @media (min-width: 75em) {
-  osv-file-list { width: 340px; }
+  osv-file-list { width: var(--sidebar-w); }
 }

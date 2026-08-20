@@ -21,6 +21,17 @@
   --radius: 6px;
   color-scheme: dark;
 }
+/* Sidebar width, shared with the sidebar component. */
+:root {
+  --sidebar-w: 280px;
+}
+@media (min-width: 75em) {
+  :root { --sidebar-w: 340px; }
+}
+/* Width of the review's right-hand column (and the matching header rail). */
+:root {
+  --review-w: 380px;
+}
 /* GitHub-light palette */
 :root[data-theme="light"] {
   --bg: #ffffff;

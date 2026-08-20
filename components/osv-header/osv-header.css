@@ -5,37 +5,64 @@ osv-header {
   flex-shrink: 0;
 }
 osv-header header {
-  /* Left + right auto-size to their content; the middle 1fr column is the free
-     space between them, and osv-search takes a share of it (see osv-search css). */
-  display: grid;
-  grid-template-columns: auto 1fr auto;
+  /* Single row: brand (left), search (centered in the free middle), side
+     controls (right). flex-wrap lets the search drop to its own row on very
+     narrow screens. */
+  display: flex;
   align-items: center;
-  column-gap: 12px;
+  flex-wrap: wrap;
+  gap: 6px 12px;
   padding: 10px 16px;
   background: var(--panel);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
+osv-header osv-search {
+  flex: 1 1 260px;
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
 osv-header .brand {
   display: flex;
   align-items: center;
   gap: 12px;
-  justify-self: start;
   min-width: 0;
 }
 osv-header .side {
   display: flex;
   align-items: center;
   gap: 12px;
-  justify-self: end;
   min-width: 0;
+  margin-left: auto;
 }
-osv-header osv-search {
-  /* Stretch across the middle column, then center the input inside it. */
-  justify-self: stretch;
-  display: flex;
-  justify-content: center;
+
+/* ≥ 62em (992px): mirror the body's three columns so the search centers over
+   the same region as the content. Column 1 = sidebar (title), column 2 = main
+   (search, aligned to content), column 3 = review rail (stats), reserving
+   --review-w exactly like the layout below. */
+@media (min-width: 62em) {
+  osv-header header {
+    display: grid;
+    grid-template-columns: var(--sidebar-w) 1fr var(--review-w);
+    align-items: center;
+    /* No outer padding or column gap in grid mode: col2 (search) then spans
+       exactly the same width as the main column, so it matches content width.
+       Spacing moves onto brand (left) and side (right) instead. */
+    padding: 10px 0;
+    column-gap: 0;
+  }
+  osv-header .brand { grid-column: 1; min-width: 0; padding-left: 16px; }
+  osv-header osv-search { grid-column: 2; justify-self: stretch; }
+  osv-header .side {
+    grid-column: 3;
+    justify-self: end;
+    margin-left: 0;
+    justify-content: flex-end;
+    padding-right: 16px;
+  }
 }
+
 osv-header h1 {
   margin: 0;
   font-size: 15px;
@@ -72,57 +99,9 @@ osv-header .theme-btn {
 osv-header .theme-btn:hover { background: var(--panel); }
 osv-header .stats { font-size: 12px; color: var(--fg-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 osv-header .stats b { color: var(--fg); font-weight: 600; }
-
-osv-header .review-btn {
-  background: var(--bg);
-  color: var(--fg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  height: 30px;
-  padding: 0 10px;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  cursor: pointer;
-  font-size: 13px;
-  transition: background .15s;
-}
-osv-header .review-btn:hover { background: var(--panel); }
-osv-header .review-btn.active { border-color: var(--accent); color: var(--accent); }
-osv-header .review-count {
-  font-size: 10px;
-  font-weight: 700;
-  background: var(--accent-dim);
-  color: #fff;
-  border-radius: 10px;
-  min-width: 16px;
-  height: 16px;
-  padding: 0 4px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-}
-osv-header .review-count[hidden] { display: none; }
 osv-header .live-dot { color: var(--green); font-weight: 600; }
 
 /* Below xs: tighten the header so stats don't crowd the title. */
 @media (max-width: 36em) {
   osv-header .stats { max-width: 45vw; }
-}
-
-/* Narrow screens: the centered search box would collide with the brand and
-   side groups on one row, so wrap it onto its own centered row below them. */
-@media (max-width: 44em) {
-  osv-header header {
-    display: flex;
-    flex-wrap: wrap;
-    row-gap: 6px;
-  }
-  osv-header osv-search {
-    order: 3;
-    flex: 1 1 100%;
-    justify-content: center;
-  }
-  osv-header .side { margin-left: auto; }
 }
