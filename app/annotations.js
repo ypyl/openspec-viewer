@@ -58,6 +58,7 @@ function uid() { return Date.now().toString(36) + Math.random().toString(36).sli
 
 let annBubble = null;   // floating selection toolbar / comment editor
 let annPending = null;  // { start, end, text } awaiting a comment
+let annRange = null;    // selection Range the bubble is tethered to
 
 const paneEl = () => document.querySelector('osv-pane');
 
@@ -123,18 +124,41 @@ function onSelect() {
   showAnnBubble(range, info);
 }
 
+// Gap between the bubble and its anchor, matching the original spacing.
+const BUBBLE_GAP = 8;
+
+// Place the comment bubble within the viewport, preferring to sit just below
+// the selection and flipping above it when there is not enough room below.
+// Also clamps horizontally using the bubble's measured size. The bubble is
+// position:fixed, so rect is viewport-relative and no offset math is needed.
+function positionBubble(bub, range) {
+  const rect = range.getBoundingClientRect();
+  const w = bub.offsetWidth;
+  const h = bub.offsetHeight;
+  let top;
+  if (rect.bottom + BUBBLE_GAP + h <= innerHeight) {
+    top = rect.bottom + BUBBLE_GAP;
+  } else {
+    top = Math.max(BUBBLE_GAP, rect.top - h - BUBBLE_GAP);
+  }
+  const left = Math.max(BUBBLE_GAP, Math.min(rect.left, innerWidth - w - BUBBLE_GAP));
+  bub.style.left = left + 'px';
+  bub.style.top = top + 'px';
+}
+
 function showAnnBubble(range, info) {
   hideAnnBubble();
-  const rect = range.getBoundingClientRect();
   const bub = document.createElement('div');
   bub.className = 'ann-bubble';
   bub.innerHTML = '<button type="button" class="ann-add">💬 Comment</button>';
-  bub.style.top = (rect.bottom + 8) + 'px';
-  bub.style.left = Math.max(8, Math.min(rect.left, innerWidth - 990)) + 'px';
+  // Append before positioning so offsetWidth/offsetHeight are measurable; the
+  // bubble is position:fixed, so appending causes no layout reflow.
   const host = paneEl() || document.body;
   host.appendChild(bub);
+  positionBubble(bub, range);
   annBubble = bub;
   annPending = info;
+  annRange = range;
   bub.querySelector('.ann-add').addEventListener('click', () => {
     bub.innerHTML = `
       <textarea class="ann-text" rows="3" placeholder="What should be fixed?"></textarea>
@@ -142,6 +166,10 @@ function showAnnBubble(range, info) {
         <button type="button" class="ann-cancel">Cancel</button>
         <button type="button" class="ann-save">Save comment</button>
       </div>`;
+    // The editor is taller than the single "Comment" button; recompute the
+    // position against the expanded height so the actions stay in view (flips
+    // above the anchor near the bottom of the viewport).
+    if (annRange) positionBubble(bub, annRange);
     bub.querySelector('.ann-cancel').addEventListener('click', hideAnnBubble);
     bub.querySelector('.ann-save').addEventListener('click', saveAnnComment);
     const ta = bub.querySelector('.ann-text');
@@ -369,17 +397,6 @@ export function deleteHighlight(rel, id) {
 /* ---------- Selection listeners (attached by osv-pane's <main>) ---------- */
 
 export function onSelection() { onSelect(); }
-
-// Reposition the floating bubble when the pane scrolls so it stays tethered
-// to the selection.
-export function repositionBubble() {
-  if (!annBubble) return;
-  const sel = window.getSelection();
-  if (!sel || sel.rangeCount === 0) { hideAnnBubble(); return; }
-  const rect = sel.getRangeAt(0).getBoundingClientRect();
-  annBubble.style.top = (rect.bottom + 8) + 'px';
-  annBubble.style.left = Math.max(8, Math.min(rect.left, innerWidth - 990)) + 'px';
-}
 
 // Clicking outside the bubble dismisses it.
 document.addEventListener('mousedown', e => {

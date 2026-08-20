@@ -14,7 +14,7 @@ import {
   recentRels, paneCache, currentTabs, setCurrentTabs, searchMarks,
 } from '../../app/state.js';
 import { markRead as markReadStore, readFileText } from '../../app/store.js';
-import { applyHighlights, hideAnnBubble, onSelection, repositionBubble, clearSearchMarks } from '../../app/annotations.js';
+import { applyHighlights, hideAnnBubble, onSelection, clearSearchMarks } from '../../app/annotations.js';
 
 const WELCOME = `
   <div class="welcome">
@@ -37,7 +37,9 @@ export class OsvPane extends HTMLElement {
     /* ---- Selection / annotation listeners on the scroll container ---- */
     this._main.addEventListener('mouseup', onSelection);
     this._main.addEventListener('keyup', onSelection);
-    this._main.addEventListener('scroll', repositionBubble, { passive: true });
+    // Scrolling dismisses the floating comment bubble (anchoring it is
+    // visually unstable and it can jump off-screen once the anchor scrolls).
+    this._main.addEventListener('scroll', () => hideAnnBubble(), { passive: true });
 
     /* ---- Diff/Artifact toggle (delegated within the pane) ---- */
     this._main.addEventListener('click', async e => {
