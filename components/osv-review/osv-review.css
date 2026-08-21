@@ -69,6 +69,19 @@ osv-review .rv-text {
 }
 osv-review .rv-comment { font-size: 13px; color: var(--fg); line-height: 1.5; }
 osv-review .rv-nocomment { color: var(--fg-subtle); font-style: italic; }
+osv-review .rv-pill {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .3px;
+  color: var(--fg-muted);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 10px;
+  padding: 1px 7px;
+  display: inline-block;
+  margin-bottom: 6px;
+}
+osv-review .rv-item.rv-file-comment .rv-num { background: var(--panel); font-size: 12px; }
 osv-review .rv-file {
   font-size: 10.5px;
   color: var(--fg-subtle);

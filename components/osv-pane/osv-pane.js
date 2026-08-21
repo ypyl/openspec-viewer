@@ -6,15 +6,16 @@
 
 import { html, joinHtml } from '../../imports.js';
 import {
-  crumbFor, handleText, markdownPane, yamlPane, artifactOf, changeOf, groupOf,
+  crumbFor, handleText, markdownPane, yamlPane, artifactOf, changeOf, groupOf, displayLabel,
 } from '../../app/render.js';
 import { diffViewHtml, diffToggleHtml, diffTabBadgeHtml, hashText } from '../../app/diff.js';
 import {
   allFiles, currentRel, currentKey, changeMeta, diffInfo, diffViews,
-  recentRels, paneCache, currentTabs, setCurrentTabs, searchMarks,
+  recentRels, paneCache, currentTabs, setCurrentTabs, searchMarks, highlights,
 } from '../../app/state.js';
 import { markRead as markReadStore, readFileText } from '../../app/store.js';
-import { applyHighlights, hideAnnBubble, onSelection, clearSearchMarks } from '../../app/annotations.js';
+import { applyHighlights, hideAnnBubble, onSelection, clearSearchMarks, saveFileComment } from '../../app/annotations.js';
+import { showToast } from '../osv-toast/osv-toast.js';
 
 const WELCOME = `
   <div class="welcome">
@@ -25,6 +26,19 @@ const WELCOME = `
     <p>Everything stays on your machine; files are read with the File API and never uploaded.</p>
   </div>`;
 
+// How many whole-file (kind:'file') comments an artifact currently carries.
+function wholeFileCount(rel) {
+  return (highlights.value.get(rel) || []).filter(h => h.kind === 'file').length;
+}
+
+// Header 💬 button: opens the whole-file comment editor; a count badge shows how
+// many general comments the artifact already has. Enabled in both artifact and
+// diff views (a whole-file comment targets the artifact file regardless of view).
+function commentToggleHtml(rel) {
+  const n = wholeFileCount(rel);
+  return html`<button class="comment-toggle${n ? ' has' : ''}" data-rel="${rel}" title="Comment on this whole artifact">💬${n ? html`<span class="comment-count">${n}</span>` : ''}</button>`;
+}
+
 export class OsvPane extends HTMLElement {
   connectedCallback() {
     if (this._init) return;
@@ -34,6 +48,25 @@ export class OsvPane extends HTMLElement {
     this._main.innerHTML = WELCOME;
     this.appendChild(this._main);
 
+    /* ---- Whole-file comment editor (native <dialog>) ---- */
+    this._cf = document.createElement('dialog');
+    this._cf.className = 'cf-dialog';
+    this._cf.innerHTML = `
+      <div class="cf-title">Comment on <span class="cf-rel"></span></div>
+      <textarea class="cf-text" rows="4" placeholder="Add a comment about the whole artifact…"></textarea>
+      <div class="cf-actions">
+        <button type="button" class="cf-cancel">Cancel</button>
+        <button type="button" class="cf-save">Save comment</button>
+      </div>`;
+    this.appendChild(this._cf);
+    this._cf.querySelector('.cf-cancel').addEventListener('click', () => this._cf.close());
+    this._cf.querySelector('.cf-save').addEventListener('click', () => this.saveCommentDialog());
+    this._cf.querySelector('.cf-text').addEventListener('keydown', e => {
+      // Enter saves (Ctrl/Cmd+Enter too); Shift+Enter inserts a newline.
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.saveCommentDialog(); }
+      if (e.key === 'Escape') this._cf.close();
+    });
+
     /* ---- Selection / annotation listeners on the scroll container ---- */
     this._main.addEventListener('mouseup', onSelection);
     this._main.addEventListener('keyup', onSelection);
@@ -41,8 +74,10 @@ export class OsvPane extends HTMLElement {
     // visually unstable and it can jump off-screen once the anchor scrolls).
     this._main.addEventListener('scroll', () => hideAnnBubble(), { passive: true });
 
-    /* ---- Diff/Artifact toggle (delegated within the pane) ---- */
+    /* ---- Diff/Artifact toggle + whole-file comment (delegated within the pane) ---- */
     this._main.addEventListener('click', async e => {
+      const ct = e.target.closest('.comment-toggle');
+      if (ct) { this.openCommentDialog(ct.dataset.rel); return; }
       const b = e.target.closest('.diff-toggle');
       if (!b) return;
       const rel = b.dataset.rel;
@@ -68,7 +103,7 @@ export class OsvPane extends HTMLElement {
     document.addEventListener('osv:reveal', async e => {
       const { rel, id } = e.detail;
       if (rel !== currentRel.value) await this.openFile(rel);
-      this.scrollToMark(id);
+      this.scrollToMark(`mark.hl[data-id="${id}"]`);
     });
 
     // Content-search result: open the artifact at its match, then scroll to it.
@@ -88,7 +123,7 @@ export class OsvPane extends HTMLElement {
       } else {
         applyHighlights(rel);
       }
-      this.scrollToSearchMark();
+      this.scrollToMark('mark.sq');
     });
 
     // Re-apply transient marks when the query is cleared or a new result is
@@ -145,9 +180,8 @@ export class OsvPane extends HTMLElement {
     const metaYaml = meta.files.find(f => f.rel.endsWith('.openspec.yaml'));
     push(prop && prop.rel, 'Proposal');
     specs.forEach(s => {
-      const cap = s.rel.slice(s.rel.indexOf('/specs/') + 1)
-        .replace(/^specs\//, '').replace(/\/spec\.md$/, '');
-      push(s.rel, specs.length === 1 ? 'Spec' : `Spec · ${cap}`);
+      push(s.rel, specs.length === 1 ? 'Spec'
+        : `Spec · ${displayLabel(s.rel.slice(s.rel.indexOf('/specs/') + 1), 'Specs')}`);
     });
     push(design && design.rel, 'Design');
     push(tasks && tasks.rel, 'Tasks');
@@ -181,6 +215,7 @@ export class OsvPane extends HTMLElement {
     this._main.querySelectorAll('.tab').forEach(b =>
       b.classList.toggle('active', +b.dataset.i === i));
     this.refreshToggle(t.rel);
+    this.refreshCommentToggle(t.rel);
     this._body.className = 'pane-body';
     this._body.innerHTML = await this.viewFor(t.rel);
     applyHighlights(t.rel);
@@ -208,7 +243,35 @@ export class OsvPane extends HTMLElement {
   }
 
   paneBarHtml(crumb, rel) {
-    return html`<div class="pane-bar">${crumb}<span class="diff-toggle-slot">${diffToggleHtml(rel, diffInfo.get(rel), diffViews.get(rel), recentRels.value.has(rel))}</span></div>`;
+    return html`<div class="pane-bar">${crumb}<span class="comment-toggle-slot">${commentToggleHtml(rel)}</span><span class="diff-toggle-slot">${diffToggleHtml(rel, diffInfo.get(rel), diffViews.get(rel), recentRels.value.has(rel))}</span></div>`;
+  }
+
+  // Re-render just the comment toggle after a tab switch or a save.
+  refreshCommentToggle(rel) {
+    const slot = this._main.querySelector('.comment-toggle-slot');
+    if (slot) slot.innerHTML = commentToggleHtml(rel);
+  }
+
+  // Open the whole-file comment editor for an artifact.
+  openCommentDialog(rel) {
+    if (!rel) return;
+    this._cfRel = rel;
+    this._cf.querySelector('.cf-rel').textContent = rel;
+    const ta = this._cf.querySelector('.cf-text');
+    ta.value = '';
+    this._cf.showModal();
+    ta.focus();
+  }
+
+  saveCommentDialog() {
+    const rel = this._cfRel;
+    const comment = this._cf.querySelector('.cf-text').value.trim();
+    if (rel && comment) {
+      saveFileComment(rel, comment);
+      this.refreshCommentToggle(rel);
+      showToast('Comment added');
+    }
+    this._cf.close();
   }
 
   // Re-render just the toggle after a tab switch or a click.
@@ -249,18 +312,9 @@ export class OsvPane extends HTMLElement {
     this._body = null;
   }
 
-  scrollToMark(id) {
-    const mark = this._main.querySelector(`mark.hl[data-id="${id}"]`);
-    if (mark) {
-      mark.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      mark.classList.add('active');
-      setTimeout(() => mark.classList.remove('active'), 1400);
-    }
-  }
-
-  // Scroll the first search match into view when a search result opens.
-  scrollToSearchMark() {
-    const mark = this._main.querySelector('mark.sq');
+  // Scroll the first match for `selector` (a highlight or search mark) into view.
+  scrollToMark(selector) {
+    const mark = this._main.querySelector(selector);
     if (mark) {
       mark.scrollIntoView({ block: 'center', behavior: 'smooth' });
       mark.classList.add('active');

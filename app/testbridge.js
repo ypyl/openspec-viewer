@@ -9,6 +9,7 @@
 import {
   startMonitoring, scan, loadHandle, getSnapshot, putSnapshot, deleteSnapshot,
 } from './store.js';
+import { buildPrompt } from './prompt.js';
 
 const pane = () => document.querySelector('osv-pane');
 
@@ -21,4 +22,5 @@ export function installTestBridge() {
   window.deleteSnapshot = deleteSnapshot;
   window.openFile = (rel) => pane() && pane().openFile(rel);
   window.openChange = (key, initialRel) => pane() && pane().openChange(key, initialRel);
+  window.buildPrompt = buildPrompt;
 }

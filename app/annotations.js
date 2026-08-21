@@ -197,7 +197,6 @@ async function saveAnnComment() {
     hideAnnBubble();
     return;
   }
-  const isFirst = list.length === 0;
   // Store the file path and the raw lines referencing the text so the
   // highlight can be re-anchored after a reload.
   let lines = [];
@@ -207,8 +206,16 @@ async function saveAnnComment() {
   hideAnnBubble();
   try { window.getSelection().removeAllRanges(); } catch (e) {}
   applyHighlights(rel);
-  if (isFirst) document.dispatchEvent(new CustomEvent('osv:open-review'));
   showToast(comment ? 'Comment added' : 'Highlight added');
+}
+
+// Append a whole-file (entire-artifact) review comment. Not anchored to a text
+// range (kind:'file'), so it has no start/end/text/lines and never goes stale.
+export function saveFileComment(rel, comment) {
+  if (!rel || !comment) return;
+  const list = highlights.value.get(rel) || [];
+  list.push({ kind: 'file', id: uid(), comment, ts: Date.now(), rel });
+  setHighlights(rel, list);
 }
 
 /* ---------- Applying highlight marks ---------- */
@@ -352,6 +359,8 @@ function currentStaleIds() {
   if (!el) return ids;
   const t = el.textContent;
   for (const h of highlights.value.get(currentRel.value) || []) {
+    // Whole-file comments are not anchored to a range, so they never go stale.
+    if (h.kind === 'file') continue;
     const ok = h.text && (t.includes(h.text) || t.slice(h.start, h.end) === h.text);
     if (!ok) ids.add(h.id);
   }
@@ -369,13 +378,29 @@ export function allHighlights() {
   return out;
 }
 
+// Review drawer content + its item list in one pass (so the caller doesn't
+// recompute allHighlights for the header count). Returns { html, items }.
 export function buildReviewHtml() {
   const items = allHighlights();
   if (!items.length) {
-    return '<div class="rv-empty">Select text in any artifact and press <b>💬 Comment</b> to flag it for fixing.<br><br>Comments from all files are collected into a single fix prompt for an LLM.</div>';
+    return { items, html: '<div class="rv-empty">Select text in any artifact and press <b>💬 Comment</b> to flag it for fixing. Or use the <b>💬</b> button on an artifact&#39;s header to comment on a whole document (structure, tone, formatting).<br><br>Comments from all files are collected into a single fix prompt for an LLM.</div>' };
   }
   const stale = currentStaleIds();
-  return items.map((h, i) => html`
+  return { items, html: items.map((h, i) => {
+    if (h.kind === 'file') {
+      // Whole-file comment: no quoted snippet, distinct marker, never stale.
+      return html`
+        <div class="rv-item rv-file-comment" data-id="${h.id}" data-rel="${h.rel}">
+          <div class="rv-num">📄</div>
+          <div class="rv-body">
+            <div class="rv-file">${h.rel}</div>
+            <div class="rv-pill">entire artifact</div>
+            <div class="rv-comment">${h.comment}</div>
+          </div>
+          <button class="rv-del" title="Delete" data-rel="${h.rel}" data-id="${h.id}">✕</button>
+        </div>`;
+    }
+    return html`
     <div class="rv-item${stale.has(h.id) ? ' stale' : ''}" data-id="${h.id}" data-rel="${h.rel}">
       <div class="rv-num">${i + 1}</div>
       <div class="rv-body">
@@ -385,7 +410,8 @@ export function buildReviewHtml() {
         ${stale.has(h.id) ? html`<div class="rv-stale">text not found in current content</div>` : ''}
       </div>
       <button class="rv-del" title="Delete" data-rel="${h.rel}" data-id="${h.id}">✕</button>
-    </div>`).join('');
+    </div>`;
+  }).join('') };
 }
 
 export function deleteHighlight(rel, id) {

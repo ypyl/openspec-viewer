@@ -18,9 +18,15 @@ export function buildPrompt() {
     '',
   ];
   items.forEach((h, i) => {
-    lines.push(`${i + 1}. File: ${storePrefix}${h.rel}`);
-    lines.push(`   Referenced text: "${snippet(h.text)}"`);
-    lines.push(`   Comment: ${h.comment}`);
+    if (h.kind === 'file') {
+      lines.push(`${i + 1}. File: ${storePrefix}${h.rel}`);
+      lines.push(`   Scope: entire file`);
+      lines.push(`   Comment: ${h.comment}`);
+    } else {
+      lines.push(`${i + 1}. File: ${storePrefix}${h.rel}`);
+      lines.push(`   Referenced text: "${snippet(h.text)}"`);
+      lines.push(`   Comment: ${h.comment}`);
+    }
   });
   return lines.join('\n');
 }

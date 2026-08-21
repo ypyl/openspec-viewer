@@ -1,9 +1,9 @@
 // app/state.js — application state.
 //
 // All reactive state lives in tiny-signals here and is imported directly by
-// the components and logic modules (see design.md: we use a shared signals
-// module rather than tiny-context for cross-component state — the app is one
-// page, one flat layout, and no component is reusable outside it).
+// the components and logic modules — the app is one page, one flat layout, and
+// no component is reusable outside it, so there's no need for a cross-component
+// context provider.
 //
 // Non-reactive, module-scoped data (diff/pane caches, the open tabs array)
 // is also centralised here so components don't each hold a copy.
@@ -31,7 +31,11 @@ try { storedCollapsed = localStorage.getItem('osviewer.collapsed'); } catch (e) 
 export const collapsed = signal(new Set(storedCollapsed === null ? ['Archive', 'Config'] : safeParseCollapsed(storedCollapsed)));
 
 export const search = signal('');
-export const highlights = signal(new Map()); // rel -> [{ id, start, end, text, comment, ts, rel, lines }]
+// rel -> review items. Two discriminated kinds:
+//   { kind:'range', id, start, end, text, comment, ts, rel, lines }  (text-range highlight)
+//   { kind:'file',  id, comment, ts, rel }                            (whole-artifact comment)
+// Persisted items saved before this feature have no `kind` and are implicitly 'range'.
+export const highlights = signal(new Map()); // rel -> [review item]
 export const staleTick = signal(0);          // bumped after a file renders so stale checks re-run on the right content
 export const searchVersion = signal(0);      // bumped whenever the folder's contents could have changed (search index invalidates)
 export const searchMarks = signal(new Map()); // rel -> [[start, end), ...] transient search-match ranges (not persisted)
