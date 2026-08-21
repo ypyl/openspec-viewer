@@ -161,7 +161,7 @@ function showAnnBubble(range, info) {
   annRange = range;
   bub.querySelector('.ann-add').addEventListener('click', () => {
     bub.innerHTML = `
-      <textarea class="ann-text" rows="3" placeholder="What should be fixed?"></textarea>
+      <textarea class="ann-text" rows="3" placeholder="Add a comment…"></textarea>
       <div class="ann-actions">
         <button type="button" class="ann-cancel">Cancel</button>
         <button type="button" class="ann-save">Save comment</button>

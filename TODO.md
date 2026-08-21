@@ -35,9 +35,9 @@
 
 - ~~When opening/monitoring an openspec folder, reading the folder's artifacts can take a moment; provide a way to cancel an in-progress folder read (e.g. a cancel button / AbortSignal) so the UI is never stuck waiting.~~
 
-## Comment popup: generic copy
+## ~Comment popup: generic copy~ ✅ shipped in v2.17.1
 
-- The comment bubble's textarea placeholder reads "What should be fixed?", which assumes every highlight warrants a change; comments can also be plain observations or questions (the review flow even has an explain mode where the model only answers). Make the placeholder generic (e.g. "Add a comment…"), and review the buttons in the popup (currently **Cancel** / **Save comment**) for the same reason so the wording matches generic commenting rather than fix-requests.
+- ~~The comment bubble's textarea placeholder reads "What should be fixed?", which assumes every highlight warrants a change; comments can also be plain observations or questions (the review flow even has an explain mode where the model only answers). Make the placeholder generic (e.g. "Add a comment…"), and review the buttons in the popup (currently **Cancel** / **Save comment**) for the same reason so the wording matches generic commenting rather than fix-requests.~~
 
 ## ~Highlight exactly what changed in a proposal~ ✅ shipped in v1.10.0
 
