@@ -5,7 +5,7 @@
 // open file, update tab badges, show a "deleted" notice), it dispatches a
 // document-level CustomEvent that the bootstrap (index.js) wires to osv-pane.
 
-import { normPath, isRelevant, groupOf, changeOf, searchTitle } from './model.js';
+import { normPath, isRelevant, isChangeMetadata, groupOf, changeOf, searchTitle } from './model.js';
 import { handleText } from './render.js';
 import { diffLines, hashText } from './diff.js';
 import { pruneHighlights } from './annotations.js';
@@ -340,7 +340,10 @@ export async function scan(initial, signal) {
     const diffsSeen = [];   // rels whose content diffed vs the persisted snapshot this scan
     let removals = 0;
     const prevUnread = recentRels.value;        // carry forward last scan's unread set
-    const nextUnread = new Set(prevUnread);     // rebuilt by this scan, assigned back below
+    // Rebuilt by this scan, assigned back below. Drop any metadata paths that
+    // were carried forward from before: a change's metadata file is shown and
+    // readable but is never unread, so it must not drive markers or counters.
+    const nextUnread = new Set([...prevUnread].filter(rel => !isChangeMetadata(rel)));
     for (const [rel, info] of current) {
       if (cancelled()) { aborted = true; break; }
       const prev = fileState.get(rel);
@@ -374,7 +377,11 @@ export async function scan(initial, signal) {
           // the unread version (indistinguishable from an unchanged file by
           // readHash alone).
           let isUnread;
-          if (!snap) isUnread = !baselineFresh;   // a genuinely-new file is unread; the fresh-pick baseline is not
+          if (isChangeMetadata(rel)) {
+            // Metadata is never unread; also persist unread:false so a stale
+            // pre-existing unread snapshot stops reseeding on later scans.
+            isUnread = false;
+          } else if (!snap) isUnread = !baselineFresh;   // a genuinely-new file is unread; the fresh-pick baseline is not
           else if (changedContent) isUnread = snap.readHash !== hashText(text);
           else isUnread = !!snap.unread;
           if (isUnread) nextUnread.add(rel); else nextUnread.delete(rel);

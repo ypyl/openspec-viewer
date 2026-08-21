@@ -29,6 +29,15 @@
 
 - Basic validation of openspec/ structure and artifacts against the OpenSpec documentation: required files (spec.md, proposal.md, task.md, change.md, ADRs), required sections, frontmatter/header conventions.
 - Show validation issues in the UI (warnings/errors per artifact).
+- Add a rule that flags a placeholder "TBD" (or similar) in the Purpose section of an artifact as a warning.
+
+## ~Allow cancelling a folder read~ ✅ shipped in v2.13.0
+
+- ~~When opening/monitoring an openspec folder, reading the folder's artifacts can take a moment; provide a way to cancel an in-progress folder read (e.g. a cancel button / AbortSignal) so the UI is never stuck waiting.~~
+
+## Comment popup: generic copy
+
+- The comment bubble's textarea placeholder reads "What should be fixed?", which assumes every highlight warrants a change; comments can also be plain observations or questions (the review flow even has an explain mode where the model only answers). Make the placeholder generic (e.g. "Add a comment…"), and review the buttons in the popup (currently **Cancel** / **Save comment**) for the same reason so the wording matches generic commenting rather than fix-requests.
 
 ## ~Highlight exactly what changed in a proposal~ ✅ shipped in v1.10.0
 
@@ -40,6 +49,22 @@
 
 - ~~Allow marking a file's changes as read; a file is marked automatically as soon as its diff view is opened.~~
 - ~~Persist read state so it survives reloads (IndexedDB), and reflect it in the file list (e.g. dim/clear the "new" marker, no longer count it in group counters).~~
+
+## Mark an archived spec as read when opened
+
+- Opening an archived change/spec should mark it as read in one go — no need to open each artifact (proposal, design, task, ADR) inside it individually to clear its "new" marker/counter.
+- Persist that read state like the existing file-level read state (IndexedDB), and clear the marker/counter as soon as the archived spec is opened.
+
+## Collapse Config group by default
+
+- The file list's group headers (Changes / Specs / Archive / Config) start expanded except **Archive**, which is collapsed by default on first visit (`osviewer.collapsed` in state.js).
+- Collapse the **Config** group by default too: it holds the folder's config.yaml and config/ files, which are rarely the focus when browsing artifacts.
+- Keep the persisted per-user choice working as it does for Archive (signal + localStorage).
+
+## Exclude a change's metadata.yaml from unread tracking ✅ shipped in v2.15.0
+
+- ~~The unread/new change tracking should also consider an openspec change's `metadata.yaml` file: when it is created or modified, the change shows as unread (marker + group counter) just like its other artifacts — no need to open it to acknowledge.~~
+- Shipped instead as the reverse: a change's metadata file (`.openspec.yaml`) is shown and readable, but is excluded from unread/new tracking. It never places a "new" marker or counts in a group counter, and never needs to be opened to mark the change (or an archived change) as read.
 
 ## ~Reduce live-monitoring poll interval 30s → 10s~ ✅ shipped in v1.4.0
 

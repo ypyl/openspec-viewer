@@ -38,6 +38,13 @@ export function isRelevant(rel) {
     (rel.endsWith('.openspec.yaml') || !rel.split('/').pop().startsWith('.'));
 }
 
+// A change's metadata file (OpenSpec keeps it at <change>/.openspec.yaml). It
+// stays visible and readable but is excluded from unread/new tracking: it must
+// not flag the change, count in a group counter, or gate acknowledging it.
+export function isChangeMetadata(rel) {
+  return rel.endsWith('.openspec.yaml');
+}
+
 export function isArchived(rel) {
   return rel.startsWith('changes/archive/');
 }

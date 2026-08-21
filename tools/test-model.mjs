@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  normPath, artifactOf, isRelevant, isArchived, groupOf, displayLabel,
+  normPath, artifactOf, isRelevant, isChangeMetadata, isArchived, groupOf, displayLabel,
   changeOf, prettyChangeName, crumbFor, refLines, snippet,
 } from '../app/model.js';
 
@@ -31,6 +31,17 @@ test('isRelevant: md/yaml/json yes; dotfiles (except .openspec.yaml) no', () => 
   assert.ok(isRelevant('changes/a/.openspec.yaml'));
   assert.ok(!isRelevant('changes/a/.gitkeep'));
   assert.ok(!isRelevant('changes/a/notes.txt'));
+});
+
+test('isChangeMetadata: true only for a change\'s metadata file', () => {
+  assert.ok(isChangeMetadata('changes/alpha/.openspec.yaml'));
+  assert.ok(isChangeMetadata('changes/archive/2026-01-01-alpha/.openspec.yaml'));
+  // Other artifacts and the root config are not metadata.
+  assert.ok(!isChangeMetadata('changes/alpha/proposal.md'));
+  assert.ok(!isChangeMetadata('changes/alpha/specs/acct/spec.md'));
+  assert.ok(!isChangeMetadata('changes/alpha/design.md'));
+  assert.ok(!isChangeMetadata('changes/alpha/tasks.md'));
+  assert.ok(!isChangeMetadata('config.yaml'));
 });
 
 test('isArchived: true only under changes/archive/', () => {
