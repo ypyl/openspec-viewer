@@ -25,10 +25,10 @@ export const currentKey = signal(null); // selected change (active or archived)
 export const dirHandle = signal(null);  // FileSystemDirectoryHandle being monitored
 export const recentRels = signal(new Set()); // rels with unacknowledged changes, keyed to the persisted readHash
 
-// Archive is collapsed by default on first visit; the persisted choice lives in the signal.
+// Archive and Config are collapsed by default on first visit; the persisted choice lives in the signal.
 let storedCollapsed = null;
 try { storedCollapsed = localStorage.getItem('osviewer.collapsed'); } catch (e) {}
-export const collapsed = signal(new Set(storedCollapsed === null ? ['Archive'] : safeParseCollapsed(storedCollapsed)));
+export const collapsed = signal(new Set(storedCollapsed === null ? ['Archive', 'Config'] : safeParseCollapsed(storedCollapsed)));
 
 export const search = signal('');
 export const highlights = signal(new Map()); // rel -> [{ id, start, end, text, comment, ts, rel, lines }]
