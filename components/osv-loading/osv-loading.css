@@ -33,3 +33,15 @@ osv-loading .spinner {
   flex-shrink: 0;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+osv-loading .loading-cancel {
+  font: inherit;
+  padding: 5px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--fg);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+osv-loading .loading-cancel:hover { background: rgba(110,118,129,.12); }
+osv-loading .loading-cancel[hidden] { display: none; }

@@ -62,6 +62,11 @@ export async function loadHandle() {
   catch (e) { return null; }
 }
 
+export async function clearSavedHandle() {
+  try { await storeTx(IDB_STORE, 'readwrite', s => s.delete('dir')); }
+  catch (e) { /* non-fatal */ }
+}
+
 // Content snapshots for change diffs. The File System Access API exposes
 // no previous versions, so we store each artifact's raw text (plus the
 // mtime it was read at) after every scan; the next scan line-diffs against
@@ -182,8 +187,12 @@ export async function loadFiles(raw) {
 let pollTimer = null;      // setInterval id for the poll loop
 let isScanning = false;    // guard against overlapping scans
 let baselineFresh = true;  // true only for the initial scan of a fresh pick (snapshots cleared)
+let currentScan = null;    // AbortController for the user-cancellable initial folder read
 
 export async function startMonitoring(handle, keepSnapshots) {
+  // Abort any prior in-progress read so a fresh pick can't wedge behind it.
+  if (currentScan) currentScan.abort();
+  currentScan = new AbortController();
   dirHandle.value = handle;
   // The picked folder is the project root (use its name) or openspec itself.
   setStorePrefix(handle && handle.name && handle.name !== 'openspec'
@@ -199,7 +208,22 @@ export async function startMonitoring(handle, keepSnapshots) {
   recentRels.value = new Set();
   diffInfo.clear();
   diffViews.clear();
-  await scan(true);
+  const status = await scan(true, currentScan.signal);
+  currentScan = null;
+  if (status === 'aborted') {
+    // User cancelled the read: return to the true pre-read state — no folder
+    // monitored, no stale list, and no persisted pointer so a reload doesn't
+    // re-attempt the same slow read.
+    dirHandle.value = null;
+    allFiles.value = [];
+    currentRel.value = null;
+    currentKey.value = null;
+    searchVersion.value++;   // the corpus changed (emptied)
+    paneCache.clear();
+    pruneHighlights();
+    await clearSavedHandle();
+    return;
+  }
   baselineFresh = false;   // only the very first scan is the baseline; later scans flag new files
   if (!currentRel.value) document.dispatchEvent(new CustomEvent('osv:auto-open'));
   clearInterval(pollTimer);
@@ -232,30 +256,37 @@ export async function pickFolder() {
   });
 }
 
-async function* walkDir(dir, prefix) {
+async function* walkDir(dir, prefix, signal) {
   for await (const entry of dir.values()) {
+    if (signal && signal.aborted) return;   // cancellable: stop yielding on abort
     if (entry.kind === 'directory') {
-      yield* walkDir(entry, prefix + entry.name + '/');
+      yield* walkDir(entry, prefix + entry.name + '/', signal);
     } else {
       yield [prefix + entry.name, entry];
     }
   }
 }
 
-export async function scan(initial) {
+export async function scan(initial, signal) {
   if (!dirHandle.value || isScanning) return;
   isScanning = true;
-  if (initial) setLoading('Reading folder…');
+  const cancelled = () => !!(signal && signal.aborted);
+  // The read is user-cancellable: the overlay's Cancel / Escape aborts currentScan.
+  const cancelAction = { cancel: () => currentScan && currentScan.abort() };
+  if (initial) setLoading('Reading folder…', cancelAction);
   let found = 0, lastUiAt = 0;
+  let aborted = false;
   try {
     const current = new Map();
     for await (const root of dirHandle.value.values()) {
+      if (cancelled()) { aborted = true; break; }
       const rel0 = normPath(root.name);
       if (root.kind === 'directory') {
         // normPath can collapse the picked 'openspec' dir to ''; join without
         // a leading slash so startsWith('changes/') checks still match.
         const prefix = rel0 ? rel0 + '/' : '';
-        for await (const [rel, handle] of walkDir(root, prefix)) {
+        for await (const [rel, handle] of walkDir(root, prefix, signal)) {
+          if (cancelled()) { aborted = true; break; }
           if (!isRelevant(rel) || !groupOf(rel)) continue;
           found++;
           const file = await handle.getFile();
@@ -263,7 +294,7 @@ export async function scan(initial) {
           const now = performance.now();
           if (initial && now - lastUiAt > 150) {
             lastUiAt = now;
-            setLoading(`Reading folder… ${found} files`);
+            setLoading(`Reading folder… ${found} files`, cancelAction);
           }
         }
       } else {
@@ -283,6 +314,7 @@ export async function scan(initial) {
     const prevUnread = recentRels.value;        // carry forward last scan's unread set
     const nextUnread = new Set(prevUnread);     // rebuilt by this scan, assigned back below
     for (const [rel, info] of current) {
+      if (cancelled()) { aborted = true; break; }
       const prev = fileState.get(rel);
       const modified = !prev || prev.lastModified !== info.lastModified;
       if (modified) {
@@ -336,6 +368,7 @@ export async function scan(initial) {
       }
     }
     for (const rel of fileState.keys()) {
+      if (cancelled()) { aborted = true; break; }
       if (!current.has(rel)) {
         changed = true;
         corpusChanged = true;
@@ -349,6 +382,8 @@ export async function scan(initial) {
         }
       }
     }
+
+    if (aborted) return 'aborted';   // cancelled: commit nothing; the finally clears the overlay
 
     // The file currently open was deleted.
     if (currentRel.value && !fileState.has(currentRel.value) && !current.has(currentRel.value)) {
