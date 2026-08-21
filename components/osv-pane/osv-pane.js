@@ -122,6 +122,13 @@ export class OsvPane extends HTMLElement {
   async openChange(key, initialRel) {
     const meta = changeMeta.value.get(key);
     if (!meta) return;
+    // Opening an archived change acknowledges all of its artifacts at once
+    // (design D1/D2): archived changes are history, not review targets, so a
+    // single open clears every unread marker and the Archive group counter.
+    // Active changes keep per-tab acknowledgment in acknowledgeShown below.
+    if (key.startsWith('changes/archive/')) {
+      this.acknowledgeArchivedChange(meta).catch(() => {});
+    }
     hideAnnBubble();
     currentKey.value = key;
     currentRel.value = initialRel || meta.proposalRel || null;
@@ -275,6 +282,18 @@ export class OsvPane extends HTMLElement {
       catch (e) { /* non-fatal */ }
     }
     // else: artifact view with a pending diff → stay unread
+  }
+
+  // Mark every artifact of an archived change read against its current content
+  // (design D2). Metadata files are already never unread, so skip them. Uses the
+  // same markRead path as a normal read; recentRels reactivity clears the
+  // Archive markers and group counter. Fire-and-forget and non-fatal.
+  async acknowledgeArchivedChange(meta) {
+    for (const f of meta.files) {
+      if (f.rel.endsWith('.openspec.yaml')) continue;
+      try { await this.markRead(f.rel, hashText(await readFileText(f.rel))); }
+      catch (e) { /* non-fatal */ }
+    }
   }
 
   async markRead(rel, hash) {
