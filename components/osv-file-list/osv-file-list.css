@@ -23,22 +23,49 @@ osv-file-list .controls {
   flex-direction: column;
   gap: 10px;
 }
-osv-file-list .pick-btn {
+
+/* Active folder name + square close button (replaces the old pick button). */
+osv-file-list .folder-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+}
+osv-file-list .folder-name {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+}
+osv-file-list .folder-name.muted {
+  color: var(--fg-subtle);
+  font-weight: 500;
+}
+osv-file-list .folder-close {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: var(--accent-dim);
-  color: #fff;
-  border: 1px solid rgba(240,246,252,.1);
-  border-radius: var(--radius);
-  font-size: 13px;
-  font-weight: 500;
+  background: transparent;
+  border: 1px solid var(--border-muted);
+  color: var(--fg-subtle);
+  font-size: 11px;
+  line-height: 1;
   cursor: pointer;
-  transition: background .15s;
+  transition: background .15s, color .15s, border-color .15s;
 }
-osv-file-list .pick-btn:hover { background: #2a6fd9; }
+osv-file-list .folder-close:hover {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+}
 osv-file-list .file-picker { display: none; }
 osv-file-list .search-row { position: relative; display: flex; align-items: center; }
 osv-file-list .search-row svg {

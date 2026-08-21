@@ -55,6 +55,16 @@ export class OsvSearch extends HTMLElement {
     });
   }
 
+  // Folder switch: the search query is not remembered per folder — clear the
+  // input, results, and transient marks so nothing leaks from the old folder.
+  resetForFolderSwitch() {
+    const input = this.querySelector('.s-input');
+    const drop = this.querySelector('.s-drop');
+    if (input) input.value = '';
+    if (drop) { drop.hidden = true; drop.innerHTML = ''; }
+    clearSearchMarks();
+  }
+
   // Debounced/focused search. async so a slow Fuse build doesn't block input;
   // re-checks the query before rendering so a stale response is dropped.
   async run(input, drop) {

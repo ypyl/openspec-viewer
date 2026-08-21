@@ -171,7 +171,9 @@ async page => {
 
   // ---- 4) Persistence: kind:'file' with no range fields ----
   const list = await page.evaluate(() => {
-    const o = JSON.parse(localStorage.getItem('osviewer.highlights') || '{}');
+    // Review items are stored per folder (osviewer.highlights.<folderId>).
+    const key = Object.keys(localStorage).find(k => k.startsWith('osviewer.highlights.'));
+    const o = JSON.parse(localStorage.getItem(key) || '{}');
     return o['changes/foo/proposal.md'] || [];
   });
   const fileComments = list.filter(h => h.kind === 'file');

@@ -1,0 +1,132 @@
+/* osv-folder-rail: narrow icon column of opened folders (DoubleNavbar-style
+   aside), plus the add action at the top. */
+
+osv-folder-rail {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+osv-folder-rail .folder-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 6px;   /* horizontal inset shared by the + and the avatars */
+  flex: 1;
+  min-height: 0;
+}
+osv-folder-rail .file-picker { display: none; }
+
+/* Add action — occupies the slot the Mantine logo sits in. */
+osv-folder-rail .rail-add {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px dashed var(--border);
+  color: var(--fg-muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+  flex-shrink: 0;
+}
+osv-folder-rail .rail-add:hover {
+  background: rgba(110, 118, 129, .12);
+  color: var(--fg);
+  border-color: var(--fg-subtle);
+}
+
+osv-folder-rail .rail-list {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  overflow-y: auto;
+  overflow-x: clip;      /* never cut the active ring on the horizontal edges */
+  width: 100%;
+  min-height: 0;
+  padding: 2px 0;        /* a little room so the active ring isn't clipped top/bottom */
+}
+
+/* Avatar: same shape as the rail's + button (40x40 rounded square), with a
+   light pastel background tinted by the per-folder hue and the project's
+   first letter inside. Same-letter projects stay distinguishable via hue. */
+osv-folder-rail .rail-avatar {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius);
+  border: 1px solid hsl(var(--hue, 220) 45% 65%);
+  background: hsl(var(--hue, 220) 55% 78%);
+  color: hsl(var(--hue, 220) 45% 25%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: box-shadow .15s, filter .15s;
+  padding: 0;
+}
+osv-folder-rail .rail-avatar:hover { filter: brightness(.96); }
+osv-folder-rail .rail-avatar.active {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+osv-folder-rail .rail-letter {
+  font-size: 15px;
+  font-weight: 700;
+  user-select: none;
+}
+
+/* Session-only uploads: same shape as the + button — dashed, no fill — so a
+   missing unread dot and the hollow look signal "not monitored". */
+osv-folder-rail .rail-avatar.upload {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--border);
+  color: var(--fg-muted);
+}
+osv-folder-rail .rail-avatar.upload .rail-letter { font-weight: 500; }
+
+/* Unread dot: bottom-right green badge; never shown for uploads. */
+osv-folder-rail .rail-dot {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--green);
+  border: 2px solid var(--panel);
+}
+
+/* ≥ md (992px): full-height column left of the file list. */
+@media (min-width: 62em) {
+  osv-folder-rail {
+    border-bottom: none;
+    border-right: 1px solid var(--border);
+  }
+  osv-folder-rail .folder-rail { width: 60px; }
+}
+
+/* Narrow screens: the rail becomes a horizontal strip (avatars in a row). */
+@media (max-width: 61.99em) {
+  osv-folder-rail .folder-rail {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  osv-folder-rail .rail-list {
+    flex-direction: row;
+    overflow-y: hidden;
+    overflow-x: auto;
+  }
+}

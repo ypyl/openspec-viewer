@@ -1,15 +1,15 @@
-// osv-file-list: folder picker, search, group sections, file/change rows.
+// osv-file-list: name/close row for the active folder, search, group
+// sections, file/change rows. The folder picker moved to osv-folder-rail.
 
 import { html, computed } from '../../imports.js';
 import {
-  allFiles, currentRel, currentKey, recentRels, collapsed, search,
-  changeMeta, diffInfo, highlights, GROUPS,
+  allFiles, currentRel, currentKey, recentRels, collapsed, search, activeFolderId,
+  activeFolderEntry, folders, changeMeta, diffInfo, highlights, GROUPS,
 } from '../../app/state.js';
 import { artifactOf, groupOf, changeOf, displayLabel } from '../../app/render.js';
 import { diffHint } from '../../app/diff.js';
-import { pickFolder, handlePickedFiles } from '../../app/store.js';
+import { closeFolder } from '../../app/store.js';
 
-const FOLDER_ICON = '<svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M1.75 1A1.75 1.75 0 000 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0016 13.25V2.75A1.75 1.75 0 0014.25 1H1.75zM1.5 2.75a.25.25 0 01.25-.25h12.5a.25.25 0 01.25.25v10.5a.25.25 0 01-.25.25H1.75a.25.25 0 01-.25-.25V2.75zM3 4.75a.75.75 0 100 1.5.75.75 0 000-1.5zm3 0a.75.75 0 100 1.5.75.75 0 000-1.5zM3 8.5a.75.75 0 100 1.5.75.75 0 000-1.5zm3 0a.75.75 0 100 1.5.75.75 0 000-1.5zm3 0a.75.75 0 100 1.5.75.75 0 000-1.5zM8.5 12a.75.75 0 100 1.5.75.75 0 000-1.5zM11 8.5a.75.75 0 100 1.5.75.75 0 000-1.5zm3 0a.75.75 0 100 1.5.75.75 0 000-1.5zM3 12.25a.75.75 0 100 1.5.75.75 0 000-1.5zm3 0a.75.75 0 100 1.5.75.75 0 000-1.5zm3 0a.75.75 0 100 1.5.75.75 0 000-1.5zM11 12a.75.75 0 100 1.5.75.75 0 000-1.5z"/></svg>';
 const SEARCH_ICON = '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M10.68 11.74a6 6 0 111.06-1.06l3.04 3.04a.75.75 0 11-1.06 1.06l-3.04-3.04zM11.5 7a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z"/></svg>';
 
 export class OsvFileList extends HTMLElement {
@@ -20,26 +20,32 @@ export class OsvFileList extends HTMLElement {
     this.innerHTML = `
       <aside>
         <div class="controls">
-          <button class="pick-btn">${FOLDER_ICON} Select Folder to Monitor</button>
-          <input type="file" class="file-picker" webkitdirectory multiple />
+          <div class="folder-row"></div>
           <div class="search-row">${SEARCH_ICON}<input class="search" type="text" placeholder="Filter files…  ( / )" autocomplete="off"></div>
         </div>
         <div class="list-scroll"></div>
       </aside>`;
 
-    const pickBtn = this.querySelector('.pick-btn');
-    const picker = this.querySelector('.file-picker');
+    const folderRowEl = this.querySelector('.folder-row');
     const searchEl = this.querySelector('.search');
     const listEl = this.querySelector('.list-scroll');
 
-    /* ---- Folder picker ---- */
-    pickBtn.addEventListener('click', async () => {
-      if (window.showDirectoryPicker) await pickFolder();
-      else picker.click();
-    });
-    picker.addEventListener('change', async e => {
-      await handlePickedFiles(e.target.files);
-      e.target.value = '';
+    /* ---- Active folder name + close row ---- */
+    const folderRow = computed(() => {
+      const f = activeFolderEntry();
+      if (!f) return html`<span class="folder-name muted">No folder</span>`;
+      const label = f.name + (f.suffix || '');
+      return html`
+        <span class="folder-name" title="${label}">${label}</span>
+        <button type="button" class="folder-close" title="Close folder — stop monitoring and forget it">✕</button>`;
+    }, [folders, activeFolderId]);
+    folderRow.effect(() => {
+      folderRowEl.innerHTML = folderRow.value;
+      const btn = folderRowEl.querySelector('.folder-close');
+      if (btn) btn.addEventListener('click', () => {
+        const id = activeFolderId.value;
+        if (id) closeFolder(id);
+      });
     });
 
     /* ---- Search + / shortcut ---- */
@@ -62,7 +68,7 @@ export class OsvFileList extends HTMLElement {
 
     /* ---- List render (patch-in-place; preserve scroll position) ---- */
     const listHtml = computed(buildListHtml,
-      [allFiles, currentRel, currentKey, recentRels, collapsed, search, changeMeta, highlights]);
+      [allFiles, currentRel, currentKey, recentRels, collapsed, search, changeMeta, highlights, activeFolderId]);
     listHtml.effect(() => {
       const top = listEl.scrollTop;
       listEl.innerHTML = listHtml.value;
@@ -76,6 +82,10 @@ export class OsvFileList extends HTMLElement {
         el.addEventListener('click', () =>
           document.dispatchEvent(new CustomEvent('osv:select-change', { detail: { key: el.dataset.key } }))));
     });
+
+    // Folder switch: the projection already reset the search signal; clear the
+    // input element too so it never shows a stale query from another folder.
+    this.clearSearchInput = () => { searchEl.value = ''; };
   }
 }
 
@@ -85,12 +95,20 @@ function toggleGroup(g) {
   const s = new Set(collapsed.value);
   if (s.has(g)) s.delete(g); else s.add(g);
   collapsed.value = s;
-  try { localStorage.setItem('osviewer.collapsed', JSON.stringify([...s])); } catch (e) {}
+  const id = activeFolderId.value;
+  if (id) {
+    try { localStorage.setItem('osviewer.collapsed.' + id, JSON.stringify([...s])); } catch (e) {}
+  }
 }
 
 function buildListHtml() {
   const q = search.value.trim().toLowerCase();
   const forceOpen = q.length > 0; // searching always expands groups
+
+  // No folder open: point at the add action instead of an artifact list.
+  if (!activeFolderId.value) {
+    return '<div class="empty">Add a folder with the <b>＋</b> button in the left rail to start monitoring.</div>';
+  }
 
   const sections = [];
   for (const g of GROUPS) {
@@ -112,7 +130,7 @@ function buildListHtml() {
     }
   }
 
-  let out = sections.length ? '' : '<div class="empty">No artifacts found.</div>';
+  let out = sections.length ? '' : '<div class="empty">No artifacts found in this folder.</div>';
 
   sections.forEach(sec => {
     const g = sec.g;

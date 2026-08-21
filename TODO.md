@@ -70,11 +70,11 @@
 
 - ~~Change the monitor polling interval from 30s to 10s.~~
 
-## Monitor multiple openspec folders
+## ~Monitor multiple openspec folders~ ✅ shipped in v3.0.0
 
-- Support picking/adding several openspec folders (repos) and monitoring them at once.
-- Each folder gets its own file-state snapshot, change markers, and tabs (folder switcher in the sidebar/header).
-- Extends the single-folder model: state maps keyed by folder, not just rel path.
+- ~~Support picking/adding several openspec folders (repos) and monitoring them at once.~~
+- ~~Each folder gets its own file-state snapshot, change markers, and tabs (folder switcher in the sidebar/header).~~
+- ~~Extends the single-folder model: state maps keyed by folder, not just rel path.~~
 
 ## Show which folder is opened
 

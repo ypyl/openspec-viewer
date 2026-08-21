@@ -8,29 +8,57 @@
 // document-level CustomEvents that index.js wires to the components.
 
 import { html } from '../imports.js';
-import { highlights, currentRel, staleTick, allFiles, searchMarks } from './state.js';
+import { highlights, currentRel, staleTick, allFiles, searchMarks, activeFolderId, LEGACY_FOLDER_ID } from './state.js';
 import { refLines, snippet } from './render.js';
 import { readFileText } from './store.js';
 import { showToast } from '../components/osv-toast/osv-toast.js';
 
-/* ---------- Persistence ---------- */
+/* ---------- Persistence (per folder, localStorage) ---------- */
 
-export function loadHighlights() {
+const KEY = (id) => 'osviewer.highlights.' + id;
+
+// One-time migration of the pre-multi-folder key (rel-keyed, single folder)
+// into the legacy folder slot, so returning users keep their review items.
+function migrateLegacyHighlights() {
   try {
-    const obj = JSON.parse(localStorage.getItem('osviewer.highlights') || '{}');
+    const old = localStorage.getItem('osviewer.highlights');
+    if (old === null) return;
+    if (localStorage.getItem(KEY(LEGACY_FOLDER_ID)) === null) localStorage.setItem(KEY(LEGACY_FOLDER_ID), old);
+    localStorage.removeItem('osviewer.highlights');
+  } catch (e) {}
+}
+
+function readHighlights(id) {
+  try {
+    const obj = JSON.parse(localStorage.getItem(KEY(id)) || '{}');
     const m = new Map();
     for (const [rel, list] of Object.entries(obj)) {
       if (Array.isArray(list)) m.set(rel, list);
     }
-    highlights.value = m;
-  } catch (e) {}
+    return m;
+  } catch (e) { return new Map(); }
+}
+
+// Boot: hydrate the active folder's items; before any folder is open this is
+// the legacy folder (pre-multi-folder data).
+export function loadHighlights() {
+  migrateLegacyHighlights();
+  highlights.value = readHighlights(activeFolderId.value || LEGACY_FOLDER_ID);
+}
+
+// Folder switch: hydrate the newly active folder's review items.
+export function loadHighlightsForActive() {
+  migrateLegacyHighlights();
+  highlights.value = readHighlights(activeFolderId.value);
 }
 
 function persistHighlights() {
+  const id = activeFolderId.value;
+  if (!id) return;
   try {
     const obj = {};
     for (const [rel, list] of highlights.value) if (list.length) obj[rel] = list;
-    localStorage.setItem('osviewer.highlights', JSON.stringify(obj));
+    localStorage.setItem(KEY(id), JSON.stringify(obj));
   } catch (e) {}
 }
 

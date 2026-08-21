@@ -1,21 +1,20 @@
-/* End-to-end test for sidebar group collapse behavior (v2.16.0).
+/* End-to-end test for sidebar group collapse behavior (v2.16.0, updated for
+ * multi-folder v3.0.0): Config (like Archive) is collapsed by default on
+ * first visit; Changes/Specs stay expanded; a collapsed header still shows
+ * its item count; clicking Config expands it; the choice persists per folder
+ * (osviewer.collapsed.<folderId>) across a same-folder re-open; and a second
+ * folder gets its own independent collapse state.
  *
  * Run (from repo root):
  *   python -m http.server 8743        # serve the app
  *   playwright-cli open http://127.0.0.1:8743/index.html
  *   playwright-cli run-code --filename=collapse-test.js
- *
- * Verifies: Config (like Archive) is collapsed by default on first visit;
- * Changes/Specs stay expanded; a collapsed header still shows its item count;
- * clicking Config expands it and the choice persists across a reload; and the
- * Archive default is unchanged. localStorage is cleared once at the start so
- * the first-visit default applies deterministically.
  * Serves as: async page => { ... } single function expression. */
 async page => {
   const out = { steps: [], errors: [] };
   const err = (msg) => { out.errors.push(msg); console.error('FAIL: ' + msg); };
 
-  const fsData = {
+  const fsA = {
     'openspec/config.yaml': { text: 'extends: openspec\n', mtime: 1000 },
     'openspec/config/schema.yaml': { text: 'baselines: []\n', mtime: 1100 },
     'openspec/specs/acct/spec.md': { text: '# Acct Spec\n\nA capability.\n', mtime: 1200 },
@@ -23,17 +22,18 @@ async page => {
     'openspec/changes/alpha/design.md': { text: '# Design\n\nHow.\n', mtime: 1400 },
     'openspec/changes/archive/2025-01-01-beta/proposal.md': { text: '# Beta Proposal\n\nOld.\n', mtime: 1500 },
   };
+  const fsB = {
+    'openspec/config.yaml': { text: 'extends: openspec\n', mtime: 1000 },
+    'openspec/specs/acct/spec.md': { text: '# Acct Spec\n\nB copy.\n', mtime: 2000 },
+  };
 
-  // Stub the File System Access API. localStorage is cleared explicitly right
-  // before the first pick (below) so the first-visit default applies regardless
-  // of any prior state in the persistent playwright session; keeping it here
-  // avoids clearing again on the later persistence-reload. sessionStorage is
-  // not used at all, as it survives across run-code invocations in the same tab.
-  await page.addInitScript((files) => {
-    window.__fsData = files;
-    function buildNode() {
+  // Stub the File System Access API with two identifiable trees.
+  await page.addInitScript(([A, B]) => {
+    window.__fsDataA = A;
+    window.__fsDataB = B;
+    function buildNode(files) {
       const node = { dirs: {}, files: {} };
-      for (const [p, data] of Object.entries(window.__fsData)) {
+      for (const [p, data] of Object.entries(files)) {
         const segs = p.split('/');
         let cur = node;
         for (let i = 0; i < segs.length - 1; i++) {
@@ -45,21 +45,24 @@ async page => {
       }
       return node;
     }
-    function makeDir(name, n) {
-      return {
-        kind: 'directory', name,
-        queryPermission: async () => 'granted',
-        values: async function* () {
-          for (const [d, c] of Object.entries(n.dirs)) yield makeDir(d, c);
-          for (const [f, data] of Object.entries(n.files)) {
-            yield { kind: 'file', name: f, getFile: async () => ({ lastModified: data.mtime, text: async () => data.text }) };
-          }
-        },
-      };
+    const DirProto = {
+      kind: 'directory',
+      async queryPermission() { return 'granted'; },
+      async isSameEntry(other) { return !!(other && other._id && other._id === this._id); },
+      async *values() {
+        for (const [d, c] of Object.entries(this._node.dirs)) yield makeDir(d, this._id + '/' + d, c);
+        for (const [f, data] of Object.entries(this._node.files)) {
+          yield { kind: 'file', name: f, getFile: async () => ({ lastModified: data.mtime, text: async () => data.text }) };
+        }
+      },
+    };
+    function makeDir(name, id, n) {
+      return Object.assign(Object.create(DirProto), { name, _id: id, _node: n });
     }
-    window.__makeFs = () => makeDir('openspec', buildNode());
-    window.showDirectoryPicker = async () => window.__makeFs();
-  }, fsData);
+    window.__makeFs = (which) =>
+      which === 'B' ? makeDir('repoB', 'B', buildNode(B)) : makeDir('repoA', 'A', buildNode(A));
+    window.showDirectoryPicker = async () => window.__makeFs('A');
+  }, [fsA, fsB]);
 
   const CONSOLE = (msg) => { if (msg.type() === 'error') out.errors.push('CONSOLE: ' + msg.text()); };
   page.on('console', CONSOLE);
@@ -68,8 +71,7 @@ async page => {
   await page.waitForFunction(() => window.__makeFs !== undefined);
   await page.waitForTimeout(300);
 
-  // ---- Bypass a stale service-worker / HTTP cache (cache-first SW can serve
-  // old on-disk modules; see diff-test.js / AGENTS.md). ----
+  // ---- Bypass a stale service-worker / HTTP cache (see diff-test.js). ----
   await page.evaluate(async () => {
     if ('serviceWorker' in navigator) {
       const regs = await navigator.serviceWorker.getRegistrations();
@@ -97,7 +99,7 @@ async page => {
   await page.waitForTimeout(300);
 
   // This first pick exercises the first-visit defaults.
-  await page.evaluate(async () => { await window.startMonitoring(window.__makeFs(), false); });
+  await page.evaluate(async () => { await window.startMonitoring(window.__makeFs('A'), false); });
   await page.waitForTimeout(300);
 
   let state = await page.evaluate(() => {
@@ -128,10 +130,11 @@ async page => {
   await page.waitForTimeout(150);
   state = await page.evaluate(() => {
     const cfg = document.querySelector('.group-label[data-group="Config"]');
+    const key = Object.keys(localStorage).find(k => k.startsWith('osviewer.collapsed.'));
     return {
       cfgCollapsed: cfg.classList.contains('collapsed'),
       cfgItems: document.querySelectorAll('.item[data-rel="config.yaml"], .item[data-rel="config/schema.yaml"]').length,
-      stored: localStorage.getItem('osviewer.collapsed'),
+      stored: key ? localStorage.getItem(key) : null,
     };
   });
   out.steps.push('after-click: ' + JSON.stringify(state));
@@ -139,12 +142,9 @@ async page => {
   if (state.cfgItems !== 2) err('expanded Config should show both items, got ' + state.cfgItems);
   if (state.stored !== '["Archive"]') err('expanding Config should persist only Archive as collapsed, got ' + state.stored);
 
-  // ---- Real reload: the persisted choice is honored (Config stays expanded,
-  // Archive collapses), proving it beats the first-visit default. ----
-  await page.reload({ ignoreCache: true });
-  await page.waitForFunction(() => window.__makeFs !== undefined);
-  await page.waitForTimeout(300);
-  await page.evaluate(async () => { await window.startMonitoring(window.__makeFs(), false); });
+  // ---- Persistence: a same-folder re-open (the reload equivalent) keeps the
+  // choice, because the folder id is preserved → per-folder key is read back.
+  await page.evaluate(async () => { await window.startMonitoring(window.__makeFs('A'), true); });
   await page.waitForTimeout(300);
   state = await page.evaluate(() => {
     const cfg = document.querySelector('.group-label[data-group="Config"]');
@@ -155,10 +155,35 @@ async page => {
       cfgItems: document.querySelectorAll('.item[data-rel="config.yaml"], .item[data-rel="config/schema.yaml"]').length,
     };
   });
-  out.steps.push('after-reload: ' + JSON.stringify(state));
-  if (state.cfgCollapsed !== false) err('persisted expanded Config should stay expanded after reload, got cfgCollapsed=' + state.cfgCollapsed);
-  if (state.arcCollapsed !== true) err('Archive should stay collapsed after reload, got arcCollapsed=' + state.arcCollapsed);
-  if (state.cfgItems !== 2) err('expanded Config should show items after reload, got ' + state.cfgItems);
+  out.steps.push('reopen: ' + JSON.stringify(state));
+  if (state.cfgCollapsed !== false) err('persisted expanded Config should stay expanded on the same folder re-open, got ' + state.cfgCollapsed);
+  if (state.arcCollapsed !== true) err('Archive should stay collapsed after re-open, got ' + state.arcCollapsed);
+  if (state.cfgItems !== 2) err('expanded Config should show items after re-open, got ' + state.cfgItems);
+
+  // ---- Per-folder isolation: folder B gets its own defaults (Config
+  // collapsed), A keeps its expanded Config. ----
+  await page.evaluate(() => { window.showDirectoryPicker = async () => window.__makeFs('B'); });
+  await page.evaluate(() => { document.querySelector('.rail-add').click(); });
+  await page.waitForFunction(() => window.folderCount() === 2);
+  await page.waitForTimeout(300);
+  state = await page.evaluate(() => {
+    const cfg = document.querySelector('.group-label[data-group="Config"]');
+    return { cfgCollapsed: cfg ? cfg.classList.contains('collapsed') : null };
+  });
+  out.steps.push('folder-B: ' + JSON.stringify(state));
+  if (state.cfgCollapsed !== true) err('folder B should show its own first-visit default (Config collapsed), got ' + state.cfgCollapsed);
+
+  await page.evaluate(() => {
+    const av = [...document.querySelectorAll('.rail-avatar')].find(b => b.title && b.title.startsWith('repoA'));
+    if (av) av.click();
+  });
+  await page.waitForTimeout(300);
+  state = await page.evaluate(() => {
+    const cfg = document.querySelector('.group-label[data-group="Config"]');
+    return { cfgCollapsed: cfg ? cfg.classList.contains('collapsed') : null };
+  });
+  out.steps.push('back-to-A: ' + JSON.stringify(state));
+  if (state.cfgCollapsed !== false) err('switching back to A should restore its expanded Config, got ' + state.cfgCollapsed);
 
   out.ok = out.errors.length === 0;
   console.log('=== COLLAPSE TEST RESULT ===');

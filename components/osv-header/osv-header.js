@@ -1,12 +1,12 @@
 // osv-header: title, version badge, theme toggle, stats, review button.
 
 import { html, computed } from '../../imports.js';
-import { theme, allFiles, dirHandle, changeMeta } from '../../app/state.js';
+import { theme, allFiles, folders, activeFolderId, changeMeta } from '../../app/state.js';
 import { groupOf, changeOf, isArchived } from '../../app/render.js';
 
 // Single source for the visible version badge (AGENTS.md keeps the version
 // in the header badge, the first-line comment, and sw.js in sync).
-export const VERSION = '2.18.1';
+export const VERSION = '3.0.0';
 
 export class OsvHeader extends HTMLElement {
   connectedCallback() {
@@ -49,15 +49,19 @@ export class OsvHeader extends HTMLElement {
     mql.addEventListener('change', () => { if (theme.value === 'system') applyTheme(); });
     theme.effect(applyTheme);
 
-    /* ---- Stats ---- */
+    /* ---- Stats (active folder) ---- */
     const stats = computed(() => {
       const all = allFiles.value;
       const active = [...new Set(all.filter(f => groupOf(f.rel) === 'Changes').map(f => changeOf(f.rel)))].length;
       const archived = [...changeMeta.value.values()].filter(m => isArchived(m.key)).length;
-      return html`<b>${all.length}</b> file${all.length === 1 ? '' : 's'} · ` +
+      const entry = folders.value.find(f => f.id === activeFolderId.value);
+      const name = entry ? entry.name + (entry.suffix || '') : null;
+      const live = folders.value.some(f => f.kind === 'pick');
+      return html`${name ? html`<b>${name}</b> · ` : ''}` +
+        html`<b>${all.length}</b> file${all.length === 1 ? '' : 's'} · ` +
         html`<b>${active}</b> active change${active === 1 ? '' : 's'} · <b>${archived}</b> archived` +
-        (dirHandle.value ? html` · <span class="live-dot">● live</span>` : '');
-    }, [allFiles, dirHandle, changeMeta]);
+        (live ? html` · <span class="live-dot">● live</span>` : '');
+    }, [allFiles, folders, activeFolderId, changeMeta]);
     stats.effect(() => { statsEl.innerHTML = stats.value; });
   }
 }

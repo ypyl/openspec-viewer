@@ -11,7 +11,7 @@ import {
 import { diffViewHtml, diffToggleHtml, diffTabBadgeHtml, hashText } from '../../app/diff.js';
 import {
   allFiles, currentRel, currentKey, changeMeta, diffInfo, diffViews,
-  recentRels, paneCache, currentTabs, setCurrentTabs, searchMarks, highlights,
+  recentRels, paneCache, paneCachePut, setDiffView, currentTabs, setCurrentTabs, searchMarks, highlights,
 } from '../../app/state.js';
 import { markRead as markReadStore, readFileText } from '../../app/store.js';
 import { applyHighlights, hideAnnBubble, onSelection, clearSearchMarks, saveFileComment } from '../../app/annotations.js';
@@ -21,8 +21,8 @@ const WELCOME = `
   <div class="welcome">
     <div class="icon">📋</div>
     <h2>OpenSpec Local Viewer</h2>
-    <p>Choose your repository folder (or the <code>openspec/</code> folder) to browse
-    change proposals, designs, task lists, and specs.</p>
+    <p>Add a folder with the <b>＋</b> button in the left rail (or the
+    <code>openspec/</code> folder) to browse change proposals, designs, task lists, and specs.</p>
     <p>Everything stays on your machine; files are read with the File API and never uploaded.</p>
   </div>`;
 
@@ -82,7 +82,7 @@ export class OsvPane extends HTMLElement {
       if (!b) return;
       const rel = b.dataset.rel;
       const showingDiff = !diffViews.get(rel);
-      diffViews.set(rel, showingDiff);
+      setDiffView(rel, showingDiff);
       // Opening the diff view acknowledges the artifact (see acknowledgeShown).
       if (showingDiff) await this.markRead(rel, diffInfo.get(rel) && diffInfo.get(rel).hash);
       this.refreshToggle(rel);
@@ -238,7 +238,7 @@ export class OsvPane extends HTMLElement {
     const isConfig = rel === 'config.yaml';
     const pane = (name.endsWith('.yaml') || name.endsWith('.yml'))
       ? yamlPane(text, !isConfig) : markdownPane(rel, text);
-    paneCache.set(rel, pane);
+    paneCachePut(rel, pane);
     return pane;
   }
 
@@ -297,6 +297,15 @@ export class OsvPane extends HTMLElement {
   async rerenderCurrent() {
     if (currentKey.value) await this.openChange(currentKey.value, currentRel.value);
     else if (currentRel.value) await this.openFile(currentRel.value);
+  }
+
+  // After the active folder switches: re-render whatever the new folder had
+  // selected (or auto-open its first change when it has no selection yet).
+  handleFolderSwitched() {
+    hideAnnBubble();
+    if (this._cf && this._cf.open) this._cf.close();
+    if (currentRel.value || currentKey.value) this.rerenderCurrent();
+    else this.autoOpenFirst();
   }
 
   async autoOpenFirst() {

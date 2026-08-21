@@ -5,6 +5,7 @@
 @import 'styles/global.css';
 
 @import 'components/osv-header/osv-header.css';
+@import 'components/osv-folder-rail/osv-folder-rail.css';
 @import 'components/osv-search/osv-search.css';
 @import 'components/osv-file-list/osv-file-list.css';
 @import 'components/osv-pane/osv-pane.css';
