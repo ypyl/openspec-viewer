@@ -55,11 +55,11 @@
 - Opening an archived change/spec should mark it as read in one go — no need to open each artifact (proposal, design, task, ADR) inside it individually to clear its "new" marker/counter.
 - Persist that read state like the existing file-level read state (IndexedDB), and clear the marker/counter as soon as the archived spec is opened.
 
-## Collapse Config group by default
+## Collapse Config group by default ✅ shipped in v2.16.0
 
-- The file list's group headers (Changes / Specs / Archive / Config) start expanded except **Archive**, which is collapsed by default on first visit (`osviewer.collapsed` in state.js).
-- Collapse the **Config** group by default too: it holds the folder's config.yaml and config/ files, which are rarely the focus when browsing artifacts.
-- Keep the persisted per-user choice working as it does for Archive (signal + localStorage).
+- ~~The file list's group headers (Changes / Specs / Archive / Config) start expanded except **Archive**, which is collapsed by default on first visit (`osviewer.collapsed` in state.js).~~
+- ~~Collapse the **Config** group by default too: it holds the folder's config.yaml and config/ files, which are rarely the focus when browsing artifacts.~~
+- ~~Keep the persisted per-user choice working as it does for Archive (signal + localStorage).~~
 
 ## Exclude a change's metadata.yaml from unread tracking ✅ shipped in v2.15.0
 
