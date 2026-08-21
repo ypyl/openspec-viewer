@@ -189,15 +189,53 @@ let isScanning = false;    // guard against overlapping scans
 let baselineFresh = true;  // true only for the initial scan of a fresh pick (snapshots cleared)
 let currentScan = null;    // AbortController for the user-cancellable initial folder read
 
+// Resolve the openspec root to scan. If `dir` holds an 'openspec' subdirectory
+// (a repo root was picked), that's the root; otherwise, if `dir` itself is an
+// openspec root (changes/, specs/, or config.yaml directly inside), use it as
+// is. Returns the root handle, or null when the picked folder is neither.
+async function resolveOpenSpecRoot(dir) {
+  let looksLikeRoot = false;
+  for await (const entry of dir.values()) {
+    if (entry.kind === 'directory') {
+      if (entry.name === 'openspec') return entry;   // repo root -> openspec/
+      if (entry.name === 'changes' || entry.name === 'specs') looksLikeRoot = true;
+    } else if (entry.name === 'config.yaml') {
+      looksLikeRoot = true;
+    }
+  }
+  return looksLikeRoot ? dir : null;
+}
+
 export async function startMonitoring(handle, keepSnapshots) {
   // Abort any prior in-progress read so a fresh pick can't wedge behind it.
   if (currentScan) currentScan.abort();
   currentScan = new AbortController();
-  dirHandle.value = handle;
-  // The picked folder is the project root (use its name) or openspec itself.
-  setStorePrefix(handle && handle.name && handle.name !== 'openspec'
-    ? handle.name + '/openspec/'
-    : 'openspec/');
+  // Pin down the openspec root up front so the scan (and every 10s poll) only
+  // walks that small subtree instead of the whole picked folder.
+  const root = await resolveOpenSpecRoot(handle);
+  if (!root) {
+    // Picked folder is neither an openspec root nor a repo containing one.
+    // Nothing to monitor: clear state and persist no pointer so a reload
+    // doesn't keep trying to read it.
+    dirHandle.value = null;
+    allFiles.value = [];
+    currentRel.value = null;
+    currentKey.value = null;
+    searchVersion.value++;   // the corpus changed (emptied)
+    paneCache.clear();
+    fileState.clear();
+    recentRels.value = new Set();
+    diffInfo.clear();
+    diffViews.clear();
+    pruneHighlights();
+    await clearSavedHandle();
+    showToast('No OpenSpec project found (looking for openspec/)');
+    currentScan = null;
+    return;
+  }
+  dirHandle.value = root;
+  // Contents are all relative to the openspec root now.
+  setStorePrefix('openspec/');
   // Fresh pick: drop the previous folder's baseline and markers so the
   // first scan doesn't flag everything as newly changed. autoReopen on
   // reload keeps persisted snapshots so content diffs survive a refresh.
@@ -278,29 +316,19 @@ export async function scan(initial, signal) {
   let aborted = false;
   try {
     const current = new Map();
-    for await (const root of dirHandle.value.values()) {
+    // dirHandle is already the resolved openspec root, so walking it yields
+    // paths relative to openspec (changes/…, specs/…, config.yaml) with no
+    // prefix to strip — no full-tree scan of the picked folder.
+    for await (const [rel, handle] of walkDir(dirHandle.value, '', signal)) {
       if (cancelled()) { aborted = true; break; }
-      const rel0 = normPath(root.name);
-      if (root.kind === 'directory') {
-        // normPath can collapse the picked 'openspec' dir to ''; join without
-        // a leading slash so startsWith('changes/') checks still match.
-        const prefix = rel0 ? rel0 + '/' : '';
-        for await (const [rel, handle] of walkDir(root, prefix, signal)) {
-          if (cancelled()) { aborted = true; break; }
-          if (!isRelevant(rel) || !groupOf(rel)) continue;
-          found++;
-          const file = await handle.getFile();
-          current.set(rel, { handle, lastModified: file.lastModified });
-          const now = performance.now();
-          if (initial && now - lastUiAt > 150) {
-            lastUiAt = now;
-            setLoading(`Reading folder… ${found} files`, cancelAction);
-          }
-        }
-      } else {
-        if (!isRelevant(rel0) || !groupOf(rel0)) continue;
-        const file = await root.getFile();
-        current.set(rel0, { handle: root, lastModified: file.lastModified });
+      if (!isRelevant(rel) || !groupOf(rel)) continue;
+      found++;
+      const file = await handle.getFile();
+      current.set(rel, { handle, lastModified: file.lastModified });
+      const now = performance.now();
+      if (initial && now - lastUiAt > 150) {
+        lastUiAt = now;
+        setLoading(`Reading folder… ${found} files`, cancelAction);
       }
     }
 
