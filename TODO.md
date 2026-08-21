@@ -50,10 +50,10 @@
 - ~~Allow marking a file's changes as read; a file is marked automatically as soon as its diff view is opened.~~
 - ~~Persist read state so it survives reloads (IndexedDB), and reflect it in the file list (e.g. dim/clear the "new" marker, no longer count it in group counters).~~
 
-## Mark an archived spec as read when opened
+## Mark an archived spec as read when opened ✅ shipped in v2.17.0
 
-- Opening an archived change/spec should mark it as read in one go — no need to open each artifact (proposal, design, task, ADR) inside it individually to clear its "new" marker/counter.
-- Persist that read state like the existing file-level read state (IndexedDB), and clear the marker/counter as soon as the archived spec is opened.
+- ~~Opening an archived change/spec should mark it as read in one go — no need to open each artifact (proposal, design, task, ADR) inside it individually to clear its "new" marker/counter.~~
+- ~~Persist that read state like the existing file-level read state (IndexedDB), and clear the marker/counter as soon as the archived spec is opened.~~
 
 ## Collapse Config group by default ✅ shipped in v2.16.0
 
