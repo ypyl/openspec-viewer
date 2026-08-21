@@ -18,12 +18,12 @@
 - ~~Rebuild it as a true side panel that is part of the layout: the content pane shrinks to make room rather than being hidden behind the drawer, and the page scrolls naturally (no full-height overlay).~~
 - ~~On desktop, reserve the right-hand column in-place (content reflows); on narrow/mobile widths keep an acceptable behavior (e.g. still overlay or full-width drawer) so the pane stays usable.~~
 
-## Whole-file review comments
+## ~Whole-file review comments~ ✅ shipped in v2.18.0
 
-- Support adding a review comment that targets the entire artifact (proposal, design, task, change, ADR) rather than only a highlighted text range.
-- For feedback that applies to the whole document, e.g. formatting, general language, tone, structure.
-- Whole-file comments show up in the review panel alongside range-based highlights and are folded into the generated LLM prompt.
-- Provide a discoverable affordance (e.g. comment button on the artifact header) so it is not hidden behind text selection.
+- ~~Support adding a review comment that targets the entire artifact (proposal, design, task, change, ADR) rather than only a highlighted text range.~~
+- ~~For feedback that applies to the whole document, e.g. formatting, general language, tone, structure.~~
+- ~~Whole-file comments show up in the review panel alongside range-based highlights and are folded into the generated LLM prompt.~~
+- ~~Provide a discoverable affordance (e.g. comment button on the artifact header) so it is not hidden behind text selection.~~
 
 ## Validate artifacts against the OpenSpec spec
 
