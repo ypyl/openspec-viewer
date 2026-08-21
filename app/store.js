@@ -110,9 +110,7 @@ async function clearSnapshots() {
 // Read a file's raw text by rel (File System handle or uploaded File).
 export async function readFileText(rel) {
   const entry = allFiles.value.find(f => f.rel === rel);
-  if (!entry) return '';
-  const f = entry.handle;
-  return typeof f.getFile === 'function' ? await (await f.getFile()).text() : await f.text();
+  return entry ? await handleText(entry.handle) : '';
 }
 
 /* ---------- Search corpus ---------- */
@@ -161,21 +159,29 @@ function deriveUploadPrefix(rawPath) {
 
 /* ---------- Loading ---------- */
 
+// Clear all per-folder view state back to pre-pick defaults. With clearAllFiles
+// the whole selection is dropped (dirHandle + allFiles); loadFiles uses it
+// after already setting allFiles while still tearing down caches/markers.
+function resetState(clearAllFiles) {
+  if (clearAllFiles) { dirHandle.value = null; allFiles.value = []; }
+  currentRel.value = null;
+  currentKey.value = null;
+  searchVersion.value++;   // the corpus changed
+  paneCache.clear();
+  fileState.clear();
+  recentRels.value = new Set();
+  diffInfo.clear();
+  diffViews.clear();
+  pruneHighlights();
+}
+
 export async function loadFiles(raw) {
   setLoading('Loading files…');
   try {
     allFiles.value = raw
       .filter(f => isRelevant(f.rel) && groupOf(f.rel))
       .sort((a, b) => a.rel.localeCompare(b.rel));
-    searchVersion.value++;   // the corpus changed
-    paneCache.clear();
-    fileState.clear();
-    recentRels.value = new Set();
-    diffInfo.clear();
-    diffViews.clear();
-    currentRel.value = null;
-    currentKey.value = null;
-    pruneHighlights();
+    resetState(false);
     document.dispatchEvent(new CustomEvent('osv:auto-open'));
   } finally {
     setLoading(null);
@@ -217,17 +223,7 @@ export async function startMonitoring(handle, keepSnapshots) {
     // Picked folder is neither an openspec root nor a repo containing one.
     // Nothing to monitor: clear state and persist no pointer so a reload
     // doesn't keep trying to read it.
-    dirHandle.value = null;
-    allFiles.value = [];
-    currentRel.value = null;
-    currentKey.value = null;
-    searchVersion.value++;   // the corpus changed (emptied)
-    paneCache.clear();
-    fileState.clear();
-    recentRels.value = new Set();
-    diffInfo.clear();
-    diffViews.clear();
-    pruneHighlights();
+    resetState(true);
     await clearSavedHandle();
     showToast('No OpenSpec project found (looking for openspec/)');
     currentScan = null;
@@ -252,13 +248,7 @@ export async function startMonitoring(handle, keepSnapshots) {
     // User cancelled the read: return to the true pre-read state — no folder
     // monitored, no stale list, and no persisted pointer so a reload doesn't
     // re-attempt the same slow read.
-    dirHandle.value = null;
-    allFiles.value = [];
-    currentRel.value = null;
-    currentKey.value = null;
-    searchVersion.value++;   // the corpus changed (emptied)
-    paneCache.clear();
-    pruneHighlights();
+    resetState(true);
     await clearSavedHandle();
     return;
   }
@@ -275,23 +265,18 @@ export function stopMonitoring() {
 
 // Opens the folder picker at the last-used folder and starts monitoring.
 export async function pickFolder() {
-  await new Promise((resolve) => {
-    const savedHandlePromise = loadHandle();
-    savedHandlePromise.then(async (saved) => {
-      let dir;
-      try {
-        // Open the picker at the previously used folder when possible.
-        dir = await window.showDirectoryPicker({ startIn: saved || undefined });
-      } catch (err) {
-        if (err.name === 'AbortError') return resolve();   // user cancelled
-        dir = await window.showDirectoryPicker();           // stale handle -> fresh
-      }
-      dirHandle.value = dir;
-      saveHandle(dir);
-      await startMonitoring(dir);
-      resolve();
-    });
-  });
+  const saved = await loadHandle();
+  let dir;
+  try {
+    // Open the picker at the previously used folder when possible.
+    dir = await window.showDirectoryPicker({ startIn: saved || undefined });
+  } catch (err) {
+    if (err.name === 'AbortError') return;   // user cancelled
+    dir = await window.showDirectoryPicker();   // stale handle -> fresh
+  }
+  dirHandle.value = dir;
+  saveHandle(dir);
+  await startMonitoring(dir);
 }
 
 async function* walkDir(dir, prefix, signal) {

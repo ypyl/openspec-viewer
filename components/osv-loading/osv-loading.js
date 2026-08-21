@@ -35,9 +35,6 @@ export class OsvLoading extends HTMLElement {
     };
     document.addEventListener('keydown', this._onKey);
   }
-  disconnectedCallback() {
-    document.removeEventListener('keydown', this._onKey);
-  }
   set(msg, action) {
     const hasCancel = !!(action && action.cancel);
     if (this._overlay) {

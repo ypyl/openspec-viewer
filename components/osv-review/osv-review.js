@@ -3,7 +3,7 @@
 
 import { html, computed } from '../../imports.js';
 import { currentRel, highlights, staleTick } from '../../app/state.js';
-import { buildReviewHtml, allHighlights, deleteHighlight, revealComment } from '../../app/annotations.js';
+import { buildReviewHtml, deleteHighlight, revealComment } from '../../app/annotations.js';
 import { buildPrompt, copyText } from '../../app/prompt.js';
 import { showToast } from '../osv-toast/osv-toast.js';
 
@@ -31,14 +31,14 @@ export class OsvReview extends HTMLElement {
     this._copyBtn = this.querySelector('.copy-btn');
 
     /* ---- Render the review list + actions from highlights ---- */
-    const reviewHtml = computed(buildReviewHtml, [currentRel, highlights, staleTick]);
-    reviewHtml.effect(() => {
-      const items = allHighlights();
+    const review = computed(buildReviewHtml, [currentRel, highlights, staleTick]);
+    review.effect(() => {
+      const items = review.value.items;
       const files = new Set(items.map(h => h.rel)).size;
       this._fileEl.textContent = items.length
         ? `${items.length} comment${items.length === 1 ? '' : 's'} · ${files} file${files === 1 ? '' : 's'}`
         : '';
-      this._listEl.innerHTML = reviewHtml.value;
+      this._listEl.innerHTML = review.value.html;
       this._listEl.querySelectorAll('.rv-del').forEach(b =>
         b.addEventListener('click', () => deleteHighlight(b.dataset.rel, b.dataset.id)));
       this._listEl.querySelectorAll('.rv-item').forEach(item =>

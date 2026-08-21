@@ -29,7 +29,7 @@ Keep these places in sync:
 ## Development approach: Plain Vanilla Web
 
 This app follows [Plain Vanilla Web](https://plainvanillaweb.com) and its ecosystem
-libraries (html-literal, tiny-signals, tiny-context), all vendored as plain files.
+libraries (html-literal, tiny-signals), all vendored as plain files.
 **No build step, no framework, no npm**: everything is served as-is. Today the app
 is a single `index.html` with classic scripts and no custom elements yet; the
 sections below are the patterns to follow as it grows, not a description of the
@@ -75,9 +75,8 @@ condensed reference so work stays consistent without re-reading them.
   - Properties: recommended for stateful children.
   - Methods: recommended for stateless children.
 - DOM event listeners are weakly bound; you usually do not need
-  `removeEventListener` outside of app-level subscriptions (tiny-signals effects,
-  tiny-context consumers: those return `dispose()`/`unsubscribe` and should be
-  released).
+  `removeEventListener` outside of app-level subscriptions (tiny-signals effects:
+  those return `dispose()` and should be released).
 - Define custom elements from one central place (a register function / index.js),
   not random script tags in markup.
 - Shadow DOM only when you need it: isolating styles/DOM, `<slot>` placement, or
@@ -161,13 +160,6 @@ still boots from `file://`. All HTML generation and reactive state must use them
   - Used for: theme, file/change selection, search query, collapsed groups,
     highlights, recent changes. Views render from `computed` + `effect` instead of
     manual render calls.
-- **tiny-context** (https://github.com/jsebrech/tiny-context): the web components
-  context protocol for cross-component state/dependency injection.
-  - `new ContextProvider(this, context, value)` provides a value to descendants.
-  - Consumers dispatch `new ContextRequestEvent(context, callback, subscribe)`.
-  - Subscribe in `connectedCallback`, unsubscribe in `disconnectedCallback`.
-  - Currently vendored but dormant: nothing crosses a component boundary in this
-    single-file app. Wire it in only when UI is extracted into custom elements.
 
 ### Local development workflow
 
@@ -193,5 +185,5 @@ still boots from `file://`. All HTML generation and reactive state must use them
 ### References
 
 - https://plainvanillaweb.com (index + pages: components, styling, sites, applications)
-- html-literal / tiny-signals / tiny-context repos under github.com/jsebrech
+- html-literal / tiny-signals repos under github.com/jsebrech
 - Baseline (web.dev/baseline) and Interop track which features are safe to use.
