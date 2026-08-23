@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  normPath, artifactOf, isRelevant, isChangeMetadata, isArchived, groupOf, displayLabel,
+  normPath, artifactOf, artifactPhrase, isRelevant, isChangeMetadata, isArchived, groupOf, displayLabel,
   changeOf, prettyChangeName, crumbFor, refLines, snippet,
 } from '../app/model.js';
 
@@ -23,6 +23,16 @@ test('artifactOf: classifies known artifact names else Doc', () => {
   assert.equal(artifactOf('changes/a/.openspec.yaml'), 'Metadata');
   assert.equal(artifactOf('specs/acct/spec.md'), 'Spec');
   assert.equal(artifactOf('changes/a/change.md'), 'Doc');
+});
+
+test('artifactPhrase: names the artifact kind for prose', () => {
+  assert.equal(artifactPhrase('changes/a/proposal.md'), 'the whole proposal');
+  assert.equal(artifactPhrase('specs/acct/spec.md'), 'the whole specification');
+  assert.equal(artifactPhrase('changes/a/design.md'), 'the whole design');
+  assert.equal(artifactPhrase('changes/a/tasks.md'), 'the whole tasks');
+  assert.equal(artifactPhrase('changes/a/.openspec.yaml'), 'the whole metadata');
+  assert.equal(artifactPhrase('config.yaml'), 'the whole configuration');
+  assert.equal(artifactPhrase('changes/a/change.md'), 'the whole document');
 });
 
 test('isRelevant: md/yaml/json yes; dotfiles (except .openspec.yaml) no', () => {

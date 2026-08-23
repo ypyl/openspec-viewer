@@ -32,6 +32,20 @@ export function artifactOf(rel) {
   return 'Doc';
 }
 
+// Lowercase artifact phrase for prose, e.g. whole-file comment placeholders
+// ("Add a comment about the whole design…"). Falls back to document.
+export function artifactPhrase(rel) {
+  switch (artifactOf(rel)) {
+    case 'Proposal': return 'the whole proposal';
+    case 'Spec': return 'the whole specification';
+    case 'Design': return 'the whole design';
+    case 'Tasks': return 'the whole tasks';
+    case 'Metadata': return 'the whole metadata';
+    case 'Config': return 'the whole configuration';
+    default: return 'the whole document';
+  }
+}
+
 export function isRelevant(rel) {
   // .openspec.yaml is a real artifact; other dotfiles (like .gitkeep) are noise.
   return /\.(md|ya?ml|json)$/i.test(rel) &&

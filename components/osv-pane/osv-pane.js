@@ -7,6 +7,7 @@
 import { html, joinHtml } from '../../imports.js';
 import {
   crumbFor, handleText, markdownPane, yamlPane, artifactOf, changeOf, groupOf, displayLabel,
+  artifactPhrase,
 } from '../../app/render.js';
 import { diffViewHtml, diffToggleHtml, diffTabBadgeHtml, hashText } from '../../app/diff.js';
 import {
@@ -53,10 +54,12 @@ export class OsvPane extends HTMLElement {
     this._cf.className = 'cf-dialog';
     this._cf.innerHTML = `
       <div class="cf-title">Comment on <span class="cf-rel"></span></div>
-      <textarea class="cf-text" rows="4" placeholder="Add a comment about the whole artifact…"></textarea>
-      <div class="cf-actions">
-        <button type="button" class="cf-cancel">Cancel</button>
-        <button type="button" class="cf-save">Save comment</button>
+      <div class="cf-body">
+        <textarea class="cf-text" rows="4"></textarea>
+        <div class="cf-actions">
+          <button type="button" class="cf-cancel">Cancel</button>
+          <button type="button" class="cf-save">Save comment</button>
+        </div>
       </div>`;
     this.appendChild(this._cf);
     this._cf.querySelector('.cf-cancel').addEventListener('click', () => this._cf.close());
@@ -66,6 +69,11 @@ export class OsvPane extends HTMLElement {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.saveCommentDialog(); }
       if (e.key === 'Escape') this._cf.close();
     });
+
+    // Placeholder names the artifact kind (proposal/design/tasks/…); updated
+    // per-open in openCommentDialog.
+    this._cfText = this._cf.querySelector('.cf-text');
+    this._cfText.placeholder = 'Add a comment about ' + artifactPhrase('') + '…';
 
     /* ---- Selection / annotation listeners on the scroll container ---- */
     this._main.addEventListener('mouseup', onSelection);
@@ -257,8 +265,9 @@ export class OsvPane extends HTMLElement {
     if (!rel) return;
     this._cfRel = rel;
     this._cf.querySelector('.cf-rel').textContent = rel;
-    const ta = this._cf.querySelector('.cf-text');
+    const ta = this._cfText;
     ta.value = '';
+    ta.placeholder = 'Add a comment about ' + artifactPhrase(rel) + '…';
     this._cf.showModal();
     ta.focus();
   }

@@ -76,10 +76,10 @@
 - ~~Each folder gets its own file-state snapshot, change markers, and tabs (folder switcher in the sidebar/header).~~
 - ~~Extends the single-folder model: state maps keyed by folder, not just rel path.~~
 
-## Show which folder is opened
+## ~Show which folder is opened~ ✅ shipped in v3.0.0
 
-- Display the currently opened/monitored folder path in the UI (header or status bar).
-- Persist and restore across reloads (IndexedDB already stores the last folder).
+- ~~Display the currently opened/monitored folder name in the UI: the header stats bar shows `<b>name</b>` for the active folder, the rail shows avatar + name tooltip per folder.~~
+- ~~Persist and restore across reloads: `lastActive` is saved per folder in IndexedDB (store.js) and the last-active folder is reactivated on restore.~~
 
 ## Adopt Plain Vanilla Web techniques ✅ shipped in v1.5.1
 

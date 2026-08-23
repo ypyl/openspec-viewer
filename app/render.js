@@ -6,14 +6,14 @@
 import { html, htmlRaw, joinHtml } from '../imports.js';
 import { marked, jsyaml, DOMPurify } from '../imports.js';
 import {
-  normPath, artifactOf, isRelevant, isChangeMetadata, isArchived, groupOf, displayLabel,
+  normPath, artifactOf, artifactPhrase, isRelevant, isChangeMetadata, isArchived, groupOf, displayLabel,
   changeOf, prettyChangeName, crumbFor, refLines, snippet,
   searchLabel, searchTitle, snippetSegments,
 } from './model.js';
 
 // Re-export the pure model helpers for the browser app.
 export {
-  normPath, artifactOf, isRelevant, isChangeMetadata, isArchived, groupOf, displayLabel,
+  normPath, artifactOf, artifactPhrase, isRelevant, isChangeMetadata, isArchived, groupOf, displayLabel,
   changeOf, prettyChangeName, crumbFor, refLines, snippet,
   searchLabel, searchTitle, snippetSegments,
 };
