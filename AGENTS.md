@@ -182,6 +182,77 @@ still boots from `file://`. All HTML generation and reactive state must use them
 - Live monitoring polls every 10s; changed files show a green "new" marker,
   a group counter, and a toast.
 
+### Live-app screenshots
+
+This is how `screenshot.png` in the repo root was taken, and the recipe to
+re-run it later. The trick: the app's real pick flow (`＋` button →
+`showDirectoryPicker`) **cannot** be driven headless — Playwright never gets a
+`filechooser` event for it and the picker promise hangs (if you already clicked
+`＋`, reload the page first). So open the folder through the upload fallback
+instead, exactly like the tests do:
+
+```bash
+playwright-cli open https://ypyl.github.io/openspec-viewer/
+```
+
+```js
+// run via: playwright-cli run-code --filename=tools/screenshot.cjs
+async page => {
+  // 1. clean slate: dismiss SW/caches so the freshly deployed shell is used
+  await page.reload({ ignoreCache: true });
+  await page.evaluate(async () => {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+    }
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+  });
+  try {
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Network.clearBrowserCache');
+  } catch (e) {}
+  await page.reload({ ignoreCache: true });
+
+  await page.setViewportSize({ width: 1440, height: 900 }); // consistent framing
+  await page.waitForSelector('text=OpenSpec Local Viewer');
+
+  // 2. open the app's own repo folder via the webkitdirectory upload input
+  await page.setInputFiles('#picker', 'C:/Users/ypyl/projects/openspec-viewer');
+
+  // 3. wait for the scan + auto-open to render
+  await page.waitForSelector('.rail-avatar');
+  await page.waitForSelector('.item');
+  await page.waitForTimeout(1200);
+
+  // 4. auto-open lands on the change's FIRST artifact, which is usually
+  //    .openspec.yaml (Metadata tab → raw YAML). Prefer a nice rendered tab:
+  await page.getByRole('button', { name: 'Proposal' }).click();
+  await page.waitForTimeout(400);
+
+  // 5. save
+  await page.screenshot({ path: './screenshot.png', fullPage: true });
+}
+```
+
+Key facts to remember:
+
+- The folder matters: the app under test is the **live deployed page** (UI =
+  `master`'s last push), but the **data is the local working tree** read off
+  disk at upload time. The header stats and file list reflect whatever
+  `openspec/` contains right now — re-shoot after committing an archive change
+  and the counters differ.
+- Upload mode is session-only: no "● live" dot in the header, no unread
+  markers. For a purely visual screenshot that difference is acceptable;
+  `showDirectoryPicker` cannot be automated headless, so there is no way to
+  capture the live-monitor frame without a human.
+- The header badge shows the deployed version (e.g. `v3.5.0`). Uncommitted
+  local edits do not change it.
+- Use a scratch script and delete it (and `.playwright-cli/` junk) afterwards;
+  finish with `playwright-cli close`.
+
 ### References
 
 - https://plainvanillaweb.com (index + pages: components, styling, sites, applications)

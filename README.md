@@ -6,6 +6,8 @@ step, no framework — plain HTML, CSS, and ES-module JavaScript served as-is.
 
 **Try it live:** https://ypyl.github.io/openspec-viewer/
 
+![OpenSpec Local Viewer browsing the repo's own openspec folder](screenshot.png)
+
 ## What it does
 
 - Browse changes, archived changes, specs, and config from your `openspec/` folder.
