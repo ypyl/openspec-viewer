@@ -1,5 +1,5 @@
 /* osv-folder-rail: narrow icon column of opened folders (DoubleNavbar-style
-   aside), plus the add action at the top. */
+   aside), the add action at the top, and the GitHub link at the bottom. */
 
 osv-folder-rail {
   flex-shrink: 0;
@@ -19,8 +19,13 @@ osv-folder-rail .folder-rail {
 }
 osv-folder-rail .file-picker { display: none; }
 
-/* Add action — occupies the slot the Mantine logo sits in. */
-osv-folder-rail .rail-add {
+/* Add action — occupies the slot the Mantine logo sits in. The GitHub link
+   shares its exact look (same size/shape, dashed border, hover tint); only
+   the inner icon differs. The anchor is pinned to the bottom of the rail
+   column with margin-top:auto, and stays the last item of the horizontal
+   strip on narrow screens. */
+osv-folder-rail .rail-add,
+osv-folder-rail .rail-github {
   width: 40px;
   height: 40px;
   border-radius: var(--radius);
@@ -35,11 +40,20 @@ osv-folder-rail .rail-add {
   cursor: pointer;
   transition: background .15s, color .15s, border-color .15s;
   flex-shrink: 0;
+  padding: 0;
 }
-osv-folder-rail .rail-add:hover {
+osv-folder-rail .rail-add:hover,
+osv-folder-rail .rail-github:hover {
   background: rgba(110, 118, 129, .12);
   color: var(--fg);
   border-color: var(--fg-subtle);
+}
+
+/* GitHub link: same button look as the add action, pinned to the rail's
+   bottom; no underline, no avatar affordances (dot/ring/letter). */
+osv-folder-rail .rail-github {
+  text-decoration: none;
+  margin-top: auto;
 }
 
 osv-folder-rail .rail-list {
