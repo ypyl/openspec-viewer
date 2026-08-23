@@ -439,7 +439,9 @@ osv-pane .ann-add {
   background: var(--bg);
   color: var(--fg);
   border: none;
-  border-radius: 0;
+  /* Match the bubble's outer radius minus its 1px border, so the button's
+     corners track the bubble's outline instead of poking out square. */
+  border-radius: calc(var(--radius) - 1px);
   padding: 8px 12px;
   font-size: 13px;
   font-weight: 500;
