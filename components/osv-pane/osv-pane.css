@@ -270,6 +270,12 @@ osv-pane .welcome {
 }
 osv-pane .welcome .icon { font-size: 44px; }
 osv-pane .welcome h2 { color: var(--fg); font-size: 20px; margin: 12px 0 8px; }
+osv-pane .welcome .welcome-about { margin-bottom: 0; }
+osv-pane .welcome a {
+  color: var(--accent);
+  text-decoration: none;
+}
+osv-pane .welcome a:hover { text-decoration: underline; }
 osv-pane .welcome p { font-size: 13.5px; line-height: 1.7; }
 osv-pane .welcome code { background: rgba(110,118,129,.2); border-radius: 4px; padding: .1em .35em; font-size: 12.5px; }
 

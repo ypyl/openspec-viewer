@@ -24,6 +24,7 @@ const WELCOME = `
   <div class="welcome">
     <div class="icon">📋</div>
     <h2>OpenSpec Local Viewer</h2>
+    <p class="welcome-about">An offline browser for <a href="https://openspec.dev/" target="_blank" rel="noopener">OpenSpec</a> — read, diff, and review change proposals, specs, designs, and task lists entirely on your machine.</p>
     <p>Add a folder with the <b>＋</b> button in the left rail (or the
     <code>openspec/</code> folder) to browse change proposals, designs, task lists, and specs.</p>
     <p>Everything stays on your machine; files are read with the File API and never uploaded.</p>
