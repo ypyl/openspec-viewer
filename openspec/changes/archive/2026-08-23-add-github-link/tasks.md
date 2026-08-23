@@ -11,4 +11,4 @@
 
 - [x] 3.1 Serve the folder (`python -m http.server 8743`) and verify via playwright-cli: the GitHub link is the last element of the folder rail; it renders at the same size and shape as the rail's add button; its `href` is `https://github.com/ypyl/openspec-viewer`, `target="_blank"`, `rel="noopener"`, and its `aria-label`/`title` read "OpenSpec Viewer on GitHub"; clicking it opens the repo in a new tab without navigating the app page; and at a narrow viewport it stays visible at the end of the rail strip.
 - [x] 3.2 Run the existing e2e regression tests (diff-test.js and migration-test.js) against the local server and confirm they pass (rail markup change must not break folder add/switch/activate flows).
-- [ ] 3.3 Push to `master`, wait for the GitHub Pages build (~1 min), and confirm the header badge on https://ypyl.github.io/openspec-viewer/ shows v3.3.0 and the GitHub link appears in the deployed app.
+- [x] 3.3 Push to `master`, wait for the GitHub Pages build (~1 min), and confirm the header badge on https://ypyl.github.io/openspec-viewer/ shows v3.3.0 and the GitHub link appears in the deployed app.
