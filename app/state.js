@@ -91,6 +91,13 @@ export const staleTick = signal(0);          // bumped after a file renders so s
 export const searchVersion = signal(0);      // bumped whenever the folder's contents could have changed
 export const searchMarks = signal(new Map()); // transient search-match ranges (not persisted)
 
+// Session-only review-guidance state (never persisted; cleared on folder
+// switch — design D3/D4). expandedStripKinds: guide kinds whose red flags the
+// user expanded; checklistTicks: change key -> Set of checked checklist indices.
+export const expandedStripKinds = signal(new Set());
+export const checklistTicks = signal(new Map());
+export const checklistCollapsed = signal(false);
+
 export const search = signal('');       // sidebar name filter — resets on folder switch
 
 // The shared non-reactive caches — mirrors of the active folder's maps
@@ -223,6 +230,11 @@ function clearProjection() {
 // it when none is active) and tell the imperative surfaces to re-render.
 activeFolderId.effect(() => {
   const id = activeFolderId.value;
+  // The guide state is session-scoped per folder, so switching folders (or
+  // closing the last one) resets both signals; reloads reset them implicitly.
+  expandedStripKinds.value = new Set();
+  checklistTicks.value = new Map();
+  checklistCollapsed.value = false;
   if (!id) { clearProjection(); return; }
   syncProjection(id);
   document.dispatchEvent(new CustomEvent('osv:folder-switched', { detail: { id } }));

@@ -1,11 +1,34 @@
 // osv-review: review drawer — collected highlights/comments and the
 // Copy-fix / Send-to-LLM actions.
 
-import { html, computed } from '../../imports.js';
-import { currentRel, highlights, staleTick } from '../../app/state.js';
+import { html, joinHtml, computed } from '../../imports.js';
+import { currentRel, currentKey, highlights, staleTick, checklistTicks, checklistCollapsed } from '../../app/state.js';
 import { buildReviewHtml, deleteHighlight, revealComment } from '../../app/annotations.js';
 import { buildPrompt, copyText } from '../../app/prompt.js';
 import { showToast } from '../osv-toast/osv-toast.js';
+import { CHECKLIST, CHECKLIST_TITLE } from '../../app/review-guide.js';
+
+// The two-minute checklist block: a collapsible header (title + progress +
+// chevron) over the seven items from the vendored guide. Reads the active
+// change's session ticks; empty when the change is archived or not selected.
+function renderChecklistHtml(key) {
+  const ticks = checklistTicks.value.get(key) || new Set();
+  const checked = ticks.size;
+  const collapsed = checklistCollapsed.value;
+  return html`
+    <button class="cl-toggle" aria-expanded="${!collapsed}" title="${collapsed ? 'Expand' : 'Collapse'} the checklist">
+      <span class="cl-title">${CHECKLIST_TITLE}</span>
+      <span class="cl-progress">${checked} of ${CHECKLIST.length}</span>
+      <span class="cl-chevron">${collapsed ? '▸' : '▾'}</span>
+    </button>
+    ${collapsed ? '' : html`<ul class="cl-list">
+      ${joinHtml(CHECKLIST.map((item, i) =>
+        html`<li class="cl-item${ticks.has(i) ? ' checked' : ''}" data-i="${i}">
+          <span class="cl-box" aria-hidden="true">${ticks.has(i) ? '✓' : ''}</span>
+          <span class="cl-text">${item}</span>
+        </li>`))}
+    </ul>`}`;
+}
 
 export class OsvReview extends HTMLElement {
   connectedCallback() {
@@ -14,20 +37,15 @@ export class OsvReview extends HTMLElement {
 
     this.innerHTML = `
       <div class="review-drawer open" aria-label="Review">
-        <div class="review-head">
-          <div>
-            <div class="review-title">Review</div>
-            <div class="review-file"></div>
-          </div>
-        </div>
+        <div class="review-checklist" hidden></div>
         <div class="review-list"></div>
         <div class="review-actions">
           <button class="review-action primary copy-btn" disabled>📋 Copy prompt</button>
         </div>
       </div>`;
 
-    this._fileEl = this.querySelector('.review-file');
     this._listEl = this.querySelector('.review-list');
+    this._checklistEl = this.querySelector('.review-checklist');
     this._copyBtn = this.querySelector('.copy-btn');
 
     /* ---- Render the review list + actions from highlights ---- */
@@ -35,9 +53,12 @@ export class OsvReview extends HTMLElement {
     review.effect(() => {
       const items = review.value.items;
       const files = new Set(items.map(h => h.rel)).size;
-      this._fileEl.textContent = items.length
-        ? `${items.length} comment${items.length === 1 ? '' : 's'} · ${files} file${files === 1 ? '' : 's'}`
-        : '';
+      const n = items.length;
+      // The count lives on the action (the panel has no separate header):
+      // "Copy prompt · 3 comments · 1 file", plain label while empty.
+      this._copyBtn.textContent = n
+        ? `📋 Copy prompt · ${n} comment${n === 1 ? '' : 's'} · ${files} file${files === 1 ? '' : 's'}`
+        : '📋 Copy prompt';
       this._listEl.innerHTML = review.value.html;
       this._listEl.querySelectorAll('.rv-del').forEach(b =>
         b.addEventListener('click', () => deleteHighlight(b.dataset.rel, b.dataset.id)));
@@ -50,6 +71,37 @@ export class OsvReview extends HTMLElement {
       this._copyBtn.disabled = !hasComments;
       const hint = hasComments ? '' : 'Add a comment first';
       this._copyBtn.title = hint;
+    });
+
+    /* ---- The two-minute checklist (session-scoped per change, design D4) ----
+         Shown only while an active change's artifact is open; absent for
+         standalone artifacts, main specs, and archived changes. Ticks are
+         keyed by change in the session Map, never persisted. */
+    const checklist = computed(() => {
+      const key = currentKey.value;
+      if (!key || key.startsWith('changes/archive/')) return '';
+      return renderChecklistHtml(key);
+    }, [currentKey, checklistTicks, checklistCollapsed]);
+    checklist.effect(() => {
+      const h = checklist.value;
+      this._checklistEl.hidden = !h;
+      if (h) this._checklistEl.innerHTML = h;
+    });
+    this._checklistEl.addEventListener('click', e => {
+      if (e.target.closest('.cl-toggle')) {
+        checklistCollapsed.value = !checklistCollapsed.value;
+        return;
+      }
+      const item = e.target.closest('.cl-item');
+      if (!item) return;
+      const key = currentKey.value;
+      if (!key) return;
+      const i = +item.dataset.i;
+      const m = new Map(checklistTicks.value);
+      const s = new Set(m.get(key) || []);
+      if (s.has(i)) s.delete(i); else s.add(i);
+      if (s.size) m.set(key, s); else m.delete(key);
+      checklistTicks.value = m;
     });
 
     /* ---- Actions ---- */

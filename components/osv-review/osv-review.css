@@ -15,23 +15,68 @@ osv-review .review-drawer {
   background: var(--panel);
   border-left: 1px solid var(--border);
 }
-osv-review .review-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 14px 16px;
+osv-review .review-checklist {
+  padding: 10px 14px 6px;
   border-bottom: 1px solid var(--border-muted);
   flex-shrink: 0;
 }
-osv-review .review-title { font-size: 13px; font-weight: 600; letter-spacing: .3px; }
-osv-review .review-file {
-  font-size: 11.5px;
-  color: var(--fg-muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  word-break: break-all;
-  margin-top: 2px;
+osv-review .cl-toggle {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
 }
+osv-review .cl-toggle:hover .cl-title { color: var(--fg); }
+osv-review .cl-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .4px;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+osv-review .cl-progress {
+  font-size: 11px;
+  color: var(--fg-subtle);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+osv-review .cl-chevron {
+  font-size: 11px;
+  color: var(--fg-subtle);
+}
+osv-review .cl-list { list-style: none; margin: 8px 0 0; padding: 0; }
+osv-review .cl-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 3px 4px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+osv-review .cl-item:hover { background: rgba(110,118,129,.08); }
+osv-review .cl-box {
+  flex-shrink: 0;
+  width: 16px; height: 16px;
+  margin-top: 1px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+osv-review .cl-item.checked .cl-box { background: var(--accent-dim); border-color: transparent; color: #fff; }
+osv-review .cl-item.checked .cl-text { color: var(--fg-muted); }
+osv-review .cl-text { font-size: 12.5px; color: var(--fg); line-height: 1.45; }
 osv-review .review-list { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
 osv-review .rv-empty { color: var(--fg-subtle); font-size: 13px; line-height: 1.6; padding: 18px 12px; }
 osv-review .rv-item {

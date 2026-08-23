@@ -13,10 +13,12 @@ import { diffViewHtml, diffToggleHtml, diffTabBadgeHtml, hashText } from '../../
 import {
   allFiles, currentRel, currentKey, changeMeta, diffInfo, diffViews,
   recentRels, paneCache, paneCachePut, setDiffView, currentTabs, setCurrentTabs, searchMarks, highlights,
+  expandedStripKinds,
 } from '../../app/state.js';
 import { markRead as markReadStore, readFileText } from '../../app/store.js';
 import { applyHighlights, hideAnnBubble, onSelection, clearSearchMarks, saveFileComment } from '../../app/annotations.js';
 import { showToast } from '../osv-toast/osv-toast.js';
+import { GUIDE, KIND_LABEL } from '../../app/review-guide.js';
 
 const WELCOME = `
   <div class="welcome">
@@ -38,6 +40,39 @@ function wholeFileCount(rel) {
 function commentToggleHtml(rel) {
   const n = wholeFileCount(rel);
   return html`<button class="comment-toggle${n ? ' has' : ''}" data-rel="${rel}" title="Comment on this whole artifact">💬${n ? html`<span class="comment-count">${n}</span>` : ''}</button>`;
+}
+
+// Which guide kind (if any) a change-artifact rel maps to. The metadata tab
+// and anything outside a change's artifact set return null → no strip.
+function guideKindOf(rel) {
+  if (!rel) return null;
+  if (rel.endsWith('/proposal.md')) return 'proposal';
+  if (rel.includes('/specs/') && rel.endsWith('spec.md')) return 'spec';
+  if (rel.endsWith('/design.md')) return 'design';
+  if (rel.endsWith('/tasks.md')) return 'tasks';
+  return null;
+}
+
+// Collapsed strip: the kind's guiding question on one line. Expanded: the
+// kind's red flags below it. Kinds with no flags (design) stay one line.
+// The chevron doubles as a labeled affordance (Show/Hide red flags) so the
+// expandable content is discoverable without hovering.
+function guideStripHtml(kind) {
+  const g = GUIDE[kind];
+  const expanded = expandedStripKinds.value.has(kind);
+  const hasFlags = g.flags.length > 0;
+  const action = expanded ? 'Hide' : 'Show';
+  return html`
+    <button class="guide-toggle${expanded ? ' expanded' : ''}" data-kind="${kind}"
+            ${hasFlags ? html` aria-expanded="${expanded}"` : ''}
+            ${hasFlags ? html` title="${action} review red flags for this artifact"` : ''}>
+      <span class="guide-kind">${KIND_LABEL[kind]}</span>
+      <span class="guide-question">${g.question}</span>
+      ${hasFlags ? html`<span class="guide-chevron">${expanded ? '▾' : '▸'} <span class="guide-affordance">${action} red flags</span></span>` : ''}
+    </button>
+    ${expanded && hasFlags
+      ? html`<ul class="guide-flags">${joinHtml(g.flags.map(f => html`<li>${f}</li>`))}</ul>`
+      : ''}`;
 }
 
 export class OsvPane extends HTMLElement {
@@ -86,6 +121,8 @@ export class OsvPane extends HTMLElement {
     this._main.addEventListener('click', async e => {
       const ct = e.target.closest('.comment-toggle');
       if (ct) { this.openCommentDialog(ct.dataset.rel); return; }
+      const gs = e.target.closest('.guide-toggle');
+      if (gs) { this.toggleGuideStrip(gs.dataset.kind); return; }
       const b = e.target.closest('.diff-toggle');
       if (!b) return;
       const rel = b.dataset.rel;
@@ -169,7 +206,8 @@ export class OsvPane extends HTMLElement {
     // (design D1/D2): archived changes are history, not review targets, so a
     // single open clears every unread marker and the Archive group counter.
     // Active changes keep per-tab acknowledgment in acknowledgeShown below.
-    if (key.startsWith('changes/archive/')) {
+    const isArchive = key.startsWith('changes/archive/');
+    if (isArchive) {
       this.acknowledgeArchivedChange(meta).catch(() => {});
     }
     hideAnnBubble();
@@ -206,6 +244,7 @@ export class OsvPane extends HTMLElement {
         ${meta.date ? html`<span class="date-badge">${meta.date}</span>` : ''}
       </div>
       <div class="tabs">${tabBar}</div>
+      ${isArchive ? '' : html`<div class="guide-strip" hidden></div>`}
       <div class="pane-body pane-loading">Loading…</div>`;
 
     this._body = this._main.querySelector('.pane-body');
@@ -220,6 +259,7 @@ export class OsvPane extends HTMLElement {
     const t = currentTabs[i];
     if (!t) return;
     currentRel.value = t.rel;
+    this.refreshGuideStrip();
     this._main.querySelectorAll('.tab').forEach(b =>
       b.classList.toggle('active', +b.dataset.i === i));
     this.refreshToggle(t.rel);
@@ -252,6 +292,26 @@ export class OsvPane extends HTMLElement {
 
   paneBarHtml(crumb, rel) {
     return html`<div class="pane-bar">${crumb}<span class="comment-toggle-slot">${commentToggleHtml(rel)}</span><span class="diff-toggle-slot">${diffToggleHtml(rel, diffInfo.get(rel), diffViews.get(rel), recentRels.value.has(rel))}</span></div>`;
+  }
+
+  // Patch the guidance strip for the current tab (design D2/D3). Archive
+  // changes carry no strip element; standalone artifacts and the metadata tab
+  // hide it once the rel resolves to no kind.
+  refreshGuideStrip() {
+    const strip = this._main.querySelector('.guide-strip');
+    if (!strip) return;
+    const kind = guideKindOf(currentRel.value);
+    strip.hidden = kind == null;
+    strip.innerHTML = kind == null ? '' : guideStripHtml(kind);
+  }
+
+  // Expand/collapse the active tab's strip and remember the choice per kind
+  // for the rest of the session (design D3).
+  toggleGuideStrip(kind) {
+    const s = new Set(expandedStripKinds.value);
+    if (s.has(kind)) s.delete(kind); else s.add(kind);
+    expandedStripKinds.value = s;
+    this.refreshGuideStrip();
   }
 
   // Re-render just the comment toggle after a tab switch or a save.
