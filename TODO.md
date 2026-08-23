@@ -88,8 +88,8 @@
 - ~~Use jsebrech/tiny-signals for reactive state (`signal`/`computed`/`effect`) — theme, file/change selection, recent-changes, collapsed groups, search, highlights; file list, stats, and review panel render via computed+effect instead of manual renderList()/updateStats()/renderReviewPanel() calls.~~
 - ~~Keep index.html self-contained: the three libs are inlined as a classic script (no ES module imports, so file:// still works); app stays a single file, no build step.~~
 - ~~Re-evaluate CDN deps: marked (markdown), js-yaml (frontmatter), DOMPurify (sanitizing markdown output) all kept — html-literal replaced the hand-rolled encoder, not these; none has a sensible vanilla equivalent.~~
-- Use jsebrech/tiny-context (web components context protocol) to pass state across component boundaries. Vendored but dormant: nothing crosses a component boundary in this single-file app. Wire it in only when UI is extracted into custom elements.
-  - Alternative: split into ES modules/web components served as plain files (no build step, deployment unchanged) only if the app grows beyond one file.
+- ~~Use jsebrech/tiny-context (web components context protocol) to pass state across component boundaries.~~ Dropped instead — decided against: components import shared state directly from `app/state.js` and cross-component navigation uses document-level CustomEvents, so no context protocol is needed (removed in 9f2bfa3).
+- ~~Alternative: split into ES modules/web components served as plain files (no build step, deployment unchanged) only if the app grows beyond one file.~~ Shipped in v2.0.0: the app was refactored into `components/osv-*` web components with ES modules, no build step, deployment unchanged.
 
 ## ~Review: generate two types of prompts~ ✅ shipped in v2.12.0
 
@@ -98,6 +98,13 @@
   - ~~**explain** — new: user asks the model to explain what was highlighted because it is not clear to them; the prompt asks for an explanation instead of edits.~~
 - ~~Add a mode selector in the review panel; the copy-prompt / send-to-LLM action uses the selected mode.~~
 - ~~Shipped instead as a single self-describing prompt (no mode selector): it lists each comment as File / Referenced text / Comment and tells the model to disambiguate by intent — fix/adjust/edit the referenced text, or, when the comment is itself a question, explain it without changing the spec; where an edit is needed, keep the rest of the proposal consistent. One **Copy prompt** button replaces the Copy-fix / Send-to-LLM pair and the preview modal is removed entirely.~~
+
+## ~Show the official OpenSpec review guidance~ ✅ shipped in v3.2.0
+
+- ~~Surface the official review method (github.com/Fission-AI/OpenSpec/docs/reviewing-changes.md) while a user reviews a change: a per-tab guidance strip in the pane (the artifact kind's guiding question, expandable to its review red flags via a labeled red "Show/Hide red flags" pill) and a collapsible "Two-minute checklist review" at the top of the review panel.~~
+- ~~Guidance is vendored static content (`app/review-guide.js`, source URL + fetch date recorded) — offline-capable, no new dependencies, no runtime fetch.~~
+- ~~The strip shows only on active-change tabs (Proposal / Spec(s) / Design / Tasks); nothing for the Metadata tab, archived changes, main specs, or config. The proposal's expanded flags carry the official "stop and fix the proposal first" hint; the design tab shows only the doc's own one-liner.~~
+- ~~Checklist ticks are session-scoped per change (keyed by change key, cleared on folder switch and reload); they never persist (future review-history work), never gate the Copy prompt, and never enter the copied prompt. The comment/file count now lives on the **Copy prompt** button label itself.~~
 
 ## Collect review history per project
 
