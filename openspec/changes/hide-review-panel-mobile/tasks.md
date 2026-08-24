@@ -8,4 +8,4 @@
 - [x] 2.1 Extend `mobile-drawer-test.js` with a below-62em assertion that `osv-review` is not visible and the content pane spans the full width (no reserved review section below the content); keep an assertion (or confirm the existing one) that at ≥62em the review column still renders.
 - [x] 2.2 Run the e2e suites against a local server (`python -m http.server 8743`, then `playwright-cli run-code --filename=<test>.js`): `mobile-drawer-test.js` (unchanged desktop part + new review assertions), plus `whole-file-comment-test.js` and `review-guidance-test.js` to confirm the review panel still works at desktop width. Report the results.
 - [x] 2.3 Manual mobile spot-check in DevTools device toolbar (<62em): header toggle opens the nav drawer, content pane fills the viewport with no review section at the bottom; resize to ≥62em and confirm the review column, checklist, and Copy prompt reappear.
-- [ ] 2.4 Push to `master` and verify the auto-deploy: header badge shows `v3.7.0` on the live site.
+- [x] 2.4 Push to `master` and verify the auto-deploy: header badge shows `v3.7.0` on the live site.
