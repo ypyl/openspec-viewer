@@ -21,6 +21,10 @@
   --radius: 6px;
   color-scheme: dark;
 }
+/* Folder rail width, shared with the rail component and the header grid. */
+:root {
+  --rail-w: 60px;
+}
 /* Sidebar width, shared with the sidebar component. */
 :root {
   --sidebar-w: 280px;

@@ -125,7 +125,7 @@ osv-folder-rail .rail-dot {
     border-bottom: none;
     border-right: 1px solid var(--border);
   }
-  osv-folder-rail .folder-rail { width: 60px; }
+  osv-folder-rail .folder-rail { width: var(--rail-w); }
 }
 
 /* Narrow screens: the rail becomes a horizontal strip (avatars in a row). */

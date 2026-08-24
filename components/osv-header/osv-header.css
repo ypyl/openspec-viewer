@@ -37,14 +37,15 @@ osv-header .side {
   margin-left: auto;
 }
 
-/* ≥ 62em (992px): mirror the body's three columns so the search centers over
-   the same region as the content. Column 1 = sidebar (title), column 2 = main
-   (search, aligned to content), column 3 = review rail (stats), reserving
-   --review-w exactly like the layout below. */
+/* ≥ 62em (992px): mirror the body's columns so the search stays centered over
+   the main content. Column 1 = folder rail + sidebar (title; the rail is
+   empty here, so it's folded into the same cell via calc), column 2 = main
+   (search, aligned to content), column 3 = review rail (stats), reserving the
+   same widths as the layout. */
 @media (min-width: 62em) {
   osv-header header {
     display: grid;
-    grid-template-columns: var(--sidebar-w) 1fr var(--review-w);
+    grid-template-columns: calc(var(--rail-w) + var(--sidebar-w)) 1fr var(--review-w);
     align-items: center;
     /* No outer padding or column gap in grid mode: col2 (search) then spans
        exactly the same width as the main column, so it matches content width.
