@@ -24,9 +24,8 @@ LLM fix prompt. Full product description: `README.md`.
   with pi — pick up here later)` block: prior thinking, design forks with a lean,
   unresolved open threads. That is the starting point — answer the threads, then
   propose. Don't re-explore ground already covered.
-- **Priorities.** Two open items currently: **Collect review history per project**
-  (exploration notes included, lean = phase 1 capture, phase 2 insights) and **Make the
-  app mobile friendly (hideable panels)**.
+- **Priorities.** One open item now: **Collect review history per project**
+  (exploration notes included, lean = phase 1 capture, phase 2 insights).
   Everything else shipped.
 - **Version policy.** User-visible change ⇒ bump MAJOR (breaking) / MINOR (feature)
   / PATCH (fix) in the **same commit** across all three markers: `index.html`
@@ -208,24 +207,31 @@ LLM fix prompt. Full product description: `README.md`.
 4. Visible history surface in phase 1 (review panel section / header action) or storage + export only?
 5. Checklist persistence: amend the shipped "SHALL NOT persist" requirement, or keep ticks out of history entirely?
 
-## Make the app mobile friendly (hideable panels)
+## ~Make the app mobile friendly (hideable panels)~ ✅ shipped in v3.6.0
 
-- The app is desktop-first on phones: the file list sidebar and folder rail are still
+- ~~The app is desktop-first on phones: the file list sidebar and folder rail are still
   laid out as columns/panels that occupy vertical space and compete with the content
   pane, so on a narrow screen the artifact pane ends up cramped or the panels push it
   off. Today the only adaptation is the rail collapsing to a horizontal avatar strip
   (`osv-folder-rail.css` <62em) and the sidebar losing its fixed width — the panels are
-  never hidden behind a drawer.
-- Provide a way to hide the panels on mobile: collapse the folder rail and the file list
+  never hidden behind a drawer.~~
+- ~~Provide a way to hide the panels on mobile: collapse the folder rail and the file list
   sidebar into a slide-over drawer (e.g. a hamburger/menu toggle in the header), so the
   content pane gets full width while browsing. Choosing a folder / a file from the drawer
-  should close it and land in the pane.
-- The review panel already degrades to an overlay/full-width drawer below 62em (shipped
+  should close it and land in the pane.~~
+- ~~The review panel already degrades to an overlay/full-width drawer below 62em (shipped
   in v2.4.0) — keep that behavior, or make it a full-screen/bottom sheet so the pane stays
-  readable on phones.
-- Respect the project rules: patch DOM in place (tiny-signals), don't rebuild subtrees so
+  readable on phones.~~
+- ~~Respect the project rules: patch DOM in place (tiny-signals), don't rebuild subtrees so
   selection/scroll/focus survive opening/closing a drawer; keep the desktop layout
-  unchanged at ≥ md widths. Re-shoot `screenshot.png` only if the visual UI changes.
+  unchanged at ≥ md widths. Re-shoot `screenshot.png` only if the visual UI changes.~~
+
+What landed: below 62em the folder rail and artifact list are hidden behind a slide-over
+navigation drawer (header hamburger toggle; Esc, backdrop, close button, or picking a
+folder/file dismiss it). The panels are wrapped once at startup and never re-parented, so
+selection/scroll/focus survive every open/close; at ≥62em the layout is unchanged. The
+review panel's narrow-screen behavior was kept as-is, and `screenshot.png` needed no
+re-shoot (desktop visuals identical).
 
 ## ~Fuzzy search within all documents' content~ ✅ shipped in v2.3.0
 
