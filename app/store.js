@@ -18,7 +18,7 @@ import { pruneHighlights } from './annotations.js';
 import {
   folders, activeFolderId, folderUnread, folderData, registerFolderState,
   folderEntryFor, currentFolderId, hueFor, allFiles, recentRels, searchVersion,
-  diffInfo, diffViews, paneCache, currentRel, currentKey,
+  diffInfo, diffViews, paneCache, currentRel, currentKey, navDrawerOpen,
 } from './state.js';
 import { showToast } from '../components/osv-toast/osv-toast.js';
 import { setLoading } from '../components/osv-loading/osv-loading.js';
@@ -279,6 +279,7 @@ export function activateFolder(id) {
   if (!folderData.has(id)) return;
   activeFolderId.value = id;   // the projection effect swaps the view
   setFolderLastActive(id);     // fire-and-forget
+  navDrawerOpen.value = false; // any folder activation dismisses the drawer
 }
 
 // Point an existing folder at a (re-resolved) root handle. Used by the test

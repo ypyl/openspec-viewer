@@ -1,0 +1,109 @@
+/* osv-nav-drawer: mobile-only slide-over that owns the folder rail and the
+   artifact list. ≥62em: `display: contents` — no box of its own, the rail and
+   sidebar stay .layout flex columns exactly as on desktop. Below 62em: a fixed
+   full-viewport layer (backdrop + panel) that hides both panels until the
+   header toggle opens it, so the content pane spans the full width. */
+
+/* Desktop (≥62em): the drawer has no box — `display: contents` all the way
+   down so the rail and sidebar become .layout flex items exactly as before
+   (order: rail, sidebar, pane, review). The head/backdrop contribute nothing. */
+@media (min-width: 62em) {
+  osv-nav-drawer { display: contents; }
+  osv-nav-drawer .nav-backdrop,
+  osv-nav-drawer .nav-panel { display: contents; }
+  osv-nav-drawer .nav-head { display: none; }
+}
+
+/* Narrow screens (<62em): fixed drawer. When closed the whole layer is
+   visibility: hidden — out of layout AND out of the tab order — while the
+   panel itself slides off-canvas so closing animates smoothly. */
+@media (max-width: 61.99em) {
+  osv-nav-drawer {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    visibility: hidden;
+    transition: visibility 0s .25s;
+  }
+  osv-nav-drawer.open {
+    visibility: visible;
+    transition: none;
+  }
+
+  /* Translucent backdrop between the app and the panel. */
+  osv-nav-drawer .nav-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, .55);
+    opacity: 0;
+    transition: opacity .25s;
+  }
+  osv-nav-drawer.open .nav-backdrop { opacity: 1; }
+
+  /* Slide-over panel: fixed to the left edge, full height. */
+  osv-nav-drawer .nav-panel {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(86vw, 360px);
+    max-width: 86vw;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    box-shadow: 12px 0 32px rgba(0, 0, 0, .35);
+    transform: translateX(-100%);
+    transition: transform .25s ease;
+  }
+  osv-nav-drawer.open .nav-panel { transform: none; }
+
+  /* Panel head: title + close button. */
+  osv-nav-drawer .nav-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 12px 10px 16px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  osv-nav-drawer .nav-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--fg);
+  }
+  osv-nav-drawer .nav-close {
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--fg-muted);
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    transition: background .15s, color .15s;
+  }
+  osv-nav-drawer .nav-close:hover { background: rgba(110, 118, 129, .12); color: var(--fg); }
+
+  /* Panel content: the rail keeps its narrow-screen horizontal avatar strip
+     on top (its own <62em rules apply); the sidebar fills the rest. */
+  osv-nav-drawer osv-folder-rail { flex-shrink: 0; }
+  osv-nav-drawer osv-file-list {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+  }
+  osv-nav-drawer osv-file-list aside { border-bottom: none; }
+
+  /* Lock the page scroll while the drawer is open. */
+  body.nav-open { overflow: hidden; }
+}

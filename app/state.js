@@ -20,6 +20,13 @@ try {
   if (t === 'dark' || t === 'light') theme.value = t;
 } catch (e) {}
 
+/* ---------- Mobile navigation drawer (global, in-memory) ---------- */
+
+// Whether the slide-over navigation drawer (folder rail + artifact list) is
+// open on narrow screens. In-memory only: always starts closed, is never
+// persisted, and is closed automatically when a folder or artifact is picked.
+export const navDrawerOpen = signal(false);
+
 /* ---------- Folder registry ---------- */
 
 // Reactive folder list: [{ id, name, kind, hue, suffix }] in add order.

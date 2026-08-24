@@ -98,6 +98,37 @@ osv-header .theme-btn {
   transition: background .15s;
 }
 osv-header .theme-btn:hover { background: var(--panel); }
+
+/* Mobile navigation drawer toggle: shown only below 62em (the drawer is
+   display: contents — i.e. invisible — on desktop). The aria-expanded state
+   mirrors navDrawerOpen and styles the active (open) look. */
+osv-header .nav-toggle {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  transition: background .15s, color .15s, border-color .15s;
+}
+osv-header .nav-toggle:hover { background: var(--panel); }
+osv-header .nav-toggle[aria-expanded="true"] {
+  background: var(--panel);
+  border-color: var(--accent-dim);
+  color: var(--accent);
+}
+
+@media (min-width: 62em) {
+  osv-header .nav-toggle { display: none; }
+}
 osv-header .stats { font-size: 12px; color: var(--fg-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 osv-header .stats b { color: var(--fg); font-weight: 600; }
 osv-header .live-dot { color: var(--green); font-weight: 600; }

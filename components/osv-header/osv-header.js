@@ -1,12 +1,12 @@
 // osv-header: title, version badge, theme toggle, stats, review button.
 
 import { html, computed } from '../../imports.js';
-import { theme, allFiles, folders, activeFolderId, changeMeta } from '../../app/state.js';
+import { theme, allFiles, folders, activeFolderId, changeMeta, navDrawerOpen } from '../../app/state.js';
 import { groupOf, changeOf, isArchived } from '../../app/render.js';
 
 // Single source for the visible version badge (AGENTS.md keeps the version
 // in the header badge, the first-line comment, and sw.js in sync).
-export const VERSION = '3.5.4';
+export const VERSION = '3.6.0';
 
 export class OsvHeader extends HTMLElement {
   connectedCallback() {
@@ -16,6 +16,7 @@ export class OsvHeader extends HTMLElement {
     this.innerHTML = `
       <header>
         <div class="brand">
+          <button type="button" class="nav-toggle" aria-label="Open navigation" aria-expanded="false" title="Open navigation">☰</button>
           <h1>OpenSpec <span class="dot">•</span> Local Viewer</h1>
           <span class="version">v${VERSION}</span>
           <button class="theme-btn" title="Following system theme — click to override">💻</button>
@@ -28,6 +29,16 @@ export class OsvHeader extends HTMLElement {
 
     const themeBtn = this.querySelector('.theme-btn');
     const statsEl = this.querySelector('.stats');
+    const navToggle = this.querySelector('.nav-toggle');
+
+    /* ---- Mobile navigation drawer toggle ---- */
+    navToggle.addEventListener('click', () => { navDrawerOpen.value = !navDrawerOpen.value; });
+    navDrawerOpen.effect(() => {
+      const open = navDrawerOpen.value;
+      navToggle.setAttribute('aria-expanded', String(open));
+      navToggle.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
+      navToggle.title = open ? 'Close navigation (Esc)' : 'Open navigation';
+    });
 
     /* ---- Theme ---- */
     const mql = window.matchMedia('(prefers-color-scheme: dark)');

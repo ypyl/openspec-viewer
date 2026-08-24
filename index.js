@@ -1,6 +1,7 @@
 // index.js — app bootstrap (Plain Vanilla Web, no build step).
 // Registers the web components and starts the app.
 
+import './components/osv-nav-drawer/osv-nav-drawer.js';
 import './components/osv-folder-rail/osv-folder-rail.js';
 import './components/osv-header/osv-header.js';
 import './components/osv-search/osv-search.js';
