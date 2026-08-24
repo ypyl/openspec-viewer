@@ -1,5 +1,65 @@
 # TODO
 
+## Guide
+
+### What this is
+
+This file is the product backlog for **OpenSpec Local Viewer** — an offline-capable,
+no-build browser app that browses `openspec/` folders: change proposals, specs,
+design, tasks, metadata. It live-monitors local folders, rebuilds content-level
+diffs from IndexedDB snapshots, and turns text highlights/comments into a single
+LLM fix prompt. Full product description: `README.md`.
+
+### What to do — the workflow
+
+- **One item per change.** Each TODO entry is a feature/improvement; most map to an
+  OpenSpec change under `openspec/changes/`. Work happens in that loop:
+  **propose → implement → test → archive** (pi skills: `openspec-propose`,
+  `openspec-apply-change`, `openspec-archive-change`; keep delta specs synced with
+  `openspec-sync-specs`).
+- **Status markers.** ✅ shipped / dropped items are crossed out with a short note of
+  what actually landed (reality often diverges from the original bullets — read the
+  note, not the bullets). Open items are plain headings.
+- **Exploration notes.** Big open items carry an `Exploration notes (…, explore mode
+  with pi — pick up here later)` block: prior thinking, design forks with a lean,
+  unresolved open threads. That is the starting point — answer the threads, then
+  propose. Don't re-explore ground already covered.
+- **Priorities.** Two open items currently: **Collect review history per project**
+  (exploration notes included, lean = phase 1 capture, phase 2 insights) and **Make the
+  app mobile friendly (hideable panels)**.
+  Everything else shipped.
+- **Version policy.** User-visible change ⇒ bump MAJOR (breaking) / MINOR (feature)
+  / PATCH (fix) in the **same commit** across all three markers: `index.html`
+  first-line comment, `osv-header` VERSION, `sw.js` CACHE_VERSION.
+- **Before/after a change:** `npm test` (unit) and the Playwright e2e tests
+  (`*-test.js` via `playwright-cli` against `python -m http.server 8743`). Push to
+  `master` auto-deploys to GitHub Pages; verify the header badge afterwards.
+
+### How to use — the app
+
+1. **Open it:** serve the folder over HTTP (`python -m http.server 8743`, then
+   http://127.0.0.1:8743/) or use the hosted https://ypyl.github.io/openspec-viewer/.
+   file:// does not work (ES modules + service worker). Installable as an app for
+   offline use.
+2. **Add a folder:** click the **＋** in the left rail and pick a repo root or its
+   `openspec/` folder (reopens at your last choice). Multiple folders are supported;
+   each gets its own avatar, tabs, and unread state. Without the File System Access
+   API the picker falls back to a one-shot read (no live updates).
+3. **Browse:** groups (Changes / Specs / Archive / Config) in the sidebar; open a
+   change to get its tabs — Proposal, Spec(s), Design, Tasks, Metadata. Live dot +
+   10 s polling surface new/modified/deleted artifacts; open files hot-refresh.
+4. **Diff:** when a file changed, hit the **Diff** button next to the breadcrumb for
+   a line-by-line unified diff (+/− counts, NEW badge until seen). Diffs survive
+   reloads (IndexedDB snapshots).
+5. **Review:** select text in an artifact → comment; or comment on the whole file
+   from the artifact header. Highlights persist per folder. The review panel shows a
+   two-minute checklist + per-tab guide, and its **Copy prompt** button folds all
+   highlights/comments + artifact content into one LLM prompt (fix or explain — the
+   prompt self-describes intent).
+6. **Search:** header box = typo-tolerant full-text search over the active folder's
+   artifacts with match highlighting; sidebar **Filter files** narrows the list.
+7. **Theme:** dark/light follows the system unless overridden in the header.
+
 ## ~Highlight & comment on artifacts → LLM fix prompt~ ✅ shipped in v1.5.0
 
 - ~~Allow selecting/highlighting text in an artifact (spec, ADR, task, change).~~
@@ -147,6 +207,25 @@
 3. Does history survive closing a folder — and is it visible when no folder is open?
 4. Visible history surface in phase 1 (review panel section / header action) or storage + export only?
 5. Checklist persistence: amend the shipped "SHALL NOT persist" requirement, or keep ticks out of history entirely?
+
+## Make the app mobile friendly (hideable panels)
+
+- The app is desktop-first on phones: the file list sidebar and folder rail are still
+  laid out as columns/panels that occupy vertical space and compete with the content
+  pane, so on a narrow screen the artifact pane ends up cramped or the panels push it
+  off. Today the only adaptation is the rail collapsing to a horizontal avatar strip
+  (`osv-folder-rail.css` <62em) and the sidebar losing its fixed width — the panels are
+  never hidden behind a drawer.
+- Provide a way to hide the panels on mobile: collapse the folder rail and the file list
+  sidebar into a slide-over drawer (e.g. a hamburger/menu toggle in the header), so the
+  content pane gets full width while browsing. Choosing a folder / a file from the drawer
+  should close it and land in the pane.
+- The review panel already degrades to an overlay/full-width drawer below 62em (shipped
+  in v2.4.0) — keep that behavior, or make it a full-screen/bottom sheet so the pane stays
+  readable on phones.
+- Respect the project rules: patch DOM in place (tiny-signals), don't rebuild subtrees so
+  selection/scroll/focus survive opening/closing a drawer; keep the desktop layout
+  unchanged at ≥ md widths. Re-shoot `screenshot.png` only if the visual UI changes.
 
 ## ~Fuzzy search within all documents' content~ ✅ shipped in v2.3.0
 
