@@ -4,6 +4,8 @@
  * file/folder closes it; Escape, backdrop, and the close button each close
  * it; sidebar selection/scroll survive open/close cycles; and at ≥62em no
  * toggle exists and the rail + sidebar are layout columns again.
+ * v3.7.0: below 62em the review panel is hidden entirely (no reserved space,
+ * pane fills the viewport); at ≥62em the review column still renders.
  *
  * Run (from repo root):
  *   python -m http.server 8743        # serve the app
@@ -133,6 +135,25 @@ async page => {
   if (st.toggleDisplay === 'none') err('header nav toggle should be visible on a narrow screen');
   if (!st.paneWidth || st.paneWidth < 380) err('pane should span (near) full width when closed, got ' + st.paneWidth);
 
+  // ---- 1b. Narrow screen: the review panel is hidden entirely (v3.7.0). ----
+  const mobileReview = await page.evaluate(() => {
+    const rev = document.querySelector('osv-review');
+    const pane = document.querySelector('osv-pane');
+    const box = rev ? rev.getBoundingClientRect() : null;
+    const paneBox = pane.getBoundingClientRect();
+    return {
+      reviewDisplay: rev ? getComputedStyle(rev).display : 'missing',
+      reviewHeight: box ? Math.round(box.height) : null,
+      paneBottom: Math.round(paneBox.bottom),
+      viewportHeight: window.innerHeight,
+    };
+  });
+  out.steps.push('mobile-review: ' + JSON.stringify(mobileReview));
+  if (mobileReview.reviewDisplay !== 'none') err('review panel should be display:none below 62em, got ' + mobileReview.reviewDisplay);
+  if (mobileReview.reviewHeight !== 0) err('review panel should take no vertical space below 62em, got height ' + mobileReview.reviewHeight);
+  if (Math.abs(mobileReview.paneBottom - mobileReview.viewportHeight) > 2)
+    err('content pane should fill the viewport height below 62em, got bottom ' + mobileReview.paneBottom + ' vs viewport ' + mobileReview.viewportHeight);
+
   // ---- 2. Toggle opens the drawer; rail + sidebar visible inside. ----
   await page.click('.nav-toggle');
   await page.waitForTimeout(400);
@@ -171,6 +192,25 @@ async page => {
   if (st.open) err('drawer should close after picking a file');
   if (!picked.artifact) err('picked artifact should show in the pane');
   if (!picked.activeRow) err('picked row should keep the active state');
+
+  // ---- 3b. With an artifact open, the review panel stays hidden. ----
+  const openReview = await page.evaluate(() => {
+    const rev = document.querySelector('osv-review');
+    const pane = document.querySelector('osv-pane');
+    const box = rev ? rev.getBoundingClientRect() : null;
+    const paneBox = pane.getBoundingClientRect();
+    return {
+      reviewDisplay: rev ? getComputedStyle(rev).display : 'missing',
+      reviewHeight: box ? Math.round(box.height) : null,
+      paneBottom: Math.round(paneBox.bottom),
+      viewportHeight: window.innerHeight,
+    };
+  });
+  out.steps.push('open-artifact-review: ' + JSON.stringify(openReview));
+  if (openReview.reviewDisplay !== 'none') err('review panel must stay hidden below 62em with an artifact open');
+  if (openReview.reviewHeight !== 0) err('review panel must reserve no space below 62em with an artifact open');
+  if (Math.abs(openReview.paneBottom - openReview.viewportHeight) > 2)
+    err('content pane should fill the viewport height with an artifact open, got ' + openReview.paneBottom);
 
   // ---- 4. Reopening preserves selection and scroll. ----
   await page.click('.nav-toggle');
@@ -263,14 +303,19 @@ async page => {
     const fileList = document.querySelector('osv-file-list');
     const drawer = document.querySelector('osv-nav-drawer');
     const toggle = document.querySelector('.nav-toggle');
+    const reviewEl = document.querySelector('osv-review');
     const railBox = rail.getBoundingClientRect();
     const listBox = fileList.getBoundingClientRect();
+    const reviewBox = reviewEl ? reviewEl.getBoundingClientRect() : null;
     return {
       toggleDisplay: toggle ? getComputedStyle(toggle).display : null,
       drawerDisplay: drawer ? getComputedStyle(drawer).display : null,
       railVisible: getComputedStyle(rail).visibility,
       railLeft: Math.round(railBox.left), railRight: Math.round(railBox.right),
       listLeft: Math.round(listBox.left),
+      reviewDisplay: reviewEl ? getComputedStyle(reviewEl).display : null,
+      reviewWidth: reviewBox ? Math.round(reviewBox.width) : null,
+      hasCopyBtn: !!document.querySelector('osv-review .copy-btn'),
     };
   });
   out.steps.push('desktop: ' + JSON.stringify(desktop));
@@ -278,6 +323,10 @@ async page => {
   if (desktop.drawerDisplay !== 'contents') err('drawer should be display:contents at desktop widths, got ' + desktop.drawerDisplay);
   if (desktop.railVisible !== 'visible') err('rail should be visible at desktop widths');
   if (desktop.railRight > desktop.listLeft) err('rail and sidebar should be side-by-side columns at desktop widths');
+  if (desktop.reviewDisplay === 'none' || desktop.reviewDisplay === 'missing')
+    err('review column should render at desktop widths, got ' + desktop.reviewDisplay);
+  if (!desktop.reviewWidth || desktop.reviewWidth < 300) err('review column should be a reserved column at desktop widths, got width ' + desktop.reviewWidth);
+  if (!desktop.hasCopyBtn) err('review actions (Copy prompt) should render at desktop widths');
 
   out.ok = out.errors.length === 0;
   console.log('=== MOBILE DRAWER TEST RESULT ===');

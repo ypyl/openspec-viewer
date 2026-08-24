@@ -183,3 +183,9 @@ osv-review .review-action:disabled { opacity: .45; cursor: not-allowed; }
     min-height: 0;
   }
 }
+
+/* Narrow screens (<62em): the review panel is hidden entirely; the content
+   pane spans the full viewport width. */
+@media (max-width: 61.99em) {
+  osv-review { display: none; }
+}
