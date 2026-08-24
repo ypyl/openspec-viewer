@@ -18,7 +18,7 @@ import { pruneHighlights } from './annotations.js';
 import {
   folders, activeFolderId, folderUnread, folderData, registerFolderState,
   folderEntryFor, currentFolderId, hueFor, allFiles, recentRels, searchVersion,
-  diffInfo, diffViews, paneCache,
+  diffInfo, diffViews, paneCache, currentRel, currentKey,
 } from './state.js';
 import { showToast } from '../components/osv-toast/osv-toast.js';
 import { setLoading } from '../components/osv-loading/osv-loading.js';
