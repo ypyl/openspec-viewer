@@ -10,7 +10,9 @@
  * pill and no quoted snippet); the header button shows a count badge; the
  * generated prompt carries "Scope: entire artifact" with no Referenced text
  * line; a second comment on the same artifact appends (multiplicity); and the
- * file-kind comment persists with no range fields.
+ * file-kind comment persists with no range fields. Deleting via the review
+ * drawer drops the header badge count (and removes the badge entirely with the
+ * last comment) — regression for a stale count after whole-file comment delete.
  * Serves as: async page => { ... } single function expression. */
 async page => {
   const out = { steps: [], errors: [] };
@@ -184,6 +186,50 @@ async page => {
     err('file-kind comment should not carry range fields');
   }
   if (!first.comment || !first.ts || !first.id) err('file-kind comment should carry id/comment/ts');
+
+  // ---- 5) Delete via the review drawer: badge must drop (regression: the
+  //         pane's 💬 count was only refreshed on save/tab-switch, so a
+  //         delete left a stale count behind) ----
+  await page.evaluate(() => {
+    const del = document.querySelector('osv-review .rv-item.rv-file-comment .rv-del');
+    if (del) del.click();
+  });
+  await page.waitForTimeout(250);
+  s = await page.evaluate(() => {
+    const rows = document.querySelectorAll('osv-review .rv-item.rv-file-comment');
+    const toggle = document.querySelector('osv-pane .comment-toggle');
+    const count = toggle && toggle.querySelector('.comment-count');
+    return {
+      rows: rows.length,
+      badge: count ? count.textContent.trim() : null,
+      hasClass: toggle ? toggle.classList.contains('has') : null,
+    };
+  });
+  out.steps.push('after-delete: ' + JSON.stringify(s));
+  if (s.rows !== 1) err('should show 1 whole-file row after delete, got ' + s.rows);
+  if (s.badge !== '1') err('header badge should be 1 after delete, got ' + s.badge);
+  if (s.hasClass !== true) err('comment-toggle should still carry .has while a comment remains');
+
+  // ---- 6) Delete the last one: badge disappears entirely ----
+  await page.evaluate(() => {
+    const del = document.querySelector('osv-review .rv-item.rv-file-comment .rv-del');
+    if (del) del.click();
+  });
+  await page.waitForTimeout(250);
+  s = await page.evaluate(() => {
+    const rows = document.querySelectorAll('osv-review .rv-item.rv-file-comment');
+    const toggle = document.querySelector('osv-pane .comment-toggle');
+    const count = toggle && toggle.querySelector('.comment-count');
+    return {
+      rows: rows.length,
+      badge: count ? count.textContent.trim() : null,
+      hasClass: toggle ? toggle.classList.contains('has') : null,
+    };
+  });
+  out.steps.push('after-delete-all: ' + JSON.stringify(s));
+  if (s.rows !== 0) err('should show 0 whole-file rows after delete, got ' + s.rows);
+  if (s.badge !== null) err('badge should be gone after deleting the last comment, got ' + s.badge);
+  if (s.hasClass !== false) err('comment-toggle should drop .has when no comment remains');
 
   out.ok = out.errors.length === 0;
   console.log('=== WHOLE-FILE COMMENT TEST RESULT ===');

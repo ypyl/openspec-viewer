@@ -446,6 +446,10 @@ export function deleteHighlight(rel, id) {
   const list = (highlights.value.get(rel) || []).filter(h => h.id !== id);
   setHighlights(rel, list);
   applyHighlights(rel);
+  // The pane's 💬 badge counts whole-file comments but is re-rendered
+  // imperatively (tab switch / save only), so a delete from the review
+  // drawer must poke it to drop the stale count.
+  document.dispatchEvent(new CustomEvent('osv:highlights-changed', { detail: { rel } }));
 }
 
 /* ---------- Selection listeners (attached by osv-pane's <main>) ---------- */

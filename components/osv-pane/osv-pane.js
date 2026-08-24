@@ -145,6 +145,7 @@ export class OsvPane extends HTMLElement {
     document.addEventListener('osv:auto-open', () => this.autoOpenFirst());
     document.addEventListener('osv:refresh-current', () => this.rerenderCurrent());
     document.addEventListener('osv:refresh-tab-badges', () => this.refreshTabBadges());
+    document.addEventListener('osv:highlights-changed', e => this.refreshCommentToggle(e.detail.rel));
     document.addEventListener('osv:open-deleted', () => this.showDeleted());
     document.addEventListener('osv:reveal', async e => {
       const { rel, id } = e.detail;
