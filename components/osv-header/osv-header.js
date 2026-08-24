@@ -6,7 +6,7 @@ import { groupOf, changeOf, isArchived } from '../../app/render.js';
 
 // Single source for the visible version badge (AGENTS.md keeps the version
 // in the header badge, the first-line comment, and sw.js in sync).
-export const VERSION = '3.5.3';
+export const VERSION = '3.5.4';
 
 export class OsvHeader extends HTMLElement {
   connectedCallback() {

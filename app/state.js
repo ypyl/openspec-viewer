@@ -235,8 +235,10 @@ activeFolderId.effect(() => {
   expandedStripKinds.value = new Set();
   checklistTicks.value = new Map();
   checklistCollapsed.value = false;
-  if (!id) { clearProjection(); return; }
-  syncProjection(id);
+  if (!id) { clearProjection(); }
+  else syncProjection(id);
+  // Fire even when the last folder is closed (id null) so the imperative
+  // surfaces (pane, file list, search) reset to their no-folder state.
   document.dispatchEvent(new CustomEvent('osv:folder-switched', { detail: { id } }));
 });
 

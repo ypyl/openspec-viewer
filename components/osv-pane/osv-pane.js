@@ -13,7 +13,7 @@ import { diffViewHtml, diffToggleHtml, diffTabBadgeHtml, hashText } from '../../
 import {
   allFiles, currentRel, currentKey, changeMeta, diffInfo, diffViews,
   recentRels, paneCache, paneCachePut, setDiffView, currentTabs, setCurrentTabs, searchMarks, highlights,
-  expandedStripKinds,
+  expandedStripKinds, activeFolderId,
 } from '../../app/state.js';
 import { markRead as markReadStore, readFileText } from '../../app/store.js';
 import { applyHighlights, hideAnnBubble, onSelection, clearSearchMarks, saveFileComment } from '../../app/annotations.js';
@@ -374,6 +374,12 @@ export class OsvPane extends HTMLElement {
   handleFolderSwitched() {
     hideAnnBubble();
     if (this._cf && this._cf.open) this._cf.close();
+    // No folder left open: drop back to the initial welcome screen.
+    if (!activeFolderId.value) {
+      this._main.innerHTML = WELCOME;
+      this._body = null;
+      return;
+    }
     if (currentRel.value || currentKey.value) this.rerenderCurrent();
     else this.autoOpenFirst();
   }
