@@ -1,63 +1,41 @@
 # TODO
 
-## Guide
+## ~Add a self-contained guide to this backlog file~ ✅ shipped
 
-### What this is
+- ~~This file is the product backlog for OpenSpec Local Viewer — an offline-capable,
+  no-build browser app that browses `openspec/` folders: change proposals, specs,
+  design, tasks, metadata. It live-monitors local folders, rebuilds content-level
+  diffs from IndexedDB snapshots, and turns text highlights/comments into a single
+  LLM fix prompt. Full product description: `README.md`.~~
+- ~~Workflow: one item per change; most entries map to an OpenSpec change under
+  `openspec/changes/` and run the propose → implement → test → archive loop (pi skills:
+  `openspec-propose`, `openspec-apply-change`, `openspec-archive-change`; delta specs
+  kept in sync with `openspec-sync-specs`).~~
+- ~~Formatting: ✅ shipped / dropped items are crossed out with a short note of what
+  actually landed (read the note, not the bullets); open items are plain headings;
+  big open items carry an Exploration notes block (prior thinking, design forks with
+  a lean, unresolved threads — answer the threads, then propose, don't re-explore).~~
+- ~~Operating rules: user-visible change bumps MAJOR/MINOR/PATCH in the same commit
+  across all three markers (`index.html` first-line comment, `osv-header` VERSION,
+  `sw.js` CACHE_VERSION); run `npm test` + the Playwright e2e tests (`*-test.js` via
+  `playwright-cli` against `python -m http.server 8743`) before/after; push to master
+  auto-deploys to GitHub Pages (verify the header badge).~~
+- ~~How to use the app: serve over HTTP (`python -m http.server 8743`) or the hosted
+  https://ypyl.github.io/openspec-viewer/ (file:// does not work; installable for
+  offline use); add a folder via the rail's ＋ (File System Access picker, one-shot
+  upload fallback without it; multiple folders supported, each with its own avatar,
+  tabs, and unread state); browse the Changes / Specs / Archive / Config groups and
+  a change's Proposal, Spec(s), Design, Tasks, and Metadata tabs (live dot + 10 s
+  polling, open files hot-refresh); Diff button for line-by-line unified diffs that
+  survive reloads; text selection → comment, whole-file comment from the header, a
+  two-minute review checklist, and one **Copy prompt** action that folds everything
+  into a single self-describing LLM prompt; header full-text search with match
+  highlighting plus the sidebar file filter; dark/light theme follows the system
+  unless overridden.~~
 
-This file is the product backlog for **OpenSpec Local Viewer** — an offline-capable,
-no-build browser app that browses `openspec/` folders: change proposals, specs,
-design, tasks, metadata. It live-monitors local folders, rebuilds content-level
-diffs from IndexedDB snapshots, and turns text highlights/comments into a single
-LLM fix prompt. Full product description: `README.md`.
-
-### What to do — the workflow
-
-- **One item per change.** Each TODO entry is a feature/improvement; most map to an
-  OpenSpec change under `openspec/changes/`. Work happens in that loop:
-  **propose → implement → test → archive** (pi skills: `openspec-propose`,
-  `openspec-apply-change`, `openspec-archive-change`; keep delta specs synced with
-  `openspec-sync-specs`).
-- **Status markers.** ✅ shipped / dropped items are crossed out with a short note of
-  what actually landed (reality often diverges from the original bullets — read the
-  note, not the bullets). Open items are plain headings.
-- **Exploration notes.** Big open items carry an `Exploration notes (…, explore mode
-  with pi — pick up here later)` block: prior thinking, design forks with a lean,
-  unresolved open threads. That is the starting point — answer the threads, then
-  propose. Don't re-explore ground already covered.
-- **Priorities.** One open item now: **Collect review history per project**
-  (exploration notes included, lean = phase 1 capture, phase 2 insights).
-  Everything else shipped.
-- **Version policy.** User-visible change ⇒ bump MAJOR (breaking) / MINOR (feature)
-  / PATCH (fix) in the **same commit** across all three markers: `index.html`
-  first-line comment, `osv-header` VERSION, `sw.js` CACHE_VERSION.
-- **Before/after a change:** `npm test` (unit) and the Playwright e2e tests
-  (`*-test.js` via `playwright-cli` against `python -m http.server 8743`). Push to
-  `master` auto-deploys to GitHub Pages; verify the header badge afterwards.
-
-### How to use — the app
-
-1. **Open it:** serve the folder over HTTP (`python -m http.server 8743`, then
-   http://127.0.0.1:8743/) or use the hosted https://ypyl.github.io/openspec-viewer/.
-   file:// does not work (ES modules + service worker). Installable as an app for
-   offline use.
-2. **Add a folder:** click the **＋** in the left rail and pick a repo root or its
-   `openspec/` folder (reopens at your last choice). Multiple folders are supported;
-   each gets its own avatar, tabs, and unread state. Without the File System Access
-   API the picker falls back to a one-shot read (no live updates).
-3. **Browse:** groups (Changes / Specs / Archive / Config) in the sidebar; open a
-   change to get its tabs — Proposal, Spec(s), Design, Tasks, Metadata. Live dot +
-   10 s polling surface new/modified/deleted artifacts; open files hot-refresh.
-4. **Diff:** when a file changed, hit the **Diff** button next to the breadcrumb for
-   a line-by-line unified diff (+/− counts, NEW badge until seen). Diffs survive
-   reloads (IndexedDB snapshots).
-5. **Review:** select text in an artifact → comment; or comment on the whole file
-   from the artifact header. Highlights persist per folder. The review panel shows a
-   two-minute checklist + per-tab guide, and its **Copy prompt** button folds all
-   highlights/comments + artifact content into one LLM prompt (fix or explain — the
-   prompt self-describes intent).
-6. **Search:** header box = typo-tolerant full-text search over the active folder's
-   artifacts with match highlighting; sidebar **Filter files** narrows the list.
-7. **Theme:** dark/light follows the system unless overridden in the header.
+What landed: the file now opens with the Guide content as a single struck-through
+item instead of a standalone section — nothing lost, but the backlog stays one
+entry-shaped list. Docs-only change (no app version bump).
 
 ## ~Highlight & comment on artifacts → LLM fix prompt~ ✅ shipped in v1.5.0
 
