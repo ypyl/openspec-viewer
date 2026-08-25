@@ -1,11 +1,12 @@
-/* End-to-end test for desktop panel visibility (v3.9.0): at ≥62em the user
- * can hide/show the review panel via its own close control (the header no
- * longer has a review toggle) and the file list sidebar via a header toggle;
- * a hidden review shows a floating restore pill with the item count;
- * add/delete/copy stay fully possible (the drawer is never unmounted); the
- * sidebar keeps its selection when toggled; both choices persist across
- * reloads; and below 62em the toggles/pill/close control are absent and the
- * mobile auto behavior is unchanged even with a saved hidden choice.
+/* End-to-end test for desktop panel visibility (v3.10.0): at ≥62em the user
+ * can hide the review panel via its own close control (the header no longer
+ * has a review toggle) and the file list sidebar via the ☰ nav toggle in the
+ * top-left corner (the top-right ▨ toggle was removed); a hidden review shows
+ * a floating restore pill with the item count; add/delete/copy stay fully
+ * possible (the drawer is never unmounted); the sidebar keeps its selection
+ * when toggled; both choices persist across reloads; and below 62em the ☰
+ * returns to its drawer role, with pill/close absent and the mobile auto
+ * behavior unchanged even with a saved hidden choice.
  *
  * Run (from repo root):
  *   python -m http.server 8743        # serve the app
@@ -82,6 +83,11 @@ async page => {
   });
   await page.reload({ ignoreCache: true });
   await page.waitForFunction(() => window.__makeFs !== undefined);
+  // Second reload: the service-worker unregistration above is async, so the
+  // first reload can still be served the OLD cached shell by the dying SW
+  // (stale osv-header). A second reload is guaranteed SW-free and fresh.
+  await page.reload({ ignoreCache: true });
+  await page.waitForFunction(() => window.__makeFs !== undefined);
   await page.waitForTimeout(300);
 
   await page.evaluate(async () => { await window.startMonitoring(window.__makeFs(), false); });
@@ -103,7 +109,8 @@ async page => {
       pillCount: (() => { const c = document.querySelector('osv-review .review-pill-count'); return c.hidden ? null : c.textContent.trim(); })(),
       headerReviewToggle: !!document.querySelector('.toggle-review'),
       closePresent: !!document.querySelector('osv-review .review-close'),
-      sidebarTogglePressed: document.querySelector('.toggle-sidebar').getAttribute('aria-pressed'),
+      sidebarTogglePressed: document.querySelector('.nav-toggle').getAttribute('aria-pressed'),
+      sidebarToggleGone: !document.querySelector('.toggle-sidebar'),
       rows: document.querySelectorAll('osv-review .rv-item').length,
       copyDisabled: document.querySelector('osv-review .copy-btn').disabled,
     };
@@ -117,7 +124,8 @@ async page => {
   if (s1.pillVisible) err('no pill should show while the panel is visible');
   if (!s1.closePresent) err('the review panel should show its own close control');
   if (s1.headerReviewToggle) err('the header must have no review toggle (moved onto the panel)');
-  if (s1.sidebarTogglePressed !== 'false') err('sidebar toggle should start unpressed');
+  if (s1.sidebarToggleGone) { /* ok */ } else err('the top-right sidebar toggle should be removed (☰ replaces it)');
+  if (s1.sidebarTogglePressed !== 'false') err('nav toggle should start unpressed');
 
   // ---- 2) Add a whole-file comment (panel visible). ----
   await click('osv-pane .comment-toggle');
@@ -177,15 +185,15 @@ async page => {
   out.steps.push('after-delete: ' + JSON.stringify(s));
   if (s.rows !== 1) err('delete should leave 1 row, got ' + s.rows);
 
-  // ---- 6) Sidebar toggle: hides/shows, selection survives. ----
-  await click('.toggle-sidebar');
+  // ---- 6) Sidebar toggle (the ☰ nav toggle at desktop): hides/shows, selection survives. ----
+  await click('osv-header .nav-toggle');
   await page.waitForTimeout(250);
   s = await state();
   out.steps.push('after-hide-sidebar: ' + JSON.stringify(s));
   if (!s.hideSidebar) err('body.hide-sidebar should be set');
   if (s.sidebarW !== 0) err('sidebar should collapse to 0 width, got ' + s.sidebarW);
   if (s.paneW < 600) err('pane should widen after hiding the sidebar, got ' + s.paneW);
-  await click('.toggle-sidebar');
+  await click('osv-header .nav-toggle');
   await page.waitForTimeout(250);
   s = await state();
   out.steps.push('after-show-sidebar: ' + JSON.stringify(s));
@@ -199,7 +207,7 @@ async page => {
   // (The stub folder handle is gone across reloads, so review items do not
   // rehydrate here — the panel state itself, which is global, must.)
   await click('osv-review .review-close');
-  await click('.toggle-sidebar');
+  await click('osv-header .nav-toggle');
   await page.waitForTimeout(200);
   await page.reload({ ignoreCache: true });
   await page.waitForFunction(() => window.__makeFs !== undefined);
@@ -225,19 +233,20 @@ async page => {
   s = await page.evaluate(() => {
     const vis = (sel) => { const el = document.querySelector(sel); return el ? getComputedStyle(el).display !== 'none' : null; };
     return {
-      togglesVisible: vis('osv-header .panel-toggle'),
+      sidebarToggleGone: !document.querySelector('.toggle-sidebar'),
+      navToggleVisible: vis('osv-header .nav-toggle'),
       pillVisible: vis('osv-review .review-pill'),
       reviewVisible: vis('osv-review'),
       closeVisible: (() => { const el = document.querySelector('osv-review .review-close'); return el ? el.getClientRects().length > 0 : false; })(),
-      navToggleVisible: vis('osv-header .nav-toggle'),
+      drawerToggleVisible: vis('osv-header .nav-toggle'),
     };
   });
   out.steps.push('mobile: ' + JSON.stringify(s));
-  if (s.togglesVisible !== false) err('panel toggles should be hidden below 62em');
+  if (!s.sidebarToggleGone) err('.toggle-sidebar should be gone at all widths');
+  if (s.navToggleVisible !== true) err('☰ should stay visible below 62em (drawer toggle)');
   if (s.pillVisible !== false) err('pill should be hidden below 62em');
   if (s.reviewVisible !== false) err('review should stay auto-hidden below 62em');
   if (s.closeVisible !== false) err('panel close control should be hidden below 62em');
-  if (s.navToggleVisible !== true) err('nav drawer toggle should still exist below 62em');
 
   // Cleanup: drop the saved panel choice so other suites run with defaults.
   await page.evaluate(() => localStorage.removeItem('osviewer.panels'));

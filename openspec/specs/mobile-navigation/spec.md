@@ -8,7 +8,7 @@ Provides a slide-over navigation drawer that hides the folder rail and the artif
 
 ### Requirement: Navigation panels collapse into a slide-over drawer on narrow screens
 
-On viewport widths below the md breakpoint (62em), the system SHALL hide the folder rail and the artifact list behind a slide-over navigation drawer rather than laying them out as on-screen panels. The drawer SHALL slide in from the left edge and overlay the app, and while the drawer is closed the content pane SHALL span the full viewport width. At viewport widths of 62em or more, the system SHALL NOT show the drawer or any mobile-only toggle, and SHALL keep the folder rail and artifact list in place as fixed layout panels.
+On viewport widths below the md breakpoint (62em), the system SHALL hide the folder rail and the artifact list behind a slide-over navigation drawer rather than laying them out as on-screen panels. The drawer SHALL slide in from the left edge and overlay the app, and while the drawer is closed the content pane SHALL span the full viewport width. At viewport widths of 62em or more, the system SHALL NOT show the drawer, and SHALL keep the folder rail and artifact list in place as fixed layout panels; the header toggle remains visible but SHALL act on the file list sidebar's visibility (see panel-visibility) instead of opening the drawer.
 
 #### Scenario: Narrow screen hides the panels behind the drawer
 - **WHEN** the viewport is narrower than 62em
@@ -16,11 +16,11 @@ On viewport widths below the md breakpoint (62em), the system SHALL hide the fol
 
 #### Scenario: Desktop layout is unchanged
 - **WHEN** the viewport is at least 62em wide
-- **THEN** the folder rail and the artifact list remain in place as layout panels, no drawer or mobile-only toggle is shown, and no mobile-specific control appears
+- **THEN** the folder rail and the artifact list remain in place as layout panels, no drawer is shown, and the header toggle hides/shows the file list sidebar rather than opening a drawer
 
 ### Requirement: Header toggle opens and closes the drawer
 
-The system SHALL provide a menu toggle in the app header, visible only below 62em, that opens the drawer when it is closed and closes it when it is open. The toggle SHALL expose the drawer's open state through its accessible name or state.
+The system SHALL provide a menu toggle in the app header, visible at all viewport widths. Below 62em it SHALL open the drawer when the drawer is closed and close it when it is open, and SHALL expose the drawer's open state through its accessible name or state. At viewport widths of 62em or more the same toggle SHALL expose the file list sidebar's hidden state and SHALL hide/show the sidebar (panel-visibility), and SHALL NOT open the drawer.
 
 #### Scenario: Toggle opens the drawer
 - **WHEN** the viewport is narrower than 62em and the user activates the header menu toggle while the drawer is closed

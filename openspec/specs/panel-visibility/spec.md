@@ -8,7 +8,7 @@ Lets the user choose which side panels (the review panel on the right and the fi
 
 ### Requirement: Header controls hide and show side panels at desktop widths
 
-At viewport widths of 62em or more, the system SHALL provide a header visibility control for the file list sidebar. The control SHALL toggle the sidebar between visible and hidden, SHALL indicate the current state of the sidebar, SHALL be hidden from the interface below 62em, and SHALL NOT affect the folder rail, which SHALL remain in the layout at all times. The review panel SHALL NOT have a header visibility control — it is hidden by its own close control and shown by the restore control instead. Hiding a panel SHALL remove it from the layout so the content pane re-expands to fill the freed space; showing it SHALL restore it in place. Neither panel SHALL overlap the artifact content while visible.
+At viewport widths of 62em or more, the system SHALL provide a header visibility control for the file list sidebar — the navigation toggle (☰) in the top-left corner, present at all viewport widths (below 62em it opens the navigation drawer, see mobile-navigation). The control SHALL toggle the sidebar between visible and hidden, SHALL indicate the current state of the sidebar, and SHALL NOT affect the folder rail, which SHALL remain in the layout at all times. The review panel SHALL NOT have a header visibility control — it is hidden by its own close control and shown by the restore control instead. Hiding a panel SHALL remove it from the layout so the content pane re-expands to fill the freed space; showing it SHALL restore it in place. Neither panel SHALL overlap the artifact content while visible.
 
 #### Scenario: Hiding the review panel widens the pane
 - **WHEN** the viewport is at least 62em wide and the user hides the review panel with its close control while the panel is visible
@@ -19,16 +19,16 @@ At viewport widths of 62em or more, the system SHALL provide a header visibility
 - **THEN** the review panel returns as the right-hand layout column beside the content pane, and neither the panel nor the pane overlap
 
 #### Scenario: Sidebar hides and shows the same way
-- **WHEN** the viewport is at least 62em wide and the user activates the file list's header visibility control
+- **WHEN** the viewport is at least 62em wide and the user activates the navigation toggle (☰)
 - **THEN** the file list sidebar is hidden (pane expands) or shown (pane narrows) accordingly, and the folder rail remains pinned
 
 #### Scenario: Controls reflect their panel's state
 - **WHEN** the viewport is at least 62em wide
-- **THEN** the sidebar's header visibility control indicates whether the sidebar is currently visible or hidden, and no header control exists for the review panel (its close control is present while visible, and the restore control while hidden)
+- **THEN** the sidebar's header visibility control (the navigation toggle) indicates whether the sidebar is currently visible or hidden, and no header control exists for the review panel (its close control is present while visible, and the restore control while hidden)
 
 #### Scenario: Controls are absent on narrow screens
 - **WHEN** the viewport is narrower than 62em
-- **THEN** no panel visibility control is shown in the header
+- **THEN** the sidebar's header visibility control presents the sidebar inside the navigation drawer (mobile-navigation) rather than collapsing it in place, and the review panel remains hidden with no close or restore control
 
 ### Requirement: Review panel provides its own close control
 

@@ -6,7 +6,7 @@ import { groupOf, changeOf, isArchived } from '../../app/render.js';
 
 // Single source for the visible version badge (AGENTS.md keeps the version
 // in the header badge, the first-line comment, and sw.js in sync).
-export const VERSION = '3.9.1';
+export const VERSION = '3.10.0';
 
 export class OsvHeader extends HTMLElement {
   connectedCallback() {
@@ -23,7 +23,6 @@ export class OsvHeader extends HTMLElement {
         </div>
         <osv-search></osv-search>
         <div class="side">
-          <button type="button" class="panel-toggle toggle-sidebar" aria-pressed="false" aria-label="Hide sidebar" title="Hide sidebar">▨</button>
           <div class="stats"></div>
         </div>
       </header>`;
@@ -32,26 +31,34 @@ export class OsvHeader extends HTMLElement {
     const statsEl = this.querySelector('.stats');
     const navToggle = this.querySelector('.nav-toggle');
 
-    /* ---- Mobile navigation drawer toggle ---- */
-    navToggle.addEventListener('click', () => { navDrawerOpen.value = !navDrawerOpen.value; });
-    navDrawerOpen.effect(() => {
-      const open = navDrawerOpen.value;
-      navToggle.setAttribute('aria-expanded', String(open));
-      navToggle.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
-      navToggle.title = open ? 'Close navigation (Esc)' : 'Open navigation';
+    /* ---- Navigation / sidebar toggle (v3.10.0): one ☰ button serves both
+         breakpoints — below 62em it opens the slide-over nav drawer
+         (mobile-navigation); at ≥62em it hides/shows the file list sidebar
+         directly (panel-visibility), replacing the removed top-right ▨ toggle.
+         The aria state and labels follow whichever affordance is active. ---- */
+    const desktopLayout = () => window.matchMedia('(min-width: 62em)').matches;
+    navToggle.addEventListener('click', () => {
+      if (desktopLayout()) sidebarHidden.value = !sidebarHidden.value;
+      else navDrawerOpen.value = !navDrawerOpen.value;
     });
-
-    /* ---- Desktop panel visibility (v3.9.0): the sidebar keeps its header
-         toggle; the review panel's hide affordance lives on the panel itself
-         (osv-review .review-close). ---- */
-    const sidebarToggle = this.querySelector('.toggle-sidebar');
-    sidebarToggle.addEventListener('click', () => { sidebarHidden.value = !sidebarHidden.value; });
-    sidebarHidden.effect(() => {
-      const hidden = sidebarHidden.value;
-      sidebarToggle.setAttribute('aria-pressed', String(hidden));
-      sidebarToggle.setAttribute('aria-label', hidden ? 'Show sidebar' : 'Hide sidebar');
-      sidebarToggle.title = hidden ? 'Show sidebar' : 'Hide sidebar';
-    });
+    const syncNavToggle = () => {
+      if (desktopLayout()) {
+        const hidden = sidebarHidden.value;
+        navToggle.setAttribute('aria-pressed', String(hidden));
+        navToggle.setAttribute('aria-label', hidden ? 'Show sidebar' : 'Hide sidebar');
+        navToggle.title = hidden ? 'Show sidebar' : 'Hide sidebar';
+        navToggle.removeAttribute('aria-expanded');
+      } else {
+        const open = navDrawerOpen.value;
+        navToggle.setAttribute('aria-expanded', String(open));
+        navToggle.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
+        navToggle.title = open ? 'Close navigation (Esc)' : 'Open navigation';
+        navToggle.removeAttribute('aria-pressed');
+      }
+    };
+    navDrawerOpen.effect(syncNavToggle);
+    sidebarHidden.effect(syncNavToggle);
+    window.matchMedia('(min-width: 62em)').addEventListener('change', syncNavToggle);
 
     /* ---- Theme ---- */
     const mql = window.matchMedia('(prefers-color-scheme: dark)');

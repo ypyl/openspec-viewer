@@ -319,7 +319,7 @@ async page => {
     };
   });
   out.steps.push('desktop: ' + JSON.stringify(desktop));
-  if (desktop.toggleDisplay !== 'none') err('nav toggle should be hidden at desktop widths, got ' + desktop.toggleDisplay);
+  if (desktop.toggleDisplay === 'none' || !desktop.toggleDisplay) err('nav toggle should be visible at desktop widths, got ' + desktop.toggleDisplay);
   if (desktop.drawerDisplay !== 'contents') err('drawer should be display:contents at desktop widths, got ' + desktop.drawerDisplay);
   if (desktop.railVisible !== 'visible') err('rail should be visible at desktop widths');
   if (desktop.railRight > desktop.listLeft) err('rail and sidebar should be side-by-side columns at desktop widths');
@@ -327,6 +327,27 @@ async page => {
     err('review column should render at desktop widths, got ' + desktop.reviewDisplay);
   if (!desktop.reviewWidth || desktop.reviewWidth < 300) err('review column should be a reserved column at desktop widths, got width ' + desktop.reviewWidth);
   if (!desktop.hasCopyBtn) err('review actions (Copy prompt) should render at desktop widths');
+
+  // ---- 10. Desktop toggle acts on the sidebar (v3.10.0), not the drawer. ----
+  await page.click('.nav-toggle');
+  await page.waitForTimeout(250);
+  const dSide = await page.evaluate(() => ({
+    hideSidebar: document.body.classList.contains('hide-sidebar'),
+    sidebarW: Math.round(document.querySelector('osv-file-list').getBoundingClientRect().width),
+    drawerOpen: (() => { const d = document.querySelector('osv-nav-drawer'); return d && /\.open/.test(d.className); })(),
+    pressed: document.querySelector('.nav-toggle').getAttribute('aria-pressed'),
+  }));
+  out.steps.push('desktop-toggle: ' + JSON.stringify(dSide));
+  if (!dSide.hideSidebar || dSide.sidebarW !== 0) err('desktop ☰ should hide the sidebar, got w=' + dSide.sidebarW);
+  if (dSide.pressed !== 'true') err('desktop ☰ should read aria-pressed=true while the sidebar is hidden');
+  await page.click('.nav-toggle');
+  await page.waitForTimeout(250);
+  const dSide2 = await page.evaluate(() => ({
+    hideSidebar: document.body.classList.contains('hide-sidebar'),
+    sidebarW: Math.round(document.querySelector('osv-file-list').getBoundingClientRect().width),
+  }));
+  out.steps.push('desktop-toggle-back: ' + JSON.stringify(dSide2));
+  if (dSide2.hideSidebar || dSide2.sidebarW < 200) err('desktop ☰ should show the sidebar again, got w=' + dSide2.sidebarW);
 
   out.ok = out.errors.length === 0;
   console.log('=== MOBILE DRAWER TEST RESULT ===');
