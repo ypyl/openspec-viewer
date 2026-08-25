@@ -23,8 +23,8 @@ export class OsvHeader extends HTMLElement {
         </div>
         <osv-search></osv-search>
         <div class="side">
-          <button type="button" class="toggle-review" aria-pressed="false" aria-label="Hide review panel" title="Hide review panel">▣</button>
           <div class="stats"></div>
+          <button type="button" class="toggle-review" aria-pressed="false" aria-label="Hide review panel" title="Hide review panel">▣</button>
         </div>
       </header>`;
 

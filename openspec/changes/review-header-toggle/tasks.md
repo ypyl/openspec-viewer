@@ -1,6 +1,6 @@
 ## 1. Review panel header toggle (top-right corner)
 
-- [x] 1.1 Add a `.toggle-review` button to `osv-header`'s `.side` cluster (before the stats), glyph ▣, aria-pressed + aria-label/title synced to `reviewHidden` via an effect (sidebar-toggle pattern); click flips `reviewHidden`.
+- [x] 1.1 Add a `.toggle-review` button to `osv-header`'s `.side` cluster after the stats (the far top-right corner), glyph ▣, aria-pressed + aria-label/title synced to `reviewHidden` via an effect (sidebar-toggle pattern); click flips `reviewHidden`.
 - [x] 1.2 CSS: extend the corner-toggle selector group to `osv-header .nav-toggle, osv-header .toggle-review { ... }` (same 30×30 bordered look) and share the `[aria-pressed="true"]` accent treatment; add `@media (max-width: 61.99em) { osv-header .toggle-review { display: none } }`.
 
 ## 2. Remove the in-panel close control and the restore pill
