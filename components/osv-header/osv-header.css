@@ -106,8 +106,10 @@ osv-header .theme-btn:hover { background: var(--panel); }
 /* Navigation / sidebar toggle (v3.10.0): one ☰ in the top-left corner for
    every breakpoint. Below 62em it opens the slide-over nav drawer
    (aria-expanded); at ≥62em it hides/shows the sidebar (aria-pressed) with
-   the same pressed styling the old panel toggle had. */
-osv-header .nav-toggle {
+   the same pressed styling the old panel toggle had.
+   v3.11.0: `.toggle-review` (top-right) shares this exact corner-toggle look. */
+osv-header .nav-toggle,
+osv-header .toggle-review {
   flex-shrink: 0;
   width: 30px;
   height: 30px;
@@ -124,16 +126,22 @@ osv-header .nav-toggle {
   padding: 0;
   transition: background .15s, color .15s, border-color .15s;
 }
-osv-header .nav-toggle:hover { background: var(--panel); }
+osv-header .nav-toggle:hover,
+osv-header .toggle-review:hover { background: var(--panel); }
 osv-header .nav-toggle[aria-expanded="true"] {
   background: var(--panel);
   border-color: var(--accent-dim);
   color: var(--accent);
 }
-osv-header .nav-toggle[aria-pressed="true"] {
+osv-header .nav-toggle[aria-pressed="true"],
+osv-header .toggle-review[aria-pressed="true"] {
   background: var(--accent-dim);
   border-color: transparent;
   color: #fff;
+}
+/* The review panel is auto-hidden below 62em — a toggle for it is meaningless. */
+@media (max-width: 61.99em) {
+  osv-header .toggle-review { display: none; }
 }
 
 osv-header .stats { font-size: 12px; color: var(--fg-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

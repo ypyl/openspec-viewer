@@ -1,12 +1,12 @@
 // osv-header: title, version badge, theme toggle, stats, review button.
 
 import { html, computed } from '../../imports.js';
-import { theme, allFiles, folders, activeFolderId, changeMeta, navDrawerOpen, sidebarHidden } from '../../app/state.js';
+import { theme, allFiles, folders, activeFolderId, changeMeta, navDrawerOpen, sidebarHidden, reviewHidden } from '../../app/state.js';
 import { groupOf, changeOf, isArchived } from '../../app/render.js';
 
 // Single source for the visible version badge (AGENTS.md keeps the version
 // in the header badge, the first-line comment, and sw.js in sync).
-export const VERSION = '3.10.1';
+export const VERSION = '3.11.0';
 
 export class OsvHeader extends HTMLElement {
   connectedCallback() {
@@ -23,6 +23,7 @@ export class OsvHeader extends HTMLElement {
         </div>
         <osv-search></osv-search>
         <div class="side">
+          <button type="button" class="toggle-review" aria-pressed="false" aria-label="Hide review panel" title="Hide review panel">▣</button>
           <div class="stats"></div>
         </div>
       </header>`;
@@ -59,6 +60,19 @@ export class OsvHeader extends HTMLElement {
     navDrawerOpen.effect(syncNavToggle);
     sidebarHidden.effect(syncNavToggle);
     window.matchMedia('(min-width: 62em)').addEventListener('change', syncNavToggle);
+
+    /* ---- Review panel header toggle (v3.11.0): the top-right corner control,
+         styled like the ☰ — the review panel's SOLE visibility affordance
+         (the in-panel ✕ and the restore pill were removed). Hidden below 62em
+         via CSS; the panel is auto-hidden there. ---- */
+    const reviewToggle = this.querySelector('.toggle-review');
+    reviewToggle.addEventListener('click', () => { reviewHidden.value = !reviewHidden.value; });
+    reviewHidden.effect(() => {
+      const hidden = reviewHidden.value;
+      reviewToggle.setAttribute('aria-pressed', String(hidden));
+      reviewToggle.setAttribute('aria-label', hidden ? 'Show review panel' : 'Hide review panel');
+      reviewToggle.title = hidden ? 'Show review panel' : 'Hide review panel';
+    });
 
     /* ---- Theme ---- */
     const mql = window.matchMedia('(prefers-color-scheme: dark)');
