@@ -15,8 +15,8 @@
 
 ## 4. Verification
 
-- [ ] 4.1 Run `npm test` — the unit suite (model/diff/search) must stay green; no unit-level behavior changed.
-- [ ] 4.2 Update `panel-toggle-test.js`: drive the review panel with the header `.toggle-review` button, drop every pill assertion, and assert the pill and in-panel ✕ no longer exist; keep the width-reflow, add-while-hidden, restore, delete/copy, sidebar, persistence, reload, and mobile scenarios.
-- [ ] 4.3 Serve `python -m http.server 8743` and run the updated e2e at the narrow desktop viewport (~1100px) plus the default-viewport suite (`diff-test.js`, `migration-test.js`, `collapse-test.js`, `whole-file-comment-test.js`, `mobile-drawer-test.js`, `review-guidance-test.js`) — all must stay green.
-- [ ] 4.4 Re-shoot `screenshot.png` at 1440×900 (the header gains the ▣ corner toggle and the panel loses its head row); delete the scratch script and `.playwright-cli/` junk after.
-- [ ] 4.5 Commit everything (UI work, test updates, version bump, screenshot together), push to `master`, wait for the GitHub Pages build (~1 min), and confirm the header badge reads v3.11.0 at https://ypyl.github.io/openspec-viewer/.
+- [x] 4.1 Run `npm test` — the unit suite (model/diff/search) must stay green; no unit-level behavior changed.
+- [x] 4.2 Update `panel-toggle-test.js`: drive the review panel with the header `.toggle-review` button, drop every pill assertion, and assert the pill and in-panel ✕ no longer exist; keep the width-reflow, add-while-hidden, restore, delete/copy, sidebar, persistence, reload, and mobile scenarios.
+- [x] 4.3 Serve `python -m http.server 8743` and run the updated e2e at the narrow desktop viewport (~1100px) plus the default-viewport suite (`diff-test.js`, `migration-test.js`, `collapse-test.js`, `whole-file-comment-test.js`, `mobile-drawer-test.js`, `review-guidance-test.js`) — all must stay green.
+- [x] 4.4 Re-shoot `screenshot.png` at 1440×900 (the header gains the ▣ corner toggle and the panel loses its head row); delete the scratch script and `.playwright-cli/` junk after.
+- [x] 4.5 Commit everything (UI work, test updates, version bump, screenshot together), push to `master`, wait for the GitHub Pages build (~1 min), and confirm the header badge reads v3.11.0 at https://ypyl.github.io/openspec-viewer/.
