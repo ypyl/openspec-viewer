@@ -18,29 +18,38 @@ osv-review .review-drawer {
 /* Panel close control (v3.9.0, replaces the header review toggle): a slim
    right-aligned row holding only the ✕ — deliberately NO title text, honoring
    the v2.4 constraint that the panel carries no redundant Review heading
-   (review-guidance-test guards this). Inside the drawer, so it disappears
-   with the panel (hidden below 62em / when body.hide-review). */
+   (review-guidance-test guards this). Styled identically to the sidebar's
+   folder-close button (v3.9.1). Inside the drawer, so it disappears with the
+   panel (hidden below 62em / when body.hide-review). */
 osv-review .review-head {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   flex-shrink: 0;
-  padding: 2px 8px 0 0;
+  padding: 4px 10px 0 0;
 }
 osv-review .review-close {
-  background: none;
-  border: none;
-  color: var(--fg-subtle);
-  cursor: pointer;
-  font-size: 14px;
-  width: 28px; height: 28px;
-  border-radius: var(--radius);
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: transparent;
+  border: 1px solid var(--border-muted);
+  color: var(--fg-subtle);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
   padding: 0;
+  transition: background .15s, color .15s, border-color .15s;
 }
-osv-review .review-close:hover { color: var(--fg); background: rgba(110,118,129,.12); }
+osv-review .review-close:hover {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+}
 osv-review .review-checklist {
   padding: 10px 14px 6px;
   border-bottom: 1px solid var(--border-muted);
