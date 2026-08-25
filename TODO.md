@@ -1,5 +1,18 @@
 # TODO
 
+## Allow hiding the left/right panels
+
+**Done — implemented in v3.8.0 (`hideable-panels-desktop`; open change, not yet archived).**
+
+- Working on a small screen is cramped, even on desktop with a narrow window: add a
+  manual affordance to collapse/hide the left file-list sidebar and/or the right
+  review drawer (two header toggle buttons at ≥62em), giving the pane the full width.
+  The folder rail stays pinned (60px toolbar-like column).
+- Mobile already auto-hides both sides (rail + sidebar behind the ☰ drawer, review
+  hidden outright below 62em); the desktop toggles are about user control the rest of
+  the time. A hidden review drawer is restored via a floating 💬 pill carrying the
+  item count, so adding/deleting comments and copying the prompt stay possible.
+
 ## Add an in-app guide
 
 - The app has no built-in help for a new user: add a discoverable guide (e.g. a help

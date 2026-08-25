@@ -2,7 +2,7 @@
 // Copy-fix / Send-to-LLM actions.
 
 import { html, joinHtml, computed } from '../../imports.js';
-import { currentRel, currentKey, highlights, staleTick, checklistTicks, checklistCollapsed } from '../../app/state.js';
+import { currentRel, currentKey, highlights, staleTick, checklistTicks, checklistCollapsed, reviewHidden } from '../../app/state.js';
 import { buildReviewHtml, deleteHighlight, revealComment } from '../../app/annotations.js';
 import { buildPrompt, copyText } from '../../app/prompt.js';
 import { showToast } from '../osv-toast/osv-toast.js';
@@ -42,7 +42,8 @@ export class OsvReview extends HTMLElement {
         <div class="review-actions">
           <button class="review-action primary copy-btn" disabled>📋 Copy prompt</button>
         </div>
-      </div>`;
+      </div>
+      <button type="button" class="review-pill" hidden>💬<span class="review-pill-count" hidden></span></button>`;
 
     this._listEl = this.querySelector('.review-list');
     this._checklistEl = this.querySelector('.review-checklist');
@@ -72,6 +73,26 @@ export class OsvReview extends HTMLElement {
       const hint = hasComments ? '' : 'Add a comment first';
       this._copyBtn.title = hint;
     });
+
+    /* ---- Restore pill for the hidden panel (panel-visibility, v3.8.0) ----
+         Shown whenever the drawer is hidden at ≥62em; the count mirrors the
+         same `items` already computed for the Copy prompt label, so the pill
+         and the drawer never disagree. Hidden below 62em by CSS (the whole
+         panel is auto-hidden there; nothing to restore). */
+    this._pill = this.querySelector('.review-pill');
+    this._pillCount = this._pill.querySelector('.review-pill-count');
+    const syncPill = () => {
+      const n = review.value.items.length;
+      this._pill.hidden = !reviewHidden.value;
+      this._pillCount.hidden = n === 0;
+      if (n) this._pillCount.textContent = n;
+      this._pill.setAttribute('aria-label', n
+        ? `Show review panel (${n} comment${n === 1 ? '' : 's'})`
+        : 'Show review panel');
+    };
+    review.effect(syncPill);        // item count / current view changes
+    reviewHidden.effect(syncPill);  // hide/show toggles (review.value stays current)
+    this._pill.addEventListener('click', () => { reviewHidden.value = false; });
 
     /* ---- The two-minute checklist (session-scoped per change, design D4) ----
          Shown only while an active change's artifact is open; absent for

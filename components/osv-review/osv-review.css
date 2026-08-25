@@ -175,6 +175,38 @@ osv-review .review-action.primary { background: var(--accent-dim); color: #fff; 
 osv-review .review-action.primary:hover:not(:disabled) { background: #2a6fd9; }
 osv-review .review-action:disabled { opacity: .45; cursor: not-allowed; }
 
+/* Restore pill (panel-visibility, v3.8.0): floating affordance shown while
+   the review drawer is hidden at ≥62em — mirrors the drawer's item count.
+   Position:fixed so it escapes the collapsed panel; explicit [hidden] rule
+   because .review-pill's display:flex would otherwise beat the UA default. */
+osv-review .review-pill {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: var(--accent-dim);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .25);
+}
+osv-review .review-pill:hover { background: #2a6fd9; }
+osv-review .review-pill[hidden] { display: none; }
+osv-review .review-pill-count {
+  font-weight: 700;
+  background: rgba(0, 0, 0, .22);
+  border-radius: 999px;
+  padding: 0 7px;
+  font-size: 12px;
+  line-height: 18px;
+}
+
 /* ≥ 62em (992px): the review is a reserved right-hand column of --review-w,
    so the content pane and the header search both stay centered left of it. */
 @media (min-width: 62em) {
@@ -182,10 +214,19 @@ osv-review .review-action:disabled { opacity: .45; cursor: not-allowed; }
     width: var(--review-w);
     min-height: 0;
   }
+  /* Panel-visibility (v3.8.0): a user-hidden review collapses to zero layout
+     space (width:0 + the drawer hidden); the floating pill stays the only
+     child and restores it. The pane (flex:1) re-expands automatically. */
+  body.hide-review osv-review {
+    width: 0;
+    min-height: 0;
+  }
+  body.hide-review osv-review .review-drawer { display: none; }
 }
 
 /* Narrow screens (<62em): the review panel is hidden entirely; the content
    pane spans the full viewport width. */
 @media (max-width: 61.99em) {
   osv-review { display: none; }
+  osv-review .review-pill { display: none; }
 }

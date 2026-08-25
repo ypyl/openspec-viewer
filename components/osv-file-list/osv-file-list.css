@@ -216,6 +216,10 @@ osv-file-list .item .date {
     border-bottom: none;
     border-right: 1px solid var(--border);
   }
+  /* Panel-visibility (v3.8.0): a user-hidden sidebar leaves the layout so
+     the pane (flex:1) fills the freed width. Desktop only — below 62em the
+     sidebar lives in the nav drawer and this rule does not apply. */
+  body.hide-sidebar osv-file-list { display: none; }
 }
 
 /* ≥ lg (1200px): default desktop proportions. */

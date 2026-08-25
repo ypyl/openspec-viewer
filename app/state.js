@@ -27,6 +27,40 @@ try {
 // persisted, and is closed automatically when a folder or artifact is picked.
 export const navDrawerOpen = signal(false);
 
+/* ---------- Desktop panel visibility (global, persisted like theme) ---------- */
+
+// Whether the review panel and the file-list sidebar are hidden at ≥62em.
+// Persisted as 'osviewer.panels' = { review, sidebar } (theme-preference
+// pattern). The choice only takes effect at ≥62em — the ≥62em-scoped CSS
+// consumes it below that boundary, so narrow screens keep their automatic
+// behavior (nav drawer + hidden review) unconditionally.
+export const reviewHidden = signal(false);
+export const sidebarHidden = signal(false);
+try {
+  const p = JSON.parse(localStorage.getItem('osviewer.panels') || '{}');
+  if (typeof p.review === 'boolean') reviewHidden.value = p.review;
+  if (typeof p.sidebar === 'boolean') sidebarHidden.value = p.sidebar;
+} catch (e) {}
+
+function persistPanels() {
+  try {
+    localStorage.setItem('osviewer.panels', JSON.stringify({ review: reviewHidden.value, sidebar: sidebarHidden.value }));
+  } catch (e) {}
+}
+reviewHidden.effect(persistPanels);
+sidebarHidden.effect(persistPanels);
+
+// The hide/show itself is pure CSS: body classes drive ≥62em media-scoped
+// rules that drop the panels from the flex layout, so the pane (flex:1)
+// re-expands without any layout JS.
+function applyPanelClasses() {
+  document.body.classList.toggle('hide-review', reviewHidden.value);
+  document.body.classList.toggle('hide-sidebar', sidebarHidden.value);
+}
+applyPanelClasses();
+reviewHidden.effect(applyPanelClasses);
+sidebarHidden.effect(applyPanelClasses);
+
 /* ---------- Folder registry ---------- */
 
 // Reactive folder list: [{ id, name, kind, hue, suffix }] in add order.

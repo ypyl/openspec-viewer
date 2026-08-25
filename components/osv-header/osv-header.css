@@ -99,6 +99,33 @@ osv-header .theme-btn {
 }
 osv-header .theme-btn:hover { background: var(--panel); }
 
+/* Desktop panel visibility toggles (v3.8.0): two compact buttons in the
+   right cluster, shown only at ≥62em. aria-pressed true = panel hidden. */
+osv-header .panel-toggle {
+  margin-left: 6px;
+  width: 30px; height: 30px;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background .15s;
+}
+osv-header .panel-toggle:hover { background: var(--panel); }
+osv-header .panel-toggle[aria-pressed="true"] {
+  background: var(--accent-dim);
+  color: #fff;
+  border-color: transparent;
+}
+/* Below 62em the auto behavior rules — no manual panel toggles. */
+@media (max-width: 61.99em) {
+  osv-header .panel-toggle { display: none; }
+}
+
 /* Mobile navigation drawer toggle: shown only below 62em (the drawer is
    display: contents — i.e. invisible — on desktop). The aria-expanded state
    mirrors navDrawerOpen and styles the active (open) look. */
