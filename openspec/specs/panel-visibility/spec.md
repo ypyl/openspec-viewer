@@ -8,14 +8,14 @@ Lets the user choose which side panels (the review panel on the right and the fi
 
 ### Requirement: Header controls hide and show side panels at desktop widths
 
-At viewport widths of 62em or more, the system SHALL provide a header visibility control for the file list sidebar — the navigation toggle (☰) in the top-left corner, present at all viewport widths (below 62em it opens the navigation drawer, see mobile-navigation). The control SHALL toggle the sidebar between visible and hidden, SHALL indicate the current state of the sidebar, and SHALL NOT affect the folder rail, which SHALL remain in the layout at all times. The review panel SHALL NOT have a header visibility control — it is hidden by its own close control and shown by the restore control instead. Hiding a panel SHALL remove it from the layout so the content pane re-expands to fill the freed space; showing it SHALL restore it in place. Neither panel SHALL overlap the artifact content while visible.
+At viewport widths of 62em or more, the system SHALL provide a header visibility control for the file list sidebar — the navigation toggle (☰) in the top-left corner, present at all viewport widths (below 62em it opens the navigation drawer, see mobile-navigation) — and a header visibility control for the review panel — a matching corner toggle in the top-right, shown only at viewport widths of 62em or more. Each control SHALL toggle its panel between visible and hidden, SHALL indicate the current state of its panel, and SHALL NOT affect the folder rail, which SHALL remain in the layout at all times. Hiding a panel SHALL remove it from the layout so the content pane re-expands to fill the freed space; showing it SHALL restore it in place. Neither panel SHALL overlap the artifact content while visible.
 
 #### Scenario: Hiding the review panel widens the pane
-- **WHEN** the viewport is at least 62em wide and the user hides the review panel with its close control while the panel is visible
+- **WHEN** the viewport is at least 62em wide and the user activates the review panel's header visibility control while the panel is visible
 - **THEN** the review panel is removed from the layout, occupying no space, and the content pane expands to fill the freed width
 
 #### Scenario: Showing the review panel restores it in place
-- **WHEN** the viewport is at least 62em wide, the review panel is hidden, and the user activates its restore control to show it
+- **WHEN** the viewport is at least 62em wide, the review panel is hidden, and the user activates its header visibility control to show it
 - **THEN** the review panel returns as the right-hand layout column beside the content pane, and neither the panel nor the pane overlap
 
 #### Scenario: Sidebar hides and shows the same way
@@ -24,39 +24,11 @@ At viewport widths of 62em or more, the system SHALL provide a header visibility
 
 #### Scenario: Controls reflect their panel's state
 - **WHEN** the viewport is at least 62em wide
-- **THEN** the sidebar's header visibility control (the navigation toggle) indicates whether the sidebar is currently visible or hidden, and no header control exists for the review panel (its close control is present while visible, and the restore control while hidden)
+- **THEN** both header visibility controls indicate whether their panel is currently visible or hidden
 
 #### Scenario: Controls are absent on narrow screens
 - **WHEN** the viewport is narrower than 62em
-- **THEN** the sidebar's header visibility control presents the sidebar inside the navigation drawer (mobile-navigation) rather than collapsing it in place, and the review panel remains hidden with no close or restore control
-
-### Requirement: Review panel provides its own close control
-
-At viewport widths of 62em or more, the review panel SHALL show a close control on the panel itself (distinct from the restore control shown while hidden) that hides the panel. Activating the close control SHALL hide the review panel exactly as a visibility toggle would — removing it from the layout so the content pane re-expands — and SHALL cause the restore control to appear. The close control SHALL be part of the panel, so it is not shown at viewport widths below 62em where the panel is hidden.
-
-#### Scenario: Close control hides the panel from within it
-- **WHEN** the viewport is at least 62em wide and the user activates the review panel's close control while the panel is visible
-- **THEN** the review panel is removed from the layout, the content pane re-expands to fill the freed space, and the restore control appears
-
-#### Scenario: Close control is absent on narrow screens
-- **WHEN** the viewport is narrower than 62em
-- **THEN** no review panel, and therefore no close control on it, is shown
-
-### Requirement: Hidden review panel shows a restore control with its count
-
-When the review panel is hidden at a viewport width of 62em or more, the system SHALL display a small, non-modal restore control (for example a pill) that floats over the content without blocking reading. The restore control SHALL show the total number of recorded review items when at least one exists, and SHALL show no count when there are none. Activating the restore control SHALL show the review panel again, exactly as the header visibility control does, and SHALL remove the restore control.
-
-#### Scenario: Restore control appears with the item count
-- **WHEN** the user hides the review panel at a viewport width of at least 62em and the folder holds 3 review items
-- **THEN** a small restore control floats over the content showing the count 3
-
-#### Scenario: Restore control shows no count when empty
-- **WHEN** the user hides the review panel at a viewport width of at least 62em and no review items exist
-- **THEN** a small restore control is shown with no count
-
-#### Scenario: Activating the restore control brings the panel back
-- **WHEN** the review panel is hidden and the user activates its restore control
-- **THEN** the review panel is shown as the right-hand layout column and the restore control no longer appears
+- **THEN** the review panel's header visibility control is not shown (the panel is auto-hidden below 62em), and the sidebar's header visibility control presents the sidebar inside the navigation drawer (mobile-navigation) rather than collapsing it in place
 
 ### Requirement: All review workflows remain available while the panel is hidden
 
@@ -88,7 +60,7 @@ The user's visibility choice for the review panel and the file list sidebar SHAL
 
 #### Scenario: Hidden panels stay hidden after reload
 - **WHEN** the user hides the review panel and the file list sidebar at a viewport width of at least 62em and then reloads the app
-- **THEN** both panels load hidden, the restore control and header visibility controls reflect that state, and the pane spans the freed width
+- **THEN** both panels load hidden, the header visibility controls reflect that state, and the pane spans the freed width
 
 #### Scenario: Saved choice never changes narrow-screen behavior
 - **WHEN** the user has saved a hidden state for a panel and visits the app at a viewport narrower than 62em
