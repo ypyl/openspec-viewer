@@ -213,7 +213,9 @@ osv-review .review-action:disabled { opacity: .45; cursor: not-allowed; }
 /* Restore pill (panel-visibility, v3.8.0): floating affordance shown while
    the review drawer is hidden at ≥62em — mirrors the drawer's item count.
    Position:fixed so it escapes the collapsed panel; explicit [hidden] rule
-   because .review-pill's display:flex would otherwise beat the UA default. */
+   because .review-pill's display:flex would otherwise beat the UA default.
+   Light-blue tint (v3.10.1): a soft accent wash with accent text, matching
+   the guide-pill treatment, instead of the heavy accent-dim fill. */
 osv-review .review-pill {
   position: fixed;
   right: 16px;
@@ -224,18 +226,21 @@ osv-review .review-pill {
   gap: 6px;
   padding: 10px 14px;
   border-radius: 999px;
-  background: var(--accent-dim);
-  color: #fff;
-  border: none;
+  background: color-mix(in srgb, var(--accent) 14%, var(--bg));
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
   cursor: pointer;
   font-size: 14px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, .25);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .18);
 }
-osv-review .review-pill:hover { background: #2a6fd9; }
+osv-review .review-pill:hover {
+  background: color-mix(in srgb, var(--accent) 24%, var(--bg));
+}
 osv-review .review-pill[hidden] { display: none; }
 osv-review .review-pill-count {
   font-weight: 700;
-  background: rgba(0, 0, 0, .22);
+  background: var(--accent-dim);
+  color: #fff;
   border-radius: 999px;
   padding: 0 7px;
   font-size: 12px;
