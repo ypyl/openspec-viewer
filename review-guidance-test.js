@@ -166,8 +166,7 @@ async page => {
   ok((s.chevron || '').includes('Show red flags'), 'collapsed strip advertises the expandable red flags');
   ok(c.present && !c.hidden && c.items === 7 && c.progress === '0 of 7', 'checklist shows 7 items, 0 of 7 on a change');
   ok(c.title === 'Two-minute checklist review', 'checklist header is titled Two-minute checklist review');
-  ok(await page.evaluate(() => !document.querySelector('osv-review .review-title')), 'redundant Review heading is removed');
-  ok(await page.evaluate(() => !document.querySelector('osv-review .review-head')), 'no stray comments-count header element');
+  ok(await page.evaluate(() => !document.querySelector('osv-review .review-title') && !document.querySelector('osv-review .review-head-title')), 'no redundant Review heading in the panel head');
   ok(await page.evaluate(() => {
     const cl = document.querySelector('osv-review .review-checklist');
     const lst = document.querySelector('osv-review .review-list');

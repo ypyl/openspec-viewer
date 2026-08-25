@@ -15,6 +15,32 @@ osv-review .review-drawer {
   background: var(--panel);
   border-left: 1px solid var(--border);
 }
+/* Panel close control (v3.9.0, replaces the header review toggle): a slim
+   right-aligned row holding only the ✕ — deliberately NO title text, honoring
+   the v2.4 constraint that the panel carries no redundant Review heading
+   (review-guidance-test guards this). Inside the drawer, so it disappears
+   with the panel (hidden below 62em / when body.hide-review). */
+osv-review .review-head {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  padding: 2px 8px 0 0;
+}
+osv-review .review-close {
+  background: none;
+  border: none;
+  color: var(--fg-subtle);
+  cursor: pointer;
+  font-size: 14px;
+  width: 28px; height: 28px;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+osv-review .review-close:hover { color: var(--fg); background: rgba(110,118,129,.12); }
 osv-review .review-checklist {
   padding: 10px 14px 6px;
   border-bottom: 1px solid var(--border-muted);

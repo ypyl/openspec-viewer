@@ -1,10 +1,11 @@
-/* End-to-end test for desktop panel visibility (v3.8.0): at ≥62em the user
- * can hide/show the review panel and the file list sidebar through header
- * toggles; a hidden review shows a floating restore pill with the item count;
+/* End-to-end test for desktop panel visibility (v3.9.0): at ≥62em the user
+ * can hide/show the review panel via its own close control (the header no
+ * longer has a review toggle) and the file list sidebar via a header toggle;
+ * a hidden review shows a floating restore pill with the item count;
  * add/delete/copy stay fully possible (the drawer is never unmounted); the
  * sidebar keeps its selection when toggled; both choices persist across
- * reloads; and below 62em the toggles/pill are absent and the mobile auto
- * behavior is unchanged even with a saved hidden choice.
+ * reloads; and below 62em the toggles/pill/close control are absent and the
+ * mobile auto behavior is unchanged even with a saved hidden choice.
  *
  * Run (from repo root):
  *   python -m http.server 8743        # serve the app
@@ -91,7 +92,6 @@ async page => {
   const state = () => page.evaluate(() => {
     const bodyHide = (c) => document.body.classList.contains(c);
     const rect = (sel, root) => (root || document).querySelector(sel)?.getBoundingClientRect();
-    const toggle = (sel) => document.querySelector(sel);
     return {
       hideReview: bodyHide('hide-review'),
       hideSidebar: bodyHide('hide-sidebar'),
@@ -101,21 +101,23 @@ async page => {
       sidebarW: Math.round(rect('osv-file-list').width),
       pillVisible: !document.querySelector('osv-review .review-pill').hidden,
       pillCount: (() => { const c = document.querySelector('osv-review .review-pill-count'); return c.hidden ? null : c.textContent.trim(); })(),
-      reviewTogglePressed: toggle('.toggle-review').getAttribute('aria-pressed'),
-      sidebarTogglePressed: toggle('.toggle-sidebar').getAttribute('aria-pressed'),
+      headerReviewToggle: !!document.querySelector('.toggle-review'),
+      closePresent: !!document.querySelector('osv-review .review-close'),
+      sidebarTogglePressed: document.querySelector('.toggle-sidebar').getAttribute('aria-pressed'),
       rows: document.querySelectorAll('osv-review .rv-item').length,
       copyDisabled: document.querySelector('osv-review .copy-btn').disabled,
     };
   });
   const click = (sel) => page.evaluate((s) => { const el = document.querySelector(s); if (el) el.click(); }, sel);
 
-  // ---- 1) Baseline: both panels visible by default, no pill. ----
-  let s = await state();
-  out.steps.push('baseline: ' + JSON.stringify(s));
-  if (s.hideReview || s.hideSidebar) err('baseline should have no hide classes');
-  if (!s.drawerVisible || s.reviewW !== 380) err('review panel should be a visible 380px column');
-  if (s.pillVisible) err('no pill should show while the panel is visible');
-  if (s.reviewTogglePressed !== 'false' || s.sidebarTogglePressed !== 'false') err('toggles should start unpressed');
+  const s1 = await state();
+  out.steps.push('baseline: ' + JSON.stringify(s1));
+  if (s1.hideReview || s1.hideSidebar) err('baseline should have no hide classes');
+  if (!s1.drawerVisible || s1.reviewW !== 380) err('review panel should be a visible 380px column');
+  if (s1.pillVisible) err('no pill should show while the panel is visible');
+  if (!s1.closePresent) err('the review panel should show its own close control');
+  if (s1.headerReviewToggle) err('the header must have no review toggle (moved onto the panel)');
+  if (s1.sidebarTogglePressed !== 'false') err('sidebar toggle should start unpressed');
 
   // ---- 2) Add a whole-file comment (panel visible). ----
   await click('osv-pane .comment-toggle');
@@ -125,15 +127,16 @@ async page => {
     document.querySelector('osv-pane .cf-save').click();
   });
   await page.waitForTimeout(250);
-  s = await state();
+  let s = await state();
   out.steps.push('after-comment: ' + JSON.stringify(s));
   if (s.rows !== 1) err('should show 1 review row, got ' + s.rows);
   if (s.copyDisabled) err('copy should be enabled with a comment');
 
-  // ---- 3) Hide the review panel: pane widens, pill appears with count. ----
+  // ---- 3) Close the review panel from its own close control: pane widens,
+  //         pill appears with count. ----
   // Tag the drawer node so we can prove it is never unmounted (task 3.3).
   await page.evaluate(() => { document.querySelector('osv-review .review-drawer').dataset.tag = 'KEEP'; });
-  await click('.toggle-review');
+  await click('osv-review .review-close');
   await page.waitForTimeout(250);
   s = await state();
   out.steps.push('after-hide-review: ' + JSON.stringify(s));
@@ -142,7 +145,7 @@ async page => {
   if (s.reviewW !== 0) err('review column should collapse to 0 width, got ' + s.reviewW);
   if (s.paneW < 700) err('pane should widen past the freed 380px column, got ' + s.paneW);
   if (!s.pillVisible || s.pillCount !== '1') err('pill should show with count 1, got visible=' + s.pillVisible + ' count=' + s.pillCount);
-  if (s.reviewTogglePressed !== 'true') err('review toggle should read pressed=true');
+  if (s.headerReviewToggle) err('header must have no review toggle');
 
   // ---- 4) Add a comment WHILE hidden: still recorded (pill count grows). ----
   await click('osv-pane .comment-toggle');
@@ -195,7 +198,7 @@ async page => {
   // ---- 7) Persistence: both hidden states survive a reload. ----
   // (The stub folder handle is gone across reloads, so review items do not
   // rehydrate here — the panel state itself, which is global, must.)
-  await click('.toggle-review');
+  await click('osv-review .review-close');
   await click('.toggle-sidebar');
   await page.waitForTimeout(200);
   await page.reload({ ignoreCache: true });
@@ -206,7 +209,8 @@ async page => {
   if (!s.hideReview || !s.hideSidebar) err('hidden states should survive reload');
   if (s.drawerVisible || s.sidebarW !== 0) err('panels should still be hidden after reload');
   if (!s.pillVisible) err('pill should return after reload');
-  if (s.reviewTogglePressed !== 'true' || s.sidebarTogglePressed !== 'true') err('toggles should read pressed after reload');
+  if (s.headerReviewToggle) err('header must have no review toggle after reload');
+  if (s.sidebarTogglePressed !== 'true') err('sidebar toggle should read pressed after reload');
   await click('osv-review .review-pill');
   await page.waitForTimeout(250);
   s = await state();
@@ -224,6 +228,7 @@ async page => {
       togglesVisible: vis('osv-header .panel-toggle'),
       pillVisible: vis('osv-review .review-pill'),
       reviewVisible: vis('osv-review'),
+      closeVisible: (() => { const el = document.querySelector('osv-review .review-close'); return el ? el.getClientRects().length > 0 : false; })(),
       navToggleVisible: vis('osv-header .nav-toggle'),
     };
   });
@@ -231,6 +236,7 @@ async page => {
   if (s.togglesVisible !== false) err('panel toggles should be hidden below 62em');
   if (s.pillVisible !== false) err('pill should be hidden below 62em');
   if (s.reviewVisible !== false) err('review should stay auto-hidden below 62em');
+  if (s.closeVisible !== false) err('panel close control should be hidden below 62em');
   if (s.navToggleVisible !== true) err('nav drawer toggle should still exist below 62em');
 
   // Cleanup: drop the saved panel choice so other suites run with defaults.

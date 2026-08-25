@@ -37,6 +37,9 @@ export class OsvReview extends HTMLElement {
 
     this.innerHTML = `
       <div class="review-drawer open" aria-label="Review">
+        <div class="review-head">
+          <button type="button" class="review-close" aria-label="Close review panel" title="Close review panel">✕</button>
+        </div>
         <div class="review-checklist" hidden></div>
         <div class="review-list"></div>
         <div class="review-actions">
@@ -48,6 +51,15 @@ export class OsvReview extends HTMLElement {
     this._listEl = this.querySelector('.review-list');
     this._checklistEl = this.querySelector('.review-checklist');
     this._copyBtn = this.querySelector('.copy-btn');
+
+    /* ---- Close control on the panel itself (v3.9.0): the review panel's
+         only hide affordance at ≥62em. Same signal the old header toggle
+         flipped; the restore pill then takes focus (task 1.3). */
+    this._closeBtn = this.querySelector('.review-close');
+    this._closeBtn.addEventListener('click', () => {
+      reviewHidden.value = true;
+      if (!this._pill.hidden) this._pill.focus();
+    });
 
     /* ---- Render the review list + actions from highlights ---- */
     const review = computed(buildReviewHtml, [currentRel, highlights, staleTick]);

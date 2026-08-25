@@ -1,12 +1,12 @@
 // osv-header: title, version badge, theme toggle, stats, review button.
 
 import { html, computed } from '../../imports.js';
-import { theme, allFiles, folders, activeFolderId, changeMeta, navDrawerOpen, reviewHidden, sidebarHidden } from '../../app/state.js';
+import { theme, allFiles, folders, activeFolderId, changeMeta, navDrawerOpen, sidebarHidden } from '../../app/state.js';
 import { groupOf, changeOf, isArchived } from '../../app/render.js';
 
 // Single source for the visible version badge (AGENTS.md keeps the version
 // in the header badge, the first-line comment, and sw.js in sync).
-export const VERSION = '3.8.0';
+export const VERSION = '3.9.0';
 
 export class OsvHeader extends HTMLElement {
   connectedCallback() {
@@ -24,7 +24,6 @@ export class OsvHeader extends HTMLElement {
         <osv-search></osv-search>
         <div class="side">
           <button type="button" class="panel-toggle toggle-sidebar" aria-pressed="false" aria-label="Hide sidebar" title="Hide sidebar">▨</button>
-          <button type="button" class="panel-toggle toggle-review" aria-pressed="false" aria-label="Hide review panel" title="Hide review panel">▣</button>
           <div class="stats"></div>
         </div>
       </header>`;
@@ -42,19 +41,11 @@ export class OsvHeader extends HTMLElement {
       navToggle.title = open ? 'Close navigation (Esc)' : 'Open navigation';
     });
 
-    /* ---- Desktop panel visibility toggles (v3.8.0) ---- */
-    // aria-pressed is true while the panel is HIDDEN. Shown only at ≥62em
-    // via CSS; below that the mobile auto behavior rules.
-    const reviewToggle = this.querySelector('.toggle-review');
+    /* ---- Desktop panel visibility (v3.9.0): the sidebar keeps its header
+         toggle; the review panel's hide affordance lives on the panel itself
+         (osv-review .review-close). ---- */
     const sidebarToggle = this.querySelector('.toggle-sidebar');
-    reviewToggle.addEventListener('click', () => { reviewHidden.value = !reviewHidden.value; });
     sidebarToggle.addEventListener('click', () => { sidebarHidden.value = !sidebarHidden.value; });
-    reviewHidden.effect(() => {
-      const hidden = reviewHidden.value;
-      reviewToggle.setAttribute('aria-pressed', String(hidden));
-      reviewToggle.setAttribute('aria-label', hidden ? 'Show review panel' : 'Hide review panel');
-      reviewToggle.title = hidden ? 'Show review panel' : 'Hide review panel';
-    });
     sidebarHidden.effect(() => {
       const hidden = sidebarHidden.value;
       sidebarToggle.setAttribute('aria-pressed', String(hidden));
