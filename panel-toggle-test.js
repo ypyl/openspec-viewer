@@ -1,6 +1,6 @@
 /* End-to-end test for desktop panel visibility (v3.11.0): each side panel has
- * exactly one corner toggle in the header — the ☰ (top-left) hides/shows the
- * file list sidebar, a matching ▣ (top-right) hides/shows the review panel.
+ * exactly one corner toggle in the header — a ☰ (top-left) hides/shows the
+ * file list sidebar, a matching ☰ (top-right) hides/shows the review panel.
  * There is no in-panel close control and no floating restore pill: the
  * toggles are the sole affordances. Add/delete/copy stay fully possible (the
  * drawer is never unmounted); the sidebar keeps its selection when toggled;
@@ -131,6 +131,29 @@ async page => {
     };
   });
   const click = (sel) => page.evaluate((s) => { const el = document.querySelector(s); if (el) el.click(); }, sel);
+  // Whole-file comment via change title selection (v3.12.0): the old header 💬
+  // button and .cf-text popup were removed — select the change title, then
+  // type into .ann-text and save with .ann-save (as in whole-file-comment-test).
+  const selectTitleForComment = () => page.evaluate(() => {
+    const title = document.querySelector('osv-pane .change-head h2.change-title');
+    if (!title) throw new Error('no change title found');
+    const sel = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(title);
+    sel.removeAllRanges();
+    sel.addRange(range);
+    document.querySelector('osv-pane main').dispatchEvent(
+      new MouseEvent('mouseup', { bubbles: true }));
+    const bub = document.querySelector('osv-pane .ann-bubble');
+    if (!bub) throw new Error('no comment bubble after title selection');
+    bub.querySelector('.ann-add').click();
+  });
+  const saveComment = (text) => page.evaluate((comment) => {
+    const ta = document.querySelector('osv-pane .ann-text');
+    if (!ta) throw new Error('no comment editor opened');
+    ta.value = comment;
+    document.querySelector('osv-pane .ann-save').click();
+  }, text);
 
   const s1 = await state();
   out.steps.push('baseline: ' + JSON.stringify(s1));
@@ -138,18 +161,15 @@ async page => {
   if (!s1.drawerVisible || s1.reviewW !== 380) err('review panel should be a visible 380px column');
   if (!s1.pillGone) err('no restore pill should exist in v3.11.0');
   if (!s1.closeGone) err('no in-panel close control should exist in v3.11.0');
-  if (!s1.reviewTogglePresent) err('the header should have the review toggle (▣, top-right)');
+  if (!s1.reviewTogglePresent) err('the header should have the review toggle (☰, top-right)');
   if (s1.reviewTogglePressed !== 'false') err('review toggle should start unpressed');
   if (s1.sidebarToggleGone) { /* ok */ } else err('the top-right sidebar toggle should be removed (☰ replaces it)');
   if (s1.sidebarTogglePressed !== 'false') err('nav toggle should start unpressed');
 
   // ---- 2) Add a whole-file comment (panel visible). ----
-  await click('osv-pane .comment-toggle');
+  await selectTitleForComment();
   await page.waitForTimeout(150);
-  await page.evaluate(() => {
-    document.querySelector('osv-pane .cf-text').value = 'Rewrite in active voice.';
-    document.querySelector('osv-pane .cf-save').click();
-  });
+  await saveComment('Rewrite in active voice.');
   await page.waitForTimeout(250);
   let s = await state();
   out.steps.push('after-comment: ' + JSON.stringify(s));
@@ -172,12 +192,9 @@ async page => {
   if (!s.pillGone) err('no pill may appear when the review panel is hidden');
 
   // ---- 4) Add a comment WHILE hidden: still recorded (shown after restore). ----
-  await click('osv-pane .comment-toggle');
+  await selectTitleForComment();
   await page.waitForTimeout(150);
-  await page.evaluate(() => {
-    document.querySelector('osv-pane .cf-text').value = 'Add acceptance criteria.';
-    document.querySelector('osv-pane .cf-save').click();
-  });
+  await saveComment('Add acceptance criteria.');
   await page.waitForTimeout(250);
 
   // ---- 5) Restore via the toggle: drawer back, delete + copy work. ----

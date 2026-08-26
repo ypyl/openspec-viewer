@@ -6,7 +6,7 @@ import { groupOf, changeOf, isArchived } from '../../app/render.js';
 
 // Single source for the visible version badge (AGENTS.md keeps the version
 // in the header badge, the first-line comment, and sw.js in sync).
-export const VERSION = '3.12.0';
+export const VERSION = '3.12.1';
 
 export class OsvHeader extends HTMLElement {
   connectedCallback() {
@@ -24,7 +24,7 @@ export class OsvHeader extends HTMLElement {
         <osv-search></osv-search>
         <div class="side">
           <div class="stats"></div>
-          <button type="button" class="toggle-review" aria-pressed="false" aria-label="Hide review panel" title="Hide review panel">▣</button>
+          <button type="button" class="toggle-review" aria-pressed="false" aria-label="Hide review panel" title="Hide review panel">☰</button>
         </div>
       </header>`;
 
