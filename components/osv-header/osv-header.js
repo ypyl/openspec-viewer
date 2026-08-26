@@ -1,12 +1,12 @@
 // osv-header: title, version badge, theme toggle, stats, review button.
 
 import { html, computed } from '../../imports.js';
-import { theme, allFiles, folders, activeFolderId, changeMeta, navDrawerOpen, sidebarHidden, reviewHidden } from '../../app/state.js';
+import { theme, allFiles, folders, changeMeta, navDrawerOpen, sidebarHidden, reviewHidden } from '../../app/state.js';
 import { groupOf, changeOf, isArchived } from '../../app/render.js';
 
 // Single source for the visible version badge (AGENTS.md keeps the version
 // in the header badge, the first-line comment, and sw.js in sync).
-export const VERSION = '3.13.0';
+export const VERSION = '3.13.1';
 
 export class OsvHeader extends HTMLElement {
   connectedCallback() {
@@ -94,19 +94,16 @@ export class OsvHeader extends HTMLElement {
     mql.addEventListener('change', () => { if (theme.value === 'system') applyTheme(); });
     theme.effect(applyTheme);
 
-    /* ---- Stats (active folder) ---- */
+    /* ---- Stats ---- */
     const stats = computed(() => {
       const all = allFiles.value;
       const active = [...new Set(all.filter(f => groupOf(f.rel) === 'Changes').map(f => changeOf(f.rel)))].length;
       const archived = [...changeMeta.value.values()].filter(m => isArchived(m.key)).length;
-      const entry = folders.value.find(f => f.id === activeFolderId.value);
-      const name = entry ? entry.name + (entry.suffix || '') : null;
       const live = folders.value.some(f => f.kind === 'pick');
-      return html`${name ? html`<b>${name}</b> · ` : ''}` +
-        html`<b>${all.length}</b> file${all.length === 1 ? '' : 's'} · ` +
+      return html`<b>${all.length}</b> file${all.length === 1 ? '' : 's'} · ` +
         html`<b>${active}</b> active change${active === 1 ? '' : 's'} · <b>${archived}</b> archived` +
         (live ? html` · <span class="live-dot">● live</span>` : '');
-    }, [allFiles, folders, activeFolderId, changeMeta]);
+    }, [allFiles, folders, changeMeta]);
     stats.effect(() => { statsEl.innerHTML = stats.value; });
   }
 }
