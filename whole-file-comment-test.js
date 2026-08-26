@@ -1,18 +1,17 @@
-/* End-to-end test for "whole-file review comments" (v2.18.0).
+/* End-to-end test for "whole-file review comments" (v3.12.0).
  *
  * Run (from repo root):
  *   python -m http.server 8743        # serve the app
  *   playwright-cli open http://127.0.0.1:8743/index.html
  *   playwright-cli run-code --filename=whole-file-comment-test.js
  *
- * Verifies: adding a whole-file comment through the pane-bar 💬 button creates
- * a distinct kind:'file' row in the review panel (with an "entire artifact"
- * pill and no quoted snippet); the header button shows a count badge; the
- * generated prompt carries "Scope: entire artifact" with no Referenced text
- * line; a second comment on the same artifact appends (multiplicity); and the
- * file-kind comment persists with no range fields. Deleting via the review
- * drawer drops the header badge count (and removes the badge entirely with the
- * last comment) — regression for a stale count after whole-file comment delete.
+ * Verifies: selecting the change title and saving a comment creates a distinct
+ * kind:'file' row in the review panel (with an "entire artifact" pill and no
+ * quoted snippet); no header 💬 button exists anymore; the generated prompt
+ * carries "Scope: entire file" with no Referenced text line; a second comment
+ * on the same artifact appends (multiplicity); and the file-kind comment
+ * persists with no range fields. Deleting via the review drawer removes the
+ * rows.
  * Serves as: async page => { ... } single function expression. */
 async page => {
   const out = { steps: [], errors: [] };
@@ -83,7 +82,11 @@ async page => {
   // Clear persisted highlights and snapshots, then reload so the app boots with
   // an empty highlights map (prior run-code invocations share this context).
   await page.evaluate(async () => {
-    localStorage.removeItem('osviewer.highlights');
+    // Clear every per-folder highlight key (not just the legacy one) so a run
+    // is hermetic even after other tests have populated other folders.
+    Object.keys(localStorage)
+      .filter(k => k.startsWith('osviewer.highlights'))
+      .forEach(k => localStorage.removeItem(k));
     const open = indexedDB.open('osviewer');
     await new Promise((res, rej) => { open.onsuccess = () => res(open.result); open.onerror = () => rej(open.error); });
     const db = open.result;
@@ -108,32 +111,43 @@ async page => {
   await page.evaluate(async () => { await window.openFile('changes/foo/proposal.md'); });
   await page.waitForTimeout(400);
 
-  // ---- 1) Add a whole-file comment via the header 💬 button + dialog ----
-  await page.evaluate(() => {
-    const btn = document.querySelector('osv-pane .comment-toggle');
-    if (!btn) throw new Error('no comment-toggle button');
-    btn.click();
+  // ---- Select the change title to open the whole-file comment bubble ----
+  const selectTitle = () => page.evaluate(() => {
+    const title = document.querySelector('osv-pane .change-head h2.change-title');
+    if (!title) throw new Error('no change title found');
+    const sel = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(title);
+    sel.removeAllRanges();
+    sel.addRange(range);
+    document.querySelector('osv-pane main').dispatchEvent(
+      new MouseEvent('mouseup', { bubbles: true }));
+    const bub = document.querySelector('osv-pane .ann-bubble');
+    if (!bub) throw new Error('no comment bubble after title selection');
+    bub.querySelector('.ann-add').click();
   });
+  const saveTitleComment = (text) => page.evaluate((comment) => {
+    const ta = document.querySelector('osv-pane .ann-text');
+    if (!ta) throw new Error('no comment editor opened');
+    ta.value = comment;
+    document.querySelector('osv-pane .ann-save').click();
+  }, text);
+
+  // ---- 1) Add a whole-file comment by selecting the change title ----
+  await selectTitle();
   await page.waitForTimeout(150);
-  await page.evaluate(() => {
-    const ta = document.querySelector('osv-pane .cf-text');
-    if (!ta) throw new Error('whole-file dialog did not open');
-    ta.value = 'Rewrite in active voice throughout.';
-    document.querySelector('osv-pane .cf-save').click();
-  });
+  await saveTitleComment('Rewrite in active voice throughout.');
   await page.waitForTimeout(250);
 
   const snap = () => page.evaluate(() => {
     const row = document.querySelector('osv-review .rv-item.rv-file-comment');
-    const btn = document.querySelector('osv-pane .comment-toggle');
-    const count = btn && btn.querySelector('.comment-count');
     return {
       fileRow: !!row,
       pill: row ? (row.querySelector('.rv-pill') || {}).textContent.trim() : null,
       comment: row ? (row.querySelector('.rv-comment') || {}).textContent.trim() : null,
       file: row ? (row.querySelector('.rv-file') || {}).textContent.trim() : null,
       hasRangeImg: row ? !!row.querySelector('.rv-text') : false,
-      badge: count ? count.textContent.trim() : null,
+      noHeaderButton: !document.querySelector('osv-pane .comment-toggle'),
     };
   });
 
@@ -144,9 +158,9 @@ async page => {
   if (s.comment !== 'Rewrite in active voice throughout.') err('row comment should match, got ' + s.comment);
   if (s.file !== 'changes/foo/proposal.md') err('row should name the proposal, got ' + s.file);
   if (s.hasRangeImg) err('whole-file row should NOT show a quoted text snippet');
-  if (s.badge !== '1') err('header button badge should be 1, got ' + s.badge);
+  if (!s.noHeaderButton) err('the header comment button should be gone');
 
-  // ---- 2) Prompt contains Scope: entire artifact and no Referenced text ----
+  // ---- 2) Prompt contains Scope: entire file and no Referenced text ----
   const prompt = await page.evaluate(() => window.buildPrompt && window.buildPrompt());
   out.steps.push('prompt: ' + String(prompt));
   if (!prompt) err('buildPrompt should return a prompt');
@@ -155,21 +169,17 @@ async page => {
   if (prompt && prompt.includes('Referenced text')) err('whole-file comment should not carry a Referenced text line');
 
   // ---- 3) Multiplicity: a second whole-file comment on the same artifact ----
-  await page.evaluate(() => { document.querySelector('osv-pane .comment-toggle').click(); });
+  await selectTitle();
   await page.waitForTimeout(150);
-  await page.evaluate(() => {
-    document.querySelector('osv-pane .cf-text').value = 'Add acceptance criteria.';
-    document.querySelector('osv-pane .cf-save').click();
-  });
+  await saveTitleComment('Add acceptance criteria.');
   await page.waitForTimeout(250);
   s = await page.evaluate(() => {
     const rows = document.querySelectorAll('osv-review .rv-item.rv-file-comment');
-    const count = document.querySelector('osv-pane .comment-toggle .comment-count');
-    return { rows: rows.length, badge: count ? count.textContent.trim() : null };
+    return { rows: rows.length, noHeaderButton: !document.querySelector('osv-pane .comment-toggle') };
   });
   out.steps.push('after-second: ' + JSON.stringify(s));
   if (s.rows !== 2) err('should show 2 whole-file rows, got ' + s.rows);
-  if (s.badge !== '2') err('header badge should be 2, got ' + s.badge);
+  if (!s.noHeaderButton) err('the header comment button should be gone after a second comment');
 
   // ---- 4) Persistence: kind:'file' with no range fields ----
   const list = await page.evaluate(() => {
@@ -187,9 +197,7 @@ async page => {
   }
   if (!first.comment || !first.ts || !first.id) err('file-kind comment should carry id/comment/ts');
 
-  // ---- 5) Delete via the review drawer: badge must drop (regression: the
-  //         pane's 💬 count was only refreshed on save/tab-switch, so a
-  //         delete left a stale count behind) ----
+  // ---- 5) Delete via the review drawer ----
   await page.evaluate(() => {
     const del = document.querySelector('osv-review .rv-item.rv-file-comment .rv-del');
     if (del) del.click();
@@ -197,20 +205,12 @@ async page => {
   await page.waitForTimeout(250);
   s = await page.evaluate(() => {
     const rows = document.querySelectorAll('osv-review .rv-item.rv-file-comment');
-    const toggle = document.querySelector('osv-pane .comment-toggle');
-    const count = toggle && toggle.querySelector('.comment-count');
-    return {
-      rows: rows.length,
-      badge: count ? count.textContent.trim() : null,
-      hasClass: toggle ? toggle.classList.contains('has') : null,
-    };
+    return { rows: rows.length };
   });
   out.steps.push('after-delete: ' + JSON.stringify(s));
   if (s.rows !== 1) err('should show 1 whole-file row after delete, got ' + s.rows);
-  if (s.badge !== '1') err('header badge should be 1 after delete, got ' + s.badge);
-  if (s.hasClass !== true) err('comment-toggle should still carry .has while a comment remains');
 
-  // ---- 6) Delete the last one: badge disappears entirely ----
+  // ---- 6) Delete the last one ----
   await page.evaluate(() => {
     const del = document.querySelector('osv-review .rv-item.rv-file-comment .rv-del');
     if (del) del.click();
@@ -218,18 +218,10 @@ async page => {
   await page.waitForTimeout(250);
   s = await page.evaluate(() => {
     const rows = document.querySelectorAll('osv-review .rv-item.rv-file-comment');
-    const toggle = document.querySelector('osv-pane .comment-toggle');
-    const count = toggle && toggle.querySelector('.comment-count');
-    return {
-      rows: rows.length,
-      badge: count ? count.textContent.trim() : null,
-      hasClass: toggle ? toggle.classList.contains('has') : null,
-    };
+    return { rows: rows.length };
   });
   out.steps.push('after-delete-all: ' + JSON.stringify(s));
   if (s.rows !== 0) err('should show 0 whole-file rows after delete, got ' + s.rows);
-  if (s.badge !== null) err('badge should be gone after deleting the last comment, got ' + s.badge);
-  if (s.hasClass !== false) err('comment-toggle should drop .has when no comment remains');
 
   out.ok = out.errors.length === 0;
   console.log('=== WHOLE-FILE COMMENT TEST RESULT ===');

@@ -87,6 +87,7 @@ function uid() { return Date.now().toString(36) + Math.random().toString(36).sli
 let annBubble = null;   // floating selection toolbar / comment editor
 let annPending = null;  // { start, end, text } awaiting a comment
 let annRange = null;    // selection Range the bubble is tethered to
+let annWhole = false;   // selection is on the change title → whole-file comment
 
 const paneEl = () => document.querySelector('osv-pane');
 
@@ -139,17 +140,33 @@ function selOffsets(container, range) {
 export function hideAnnBubble() {
   if (annBubble) { annBubble.remove(); annBubble = null; }
   annPending = null;
+  annWhole = false;
+}
+
+// A selection wholly inside the change title (the change-head <h2>) — the
+// trigger for a whole-file (kind:'file') comment, distinct from the .annotatable
+// range flow (design D3).
+function findTitleContainer(range) {
+  const cNode = range.commonAncestorContainer;
+  const cEl = cNode.nodeType === 1 ? cNode : cNode.parentElement;
+  const title = cEl && cEl.closest('.change-title');
+  if (!title) return null;
+  const startEl = range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentElement;
+  const endEl = range.endContainer.nodeType === 1 ? range.endContainer : range.endContainer.parentElement;
+  if (!title.contains(startEl) || !title.contains(endEl)) return null;
+  return title;
 }
 
 function onSelect() {
   const sel = window.getSelection();
   if (!sel || sel.isCollapsed || sel.rangeCount === 0) return;
   const range = sel.getRangeAt(0);
+  if (findTitleContainer(range)) { showAnnBubble(range, null, true); return; }
   const container = findAnnContainer(range);
   if (!container) return;
   const info = selOffsets(container, range);
   if (!info.text.trim()) return;
-  showAnnBubble(range, info);
+  showAnnBubble(range, info, false);
 }
 
 // Gap between the bubble and its anchor, matching the original spacing.
@@ -174,8 +191,9 @@ function positionBubble(bub, range) {
   bub.style.top = top + 'px';
 }
 
-function showAnnBubble(range, info) {
+function showAnnBubble(range, info, whole) {
   hideAnnBubble();
+  annWhole = whole;
   const bub = document.createElement('div');
   bub.className = 'ann-bubble';
   bub.innerHTML = '<button type="button" class="ann-add">💬 Comment</button>';
@@ -188,8 +206,9 @@ function showAnnBubble(range, info) {
   annPending = info;
   annRange = range;
   bub.querySelector('.ann-add').addEventListener('click', () => {
+    const placeholder = annWhole ? 'Add a comment about the whole artifact…' : 'Add a comment…';
     bub.innerHTML = `
-      <textarea class="ann-text" rows="3" placeholder="Add a comment…"></textarea>
+      <textarea class="ann-text" rows="3" placeholder="${placeholder}"></textarea>
       <div class="ann-actions">
         <button type="button" class="ann-cancel">Cancel</button>
         <button type="button" class="ann-save">Save comment</button>
@@ -214,6 +233,7 @@ function showAnnBubble(range, info) {
 }
 
 async function saveAnnComment() {
+  if (annWhole) { saveWholeFileComment(); return; }
   const rel = currentRel.value;
   if (!rel || !annPending) return;
   const ta = annBubble && annBubble.querySelector('.ann-text');
@@ -235,6 +255,23 @@ async function saveAnnComment() {
   try { window.getSelection().removeAllRanges(); } catch (e) {}
   applyHighlights(rel);
   showToast(comment ? 'Comment added' : 'Highlight added');
+}
+
+// Whole-file comment from a change-title selection. No range is stored; it
+// targets the artifact currently open under the title. Nothing is written when
+// no artifact is active (design D2/D3).
+function saveWholeFileComment() {
+  const rel = currentRel.value;
+  const ta = annBubble && annBubble.querySelector('.ann-text');
+  const comment = ta ? ta.value.trim() : '';
+  if (!rel) {
+    showToast('No artifact is open to comment on', 'error');
+  } else if (comment) {
+    saveFileComment(rel, comment);
+    showToast('Comment added');
+  }
+  hideAnnBubble();
+  try { window.getSelection().removeAllRanges(); } catch (e) {}
 }
 
 // Append a whole-file (entire-artifact) review comment. Not anchored to a text
@@ -411,7 +448,7 @@ export function allHighlights() {
 export function buildReviewHtml() {
   const items = allHighlights();
   if (!items.length) {
-    return { items, html: '<div class="rv-empty">Select text in any artifact and press <b>💬 Comment</b> to flag it for fixing. Or use the <b>💬</b> button on an artifact&#39;s header to comment on a whole document (structure, tone, formatting).<br><br>Comments from all files are collected into a single fix prompt for an LLM.</div>' };
+    return { items, html: '<div class="rv-empty">Select text in any artifact and press <b>💬 Comment</b> to flag it for fixing. Or select the <b>change title</b> to comment on a whole artifact (structure, tone, formatting).<br><br>Comments from all files are collected into a single fix prompt for an LLM.</div>' };
   }
   const stale = currentStaleIds();
   return { items, html: items.map((h, i) => {
@@ -446,10 +483,6 @@ export function deleteHighlight(rel, id) {
   const list = (highlights.value.get(rel) || []).filter(h => h.id !== id);
   setHighlights(rel, list);
   applyHighlights(rel);
-  // The pane's 💬 badge counts whole-file comments but is re-rendered
-  // imperatively (tab switch / save only), so a delete from the review
-  // drawer must poke it to drop the stale count.
-  document.dispatchEvent(new CustomEvent('osv:highlights-changed', { detail: { rel } }));
 }
 
 /* ---------- Selection listeners (attached by osv-pane's <main>) ---------- */

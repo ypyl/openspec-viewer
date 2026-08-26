@@ -1,7 +1,7 @@
 /* OpenSpec Local Viewer service worker.
    Bump CACHE_VERSION together with the app version in index.html
    (see AGENTS.md) so each release deploys a fresh cache. */
-const CACHE_VERSION = 'osviewer-3.11.1';
+const CACHE_VERSION = 'osviewer-3.12.0';
 
 const SHELL = [
   './',

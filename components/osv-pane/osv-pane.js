@@ -7,17 +7,15 @@
 import { html, joinHtml } from '../../imports.js';
 import {
   crumbFor, handleText, markdownPane, yamlPane, artifactOf, changeOf, groupOf, displayLabel,
-  artifactPhrase,
 } from '../../app/render.js';
 import { diffViewHtml, diffToggleHtml, diffTabBadgeHtml, hashText } from '../../app/diff.js';
 import {
   allFiles, currentRel, currentKey, changeMeta, diffInfo, diffViews,
-  recentRels, paneCache, paneCachePut, setDiffView, currentTabs, setCurrentTabs, searchMarks, highlights,
+  recentRels, paneCache, paneCachePut, setDiffView, currentTabs, setCurrentTabs, searchMarks,
   expandedStripKinds, activeFolderId,
 } from '../../app/state.js';
 import { markRead as markReadStore, readFileText } from '../../app/store.js';
-import { applyHighlights, hideAnnBubble, onSelection, clearSearchMarks, saveFileComment } from '../../app/annotations.js';
-import { showToast } from '../osv-toast/osv-toast.js';
+import { applyHighlights, hideAnnBubble, onSelection, clearSearchMarks } from '../../app/annotations.js';
 import { GUIDE, KIND_LABEL } from '../../app/review-guide.js';
 
 const WELCOME = `
@@ -29,19 +27,6 @@ const WELCOME = `
     <code>openspec/</code> folder) to browse change proposals, designs, task lists, and specs.
     Everything stays on your machine; files are read with the File API and never uploaded.</p>
   </div>`;
-
-// How many whole-file (kind:'file') comments an artifact currently carries.
-function wholeFileCount(rel) {
-  return (highlights.value.get(rel) || []).filter(h => h.kind === 'file').length;
-}
-
-// Header 💬 button: opens the whole-file comment editor; a count badge shows how
-// many general comments the artifact already has. Enabled in both artifact and
-// diff views (a whole-file comment targets the artifact file regardless of view).
-function commentToggleHtml(rel) {
-  const n = wholeFileCount(rel);
-  return html`<button class="comment-toggle${n ? ' has' : ''}" data-rel="${rel}" title="Comment on this whole artifact">💬${n ? html`<span class="comment-count">${n}</span>` : ''}</button>`;
-}
 
 // Which guide kind (if any) a change-artifact rel maps to. The metadata tab
 // and anything outside a change's artifact set return null → no strip.
@@ -85,32 +70,6 @@ export class OsvPane extends HTMLElement {
     this._main.innerHTML = WELCOME;
     this.appendChild(this._main);
 
-    /* ---- Whole-file comment editor (native <dialog>) ---- */
-    this._cf = document.createElement('dialog');
-    this._cf.className = 'cf-dialog';
-    this._cf.innerHTML = `
-      <div class="cf-title">Comment on <span class="cf-rel"></span></div>
-      <div class="cf-body">
-        <textarea class="cf-text" rows="4"></textarea>
-        <div class="cf-actions">
-          <button type="button" class="cf-cancel">Cancel</button>
-          <button type="button" class="cf-save">Save comment</button>
-        </div>
-      </div>`;
-    this.appendChild(this._cf);
-    this._cf.querySelector('.cf-cancel').addEventListener('click', () => this._cf.close());
-    this._cf.querySelector('.cf-save').addEventListener('click', () => this.saveCommentDialog());
-    this._cf.querySelector('.cf-text').addEventListener('keydown', e => {
-      // Enter saves (Ctrl/Cmd+Enter too); Shift+Enter inserts a newline.
-      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.saveCommentDialog(); }
-      if (e.key === 'Escape') this._cf.close();
-    });
-
-    // Placeholder names the artifact kind (proposal/design/tasks/…); updated
-    // per-open in openCommentDialog.
-    this._cfText = this._cf.querySelector('.cf-text');
-    this._cfText.placeholder = 'Add a comment about ' + artifactPhrase('') + '…';
-
     /* ---- Selection / annotation listeners on the scroll container ---- */
     this._main.addEventListener('mouseup', onSelection);
     this._main.addEventListener('keyup', onSelection);
@@ -120,8 +79,6 @@ export class OsvPane extends HTMLElement {
 
     /* ---- Diff/Artifact toggle + whole-file comment (delegated within the pane) ---- */
     this._main.addEventListener('click', async e => {
-      const ct = e.target.closest('.comment-toggle');
-      if (ct) { this.openCommentDialog(ct.dataset.rel); return; }
       const gs = e.target.closest('.guide-toggle');
       if (gs) { this.toggleGuideStrip(gs.dataset.kind); return; }
       const b = e.target.closest('.diff-toggle');
@@ -145,7 +102,6 @@ export class OsvPane extends HTMLElement {
     document.addEventListener('osv:auto-open', () => this.autoOpenFirst());
     document.addEventListener('osv:refresh-current', () => this.rerenderCurrent());
     document.addEventListener('osv:refresh-tab-badges', () => this.refreshTabBadges());
-    document.addEventListener('osv:highlights-changed', e => this.refreshCommentToggle(e.detail.rel));
     document.addEventListener('osv:open-deleted', () => this.showDeleted());
     document.addEventListener('osv:reveal', async e => {
       const { rel, id } = e.detail;
@@ -242,7 +198,7 @@ export class OsvPane extends HTMLElement {
     this._main.innerHTML = html`
       ${this.paneBarHtml(html`<div class="crumb">${crumbFor(meta.key)}</div>`, currentRel.value)}
       <div class="change-head">
-        <h2>${meta.label}</h2>
+        <h2 class="change-title">${meta.label}</h2>
         ${meta.date ? html`<span class="date-badge">${meta.date}</span>` : ''}
       </div>
       <div class="tabs">${tabBar}</div>
@@ -265,7 +221,6 @@ export class OsvPane extends HTMLElement {
     this._main.querySelectorAll('.tab').forEach(b =>
       b.classList.toggle('active', +b.dataset.i === i));
     this.refreshToggle(t.rel);
-    this.refreshCommentToggle(t.rel);
     this._body.className = 'pane-body';
     this._body.innerHTML = await this.viewFor(t.rel);
     applyHighlights(t.rel);
@@ -293,7 +248,7 @@ export class OsvPane extends HTMLElement {
   }
 
   paneBarHtml(crumb, rel) {
-    return html`<div class="pane-bar">${crumb}<span class="comment-toggle-slot">${commentToggleHtml(rel)}</span><span class="diff-toggle-slot">${diffToggleHtml(rel, diffInfo.get(rel), diffViews.get(rel), recentRels.value.has(rel))}</span></div>`;
+    return html`<div class="pane-bar">${crumb}<span class="diff-toggle-slot">${diffToggleHtml(rel, diffInfo.get(rel), diffViews.get(rel), recentRels.value.has(rel))}</span></div>`;
   }
 
   // Patch the guidance strip for the current tab (design D2/D3). Archive
@@ -314,35 +269,6 @@ export class OsvPane extends HTMLElement {
     if (s.has(kind)) s.delete(kind); else s.add(kind);
     expandedStripKinds.value = s;
     this.refreshGuideStrip();
-  }
-
-  // Re-render just the comment toggle after a tab switch or a save.
-  refreshCommentToggle(rel) {
-    const slot = this._main.querySelector('.comment-toggle-slot');
-    if (slot) slot.innerHTML = commentToggleHtml(rel);
-  }
-
-  // Open the whole-file comment editor for an artifact.
-  openCommentDialog(rel) {
-    if (!rel) return;
-    this._cfRel = rel;
-    this._cf.querySelector('.cf-rel').textContent = rel;
-    const ta = this._cfText;
-    ta.value = '';
-    ta.placeholder = 'Add a comment about ' + artifactPhrase(rel) + '…';
-    this._cf.showModal();
-    ta.focus();
-  }
-
-  saveCommentDialog() {
-    const rel = this._cfRel;
-    const comment = this._cf.querySelector('.cf-text').value.trim();
-    if (rel && comment) {
-      saveFileComment(rel, comment);
-      this.refreshCommentToggle(rel);
-      showToast('Comment added');
-    }
-    this._cf.close();
   }
 
   // Re-render just the toggle after a tab switch or a click.
@@ -374,7 +300,6 @@ export class OsvPane extends HTMLElement {
   // selected (or auto-open its first change when it has no selection yet).
   handleFolderSwitched() {
     hideAnnBubble();
-    if (this._cf && this._cf.open) this._cf.close();
     // No folder left open: drop back to the initial welcome screen.
     if (!activeFolderId.value) {
       this._main.innerHTML = WELCOME;

@@ -275,16 +275,25 @@ async page => {
   // ================= Copy prompt: comments only, never checklist =================
   await openChange('changes/foo');
   await page.evaluate(() => {
-    const btn = document.querySelector('osv-pane .comment-toggle');
-    if (!btn) throw new Error('no comment-toggle button');
-    btn.click();
+    const title = document.querySelector('osv-pane .change-head h2.change-title');
+    if (!title) throw new Error('no change title');
+    const sel = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(title);
+    sel.removeAllRanges();
+    sel.addRange(range);
+    document.querySelector('osv-pane main').dispatchEvent(
+      new MouseEvent('mouseup', { bubbles: true }));
+    const bub = document.querySelector('osv-pane .ann-bubble');
+    if (!bub) throw new Error('no whole-file comment bubble after title selection');
+    bub.querySelector('.ann-add').click();
   });
   await page.waitForTimeout(150);
   await page.evaluate(() => {
-    const ta = document.querySelector('osv-pane .cf-text');
-    if (!ta) throw new Error('whole-file dialog did not open');
+    const ta = document.querySelector('osv-pane .ann-text');
+    if (!ta) throw new Error('whole-file comment editor did not open');
     ta.value = 'Make the scope clearer.';
-    document.querySelector('osv-pane .cf-save').click();
+    document.querySelector('osv-pane .ann-save').click();
   });
   await page.waitForTimeout(250);
   ok(await copyDisabled() === false, 'copy enabled once a comment exists (regardless of checklist)');
