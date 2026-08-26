@@ -13,4 +13,4 @@
 
   > Note: `panel-toggle-test.js` was stale at HEAD — it still drove comments via the removed `.comment-toggle`/`.cf-text` controls (v3.11.0-era). Updated it to the current whole-file flow (select change title → `.ann-text`/`.ann-save`, same as `whole-file-comment-test.js`). Test-only fix; app code untouched by it.
 - [x] 3.3 Re-shoot `screenshot.png` at 1440×900 (the header's top-right toggle now shows ☰); delete the scratch script and `.playwright-cli/` junk after.
-- [ ] 3.4 Commit (1.1 + 2.1 + 3.3 together), push to `master`, wait for the GitHub Pages build (~1 min), and confirm the header badge reads v3.12.1 at https://ypyl.github.io/openspec-viewer/.
+- [x] 3.4 Commit (1.1 + 2.1 + 3.3 together), push to `master`, wait for the GitHub Pages build (~1 min), and confirm the header badge reads v3.12.1 at https://ypyl.github.io/openspec-viewer/.
