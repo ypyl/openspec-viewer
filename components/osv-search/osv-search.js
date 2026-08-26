@@ -40,9 +40,11 @@ export class OsvSearch extends HTMLElement {
       }
     });
 
-    // Ctrl+K / Cmd+K focuses search (command-palette convention).
+    // Ctrl+K / Cmd+K and Ctrl+P / Cmd+P focus search (command-palette
+    // convention). preventDefault() stops Ctrl+P opening the browser's
+    // native print dialog (the app never prints).
     document.addEventListener('keydown', e => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      if ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'k' || e.key.toLowerCase() === 'p')) {
         e.preventDefault();
         input.focus();
         input.select();
