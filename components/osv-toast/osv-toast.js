@@ -1,4 +1,4 @@
-// osv-toast: transient notification (bottom-right). One at a time;
+// osv-toast: transient notification (bottom-left). One at a time;
 // auto-removes after a few seconds. Other modules call showToast().
 
 export class OsvToast extends HTMLElement {
