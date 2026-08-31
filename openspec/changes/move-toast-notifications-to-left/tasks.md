@@ -15,4 +15,4 @@
 
 - [x] 3.1 Serve (`python -m http.server 8743`) and verify: toast appears bottom-left at ≥62em, offset right of the folder rail; still bottom-left when the review drawer is open; correct on a narrow viewport.
 - [x] 3.2 Run `npm test` to confirm no unit regressions.
-- [ ] 3.3 Push to `master`, wait for the GitHub Pages deploy, and verify the header badge shows the new version and the deployed toast is bottom-left.
+- [x] 3.3 Push to `master`, wait for the GitHub Pages deploy, and verify the header badge shows the new version and the deployed toast is bottom-left.
