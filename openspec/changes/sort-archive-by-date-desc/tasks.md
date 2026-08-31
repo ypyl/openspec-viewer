@@ -16,5 +16,5 @@
 
 - [x] 4.1 Run `npm test` (node --test) — the new model tests pass alongside the existing suite.
 - [x] 4.2 Serve `python -m http.server 8743`, load the app via playwright-cli, pick the repo folder, expand the Archive group, and confirm rows appear newest-first with undated entries last; confirm the Changes group still lists name-ascending.
-- [ ] 4.3 Run the existing `archive-read-test.js` e2e via playwright-cli to confirm archived change handling still passes with the new order.
-- [ ] 4.4 Push to `master`, confirm the auto-deploy, and verify the header badge shows the new version.
+- [x] 4.3 Run the existing `archive-read-test.js` e2e via playwright-cli to confirm archived change handling still passes with the new order.
+- [x] 4.4 Push to `master`, confirm the auto-deploy, and verify the header badge shows the new version.
