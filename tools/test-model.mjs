@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 
 import {
   normPath, artifactOf, artifactPhrase, isRelevant, isChangeMetadata, isArchived, groupOf, displayLabel,
-  changeOf, prettyChangeName, crumbFor, refLines, snippet,
+  changeOf, prettyChangeName, compareArchiveDateDesc, crumbFor, refLines, snippet,
 } from '../app/model.js';
 
 test('normPath: strips any leading path up to the first openspec segment', () => {
@@ -83,6 +83,32 @@ test('changeOf: returns change key for active and archived, null otherwise', () 
 test('prettyChangeName: title-cases and extracts an optional date', () => {
   assert.deepEqual(prettyChangeName('my-change'), { label: 'My Change', date: '' });
   assert.deepEqual(prettyChangeName('2026-01-01-my-change'), { label: 'My Change', date: '2026-01-01' });
+});
+
+test('compareArchiveDateDesc: dates descend, undated last, input untouched', () => {
+  const rows = [
+    { key: 'a', date: '2026-08-19' },
+    { key: 'b', date: '' },
+    { key: 'c', date: '2026-08-21' },
+    { key: 'd', date: '2026-08-20' },
+    { key: 'e', date: '' },
+  ];
+  const sorted = rows.slice().sort(compareArchiveDateDesc);
+  assert.deepEqual(sorted.map(r => r.key), ['c', 'd', 'a', 'b', 'e']);
+  // Comparator (and sorting a copy) must not mutate the source array.
+  assert.deepEqual(rows.map(r => r.key), ['a', 'b', 'c', 'd', 'e']);
+});
+
+test('compareArchiveDateDesc: same-date ties keep name-ascending order', () => {
+  const rows = [
+    { key: 'changes/archive/2026-08-20-alpha', date: '2026-08-20' },
+    { key: 'changes/archive/2026-08-20-beta', date: '2026-08-20' },
+  ];
+  rows.sort(compareArchiveDateDesc);
+  assert.deepEqual(rows.map(r => r.key), [
+    'changes/archive/2026-08-20-alpha',
+    'changes/archive/2026-08-20-beta',
+  ]);
 });
 
 test('crumbFor: renders path segments and drops a trailing spec.md', () => {

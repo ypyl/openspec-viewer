@@ -6,7 +6,7 @@ import {
   allFiles, currentRel, currentKey, recentRels, collapsed, search, activeFolderId,
   activeFolderEntry, folders, changeMeta, diffInfo, highlights, GROUPS,
 } from '../../app/state.js';
-import { artifactOf, groupOf, changeOf, displayLabel } from '../../app/render.js';
+import { artifactOf, groupOf, changeOf, displayLabel, compareArchiveDateDesc } from '../../app/render.js';
 import { diffHint } from '../../app/diff.js';
 import { closeFolder } from '../../app/store.js';
 
@@ -119,6 +119,7 @@ function buildListHtml() {
         .map(f => changeOf(f.rel)))];
       const rows = keys.map(k => changeMeta.value.get(k))
         .filter(m => m && (!q || (m.label + ' ' + m.dir + ' ' + m.key).toLowerCase().includes(q)));
+      if (g === 'Archive') rows.sort(compareArchiveDateDesc); // newest first, undated last
       if (rows.length) sections.push({ g, rows });
     } else {
       const items = allFiles.value.filter(f => {

@@ -94,6 +94,17 @@ export function prettyChangeName(dir) {
   return { label, date };
 }
 
+// Comparator for archived-change rows (changeMeta values): newest date
+// first, undated entries last, ties keep incoming order — the caller feeds
+// rows name-ascending and Array.prototype.sort is stable since ES2019.
+// ISO YYYY-MM-DD strings compare correctly lexicographically, no Date work.
+export function compareArchiveDateDesc(a, b) {
+  if (a.date && b.date) return b.date.localeCompare(a.date);
+  if (a.date) return -1; // dated before undated
+  if (b.date) return 1;
+  return 0;              // both undated: keep incoming order
+}
+
 export function crumbFor(rel) {
   let segs = rel.split('/');
   // Spec files: show the capability path, not a trailing spec.md.
