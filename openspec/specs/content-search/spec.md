@@ -62,7 +62,9 @@ The system SHALL present the search input at the top of the app so it is visible
 
 #### Scenario: Sidebar filter still works
 - **WHEN** the user has an active content search in the header
-- **THEN** the sidebar name filter still filters the artifact list by name### Requirement: Results show snippets with match context
+- **THEN** the sidebar name filter still filters the artifact list by name
+
+### Requirement: Results show snippets with match context
 
 The system SHALL show search results in a dropdown beneath the search input, grouped by tree section in the standard order (Changes, Specs, Archive, Config). Each result SHALL identify its artifact — section, artifact type, and location (change name or file path) — and SHALL include a short snippet of the artifact's content around the match with the matched text visually highlighted. Results SHALL be capped to a bounded number, and when nothing matches the system SHALL show a clear empty state rather than stale or approximate results.
 

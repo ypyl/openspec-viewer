@@ -12,7 +12,8 @@ osv-search .osv-search {
 }
 osv-search .s-input {
   width: 100%;
-  padding: 7px 10px;
+  /* Right padding reserves room for the clear ✕ overlaid on the field. */
+  padding: 7px 26px 7px 10px;
   background: var(--bg);
   border: 1px solid var(--border-muted);
   border-radius: var(--radius);
@@ -22,6 +23,34 @@ osv-search .s-input {
 }
 osv-search .s-input:focus { border-color: var(--accent-dim); box-shadow: 0 0 0 3px rgba(31,111,235,.3); }
 osv-search .s-input::placeholder { color: var(--fg-subtle); }
+
+/* Clear ✕ overlaid on the right edge of the input; present only while the
+   input has text (toggled via the hidden attribute). */
+osv-search .s-clear {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--fg-muted);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+osv-search .s-clear:hover { background: rgba(110,118,129,.18); color: var(--fg); }
+osv-search .s-clear:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(31,111,235,.65);
+}
+osv-search .s-clear[hidden] { display: none; }
 
 osv-search .s-drop {
   position: absolute;

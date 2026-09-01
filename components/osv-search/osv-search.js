@@ -20,24 +20,30 @@ export class OsvSearch extends HTMLElement {
     this.innerHTML = `
       <div class="osv-search">
         <input class="s-input" type="text" placeholder="Search all artifacts…" aria-label="Search all artifacts" autocomplete="off" spellcheck="false">
+        <button type="button" class="s-clear" aria-label="Clear search" title="Clear search" hidden>✕</button>
         <div class="s-drop" hidden></div>
       </div>`;
 
     const input = this.querySelector('.s-input');
     const drop = this.querySelector('.s-drop');
+    const clear = this.querySelector('.s-clear');
 
     input.addEventListener('input', () => {
+      // The clear control exists only while the input has text.
+      clear.hidden = !input.value;
       clearTimeout(this._timer);
       this._timer = setTimeout(() => this.run(input, drop), DEBOUNCE_MS);
     });
     input.addEventListener('focus', () => this.run(input, drop));
     input.addEventListener('keydown', e => {
-      if (e.key === 'Escape') {
-        input.value = '';
-        clearSearchMarks();
-        drop.hidden = true;
-        drop.innerHTML = '';
-      }
+      if (e.key === 'Escape') this.clearSearch(input, drop, clear);
+    });
+
+    // Visible ✕ in the input: same reset as Escape, then hand focus back so a
+    // new query can be typed immediately.
+    clear.addEventListener('click', () => {
+      this.clearSearch(input, drop, clear);
+      input.focus();
     });
 
     // Ctrl+K / Cmd+K and Ctrl+P / Cmd+P focus search (command-palette
@@ -57,14 +63,25 @@ export class OsvSearch extends HTMLElement {
     });
   }
 
+  // Shared reset used by the Escape key, the clear button, and folder
+  // switches: clear the query, results, and transient marks. One path keeps
+  // the keyboard and button from ever drifting apart.
+  clearSearch(input, drop, clear) {
+    input.value = '';
+    clearSearchMarks();
+    drop.hidden = true;
+    drop.innerHTML = '';
+    if (clear) clear.hidden = true;
+  }
+
   // Folder switch: the search query is not remembered per folder — clear the
   // input, results, and transient marks so nothing leaks from the old folder.
   resetForFolderSwitch() {
     const input = this.querySelector('.s-input');
     const drop = this.querySelector('.s-drop');
-    if (input) input.value = '';
-    if (drop) { drop.hidden = true; drop.innerHTML = ''; }
-    clearSearchMarks();
+    const clear = this.querySelector('.s-clear');
+    if (!input) return;
+    this.clearSearch(input, drop, clear);
   }
 
   // Debounced/focused search. async so a slow Fuse build doesn't block input;
