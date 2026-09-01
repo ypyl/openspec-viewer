@@ -10,4 +10,4 @@
 
 - [x] 2.1 Serve locally (`python -m http.server 8743`) and run the existing e2e suites via playwright-cli (`diff-test.js`, `migration-test.js`); verify they pass
 - [x] 2.2 Playwright e2e check of the new behavior: focus search (Ctrl+K), type a query, assert the clear button is visible; click it, assert the input is empty, the dropdown is closed, and focus is back on the input; assert the button is absent when the input is empty
-- [ ] 2.3 Regression check: after clearing once, type a new query and click a result; verify the artifact opens at the match with snippet highlights intact, then push to `master` and verify the deployed header badge shows v3.17.0
+- [x] 2.3 Regression check: after clearing once, type a new query and click a result; verify the artifact opens at the match with snippet highlights intact, then push to `master` and verify the deployed header badge shows v3.17.0
