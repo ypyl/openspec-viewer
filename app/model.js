@@ -165,6 +165,14 @@ export function identityPhrase(f) {
   return parts.join(' · ');
 }
 
+// Pick relation for an upload (show-folder-identity D2): any uploaded path with
+// an 'openspec' segment after the first means the picker was a repo root.
+// Checks every path, not just the first — the picker's ordering is arbitrary,
+// so a .git or icons file can be listed ahead of any openspec file.
+export function uploadRelation(paths) {
+  return paths.some(p => String(p).split('/').slice(1).includes('openspec')) ? 'repo' : 'root';
+}
+
 /* ---------- Content-search helpers (pure, Fuse-backed) ---------- */
 
 // Human-readable location of an artifact for search results: the change's

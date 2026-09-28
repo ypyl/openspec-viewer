@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import {
   normPath, artifactOf, artifactPhrase, isRelevant, isChangeMetadata, isArchived, groupOf, displayLabel,
   changeOf, prettyChangeName, compareArchiveDateDesc, crumbFor, refLines, snippet,
-  parseGitIdentity, identityPhrase,
+  parseGitIdentity, identityPhrase, uploadRelation,
 } from '../app/model.js';
 
 test('normPath: strips any leading path up to the first openspec segment', () => {
@@ -157,6 +157,21 @@ test('identityPhrase: relation plus git parts, empty without identity', () => {
   assert.equal(identityPhrase({ relation: 'root' }), 'openspec root');
   assert.equal(identityPhrase({ name: 'LegacyProj' }), '');
   assert.equal(identityPhrase(null), '');
+});
+
+test('uploadRelation: repo root is detected from any uploaded path', () => {
+  assert.equal(uploadRelation(['my-repo/openspec/changes/a/proposal.md']), 'repo');
+  // Regression: the picker's ordering is arbitrary, so a non-openspec file can
+  // be listed first. Only the first path must not decide the relation.
+  assert.equal(uploadRelation(['my-repo/.git/config', 'my-repo/openspec/changes/a/proposal.md']), 'repo');
+  assert.equal(uploadRelation(['my-repo/icons/icon.png', 'my-repo/openspec/config.yaml']), 'repo');
+});
+
+test('uploadRelation: picking the openspec folder itself is a root pick', () => {
+  assert.equal(uploadRelation(['changes/a/proposal.md']), 'root');
+  assert.equal(uploadRelation(['openspec/changes/a/proposal.md']), 'root');
+  assert.equal(uploadRelation(['my-repo/README.md']), 'root');
+  assert.equal(uploadRelation(['']), 'root');
 });
 
 

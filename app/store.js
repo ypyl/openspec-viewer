@@ -11,7 +11,7 @@
 // open file, update tab badges, show a "deleted" notice), it dispatches a
 // document-level CustomEvent that the bootstrap (index.js) wires to osv-pane.
 
-import { normPath, isRelevant, isChangeMetadata, groupOf, changeOf, searchTitle, parseGitIdentity } from './model.js';
+import { normPath, isRelevant, isChangeMetadata, groupOf, changeOf, searchTitle, parseGitIdentity, uploadRelation } from './model.js';
 import { handleText } from './render.js';
 import { diffLines, hashText } from './diff.js';
 import { pruneHighlights } from './annotations.js';
@@ -359,16 +359,15 @@ export function addUploadFolder(fileList) {
   }
   // Project name = the first segment of the upload path (the folder chosen
   // in the picker), e.g. 'my-repo/openspec/...' -> 'my-repo'. Pick relation
-  // from the same path (show-folder-identity D2): a segment after the first
-  // equal to 'openspec' means a repo root was uploaded. Uploads are
+  // from the uploaded paths (show-folder-identity D2): a segment after the
+  // first equal to 'openspec' means a repo root was uploaded. Uploads are
   // session-only so they never carry git identity.
-  const uploadPath = String((files[0] && (files[0].webkitRelativePath || files[0].name)) || '');
-  const segs = uploadPath.split('/');
-  const base = segs[0] || 'upload';
+  const uploadPaths = files.map(f => f.webkitRelativePath || f.name);
+  const base = uploadPaths[0].split('/')[0] || 'upload';
   const id = genId();
   const entry = {
     id, name: base, kind: 'upload', git: null,
-    relation: segs.slice(1).includes('openspec') ? 'repo' : 'root',
+    relation: uploadRelation(uploadPaths),
     hue: hueFor(base), suffix: nameSuffix(base),
   };
   registerFolderState(id);
