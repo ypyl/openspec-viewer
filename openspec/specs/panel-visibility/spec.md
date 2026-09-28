@@ -8,7 +8,7 @@ Lets the user choose which side panels (the review panel on the right and the fi
 
 ### Requirement: Header controls hide and show side panels at desktop widths
 
-At viewport widths of 62em or more, the system SHALL provide a header visibility control for the file list sidebar — the navigation toggle (☰) in the top-left corner, present at all viewport widths (below 62em it opens the navigation drawer, see mobile-navigation) — and a header visibility control for the review panel — a matching corner toggle in the top-right, shown only at viewport widths of 62em or more. Each control SHALL toggle its panel between visible and hidden, SHALL indicate the current state of its panel, and SHALL NOT affect the folder rail, which SHALL remain in the layout at all times. Hiding a panel SHALL remove it from the layout so the content pane re-expands to fill the freed space; showing it SHALL restore it in place. Neither panel SHALL overlap the artifact content while visible.
+At viewport widths of 62em or more, the system SHALL provide a header visibility control for the file list sidebar — the navigation toggle (☰) in the top-left corner, present at all viewport widths (below 62em it opens the navigation drawer, see mobile-navigation) — and a header visibility control for the review panel — a matching corner toggle in the top-right, shown only at viewport widths of 62em or more and displaying the same icon (☰) as the sidebar's navigation toggle. Each control SHALL toggle its panel between visible and hidden, SHALL indicate the current state of its panel, and SHALL NOT affect the folder rail, which SHALL remain in the layout at all times. Hiding a panel SHALL remove it from the layout so the content pane re-expands to fill the freed space; showing it SHALL restore it in place. Neither panel SHALL overlap the artifact content while visible.
 
 #### Scenario: Hiding the review panel widens the pane
 - **WHEN** the viewport is at least 62em wide and the user activates the review panel's header visibility control while the panel is visible
@@ -25,6 +25,10 @@ At viewport widths of 62em or more, the system SHALL provide a header visibility
 #### Scenario: Controls reflect their panel's state
 - **WHEN** the viewport is at least 62em wide
 - **THEN** both header visibility controls indicate whether their panel is currently visible or hidden
+
+#### Scenario: Both corner toggles show the same icon
+- **WHEN** the viewport is at least 62em wide and both header visibility controls are shown
+- **THEN** the review panel's control displays the same icon (☰) as the sidebar's navigation toggle
 
 #### Scenario: Controls are absent on narrow screens
 - **WHEN** the viewport is narrower than 62em
