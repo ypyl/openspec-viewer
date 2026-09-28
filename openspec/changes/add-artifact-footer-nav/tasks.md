@@ -14,4 +14,4 @@
 
 - [x] 3.1 Add `tab-nav-test.js` at the repo root following the existing stub-`showDirectoryPicker` Playwright pattern, covering row presence on a multi-artifact change, labels, disabled ends, no wraparound, scroll-to-top after moving, and absence of the row for a standalone artifact. Verify: serve with `python -m http.server 8743` and run `playwright-cli run-code --filename=tab-nav-test.js`, reporting the results.
 - [x] 3.2 Run the existing end-to-end tests (`diff-test.js`, `migration-test.js`, `review-guidance-test.js`, `panel-toggle-test.js`) against the local server to confirm no regression, and report the results.
-- [ ] 3.3 Re-shoot `screenshot.png` with the footer visible, using the documented scratch script flow. Verify: the screenshot shows the footer after an open change's content, and after pushing to `master` the deployed header badge reads `v3.18.0`.
+- [x] 3.3 Re-shoot `screenshot.png` with the footer visible, using the documented scratch script flow. Verify: the screenshot shows the footer after an open change's content, and after pushing to `master` the deployed header badge reads `v3.18.0`.
