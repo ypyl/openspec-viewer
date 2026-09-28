@@ -81,6 +81,8 @@ export class OsvPane extends HTMLElement {
     this._main.addEventListener('click', async e => {
       const gs = e.target.closest('.guide-toggle');
       if (gs) { this.toggleGuideStrip(gs.dataset.kind); return; }
+      const tn = e.target.closest('.tab-nav-btn');
+      if (tn) { this.activateTab(+tn.dataset.i); return; }
       const b = e.target.closest('.diff-toggle');
       if (!b) return;
       const rel = b.dataset.rel;
@@ -203,7 +205,8 @@ export class OsvPane extends HTMLElement {
       </div>
       <div class="tabs">${tabBar}</div>
       ${isArchive ? '' : html`<div class="guide-strip" hidden></div>`}
-      <div class="pane-body pane-loading">Loading…</div>`;
+      <div class="pane-body pane-loading">Loading…</div>
+      ${tabs.length > 1 ? html`<div class="tab-nav"></div>` : ''}`;
 
     this._body = this._main.querySelector('.pane-body');
     this._main.querySelectorAll('.tab').forEach(btn =>
@@ -218,6 +221,7 @@ export class OsvPane extends HTMLElement {
     if (!t) return;
     currentRel.value = t.rel;
     this.refreshGuideStrip();
+    this.refreshTabNav();
     this._main.querySelectorAll('.tab').forEach(b =>
       b.classList.toggle('active', +b.dataset.i === i));
     this.refreshToggle(t.rel);
@@ -269,6 +273,23 @@ export class OsvPane extends HTMLElement {
     if (s.has(kind)) s.delete(kind); else s.add(kind);
     expandedStripKinds.value = s;
     this.refreshGuideStrip();
+  }
+
+  // Populate the footer navigation row for the active tab (design D2): each
+  // control names the adjacent artifact and is disabled at the ends of the tab
+  // order. The row is absent for single-artifact changes, so a missing element
+  // is a no-op.
+  refreshTabNav() {
+    const nav = this._main.querySelector('.tab-nav');
+    if (!nav) return;
+    const i = currentTabs.findIndex(t => t.rel === currentRel.value);
+    const prev = i > 0 ? currentTabs[i - 1] : null;
+    const next = i >= 0 && i < currentTabs.length - 1 ? currentTabs[i + 1] : null;
+    nav.innerHTML = html`
+      <button class="tab-nav-btn prev" data-i="${i - 1}"
+              ${prev ? '' : html` disabled`}>${prev ? html`‹ ${prev.label}` : '‹ Previous'}</button>
+      <button class="tab-nav-btn next" data-i="${i + 1}"
+              ${next ? '' : html` disabled`}>${next ? html`${next.label} ›` : 'Next ›'}</button>`;
   }
 
   // Re-render just the toggle after a tab switch or a click.

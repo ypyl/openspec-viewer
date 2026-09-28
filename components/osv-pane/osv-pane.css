@@ -136,6 +136,39 @@ osv-pane .tab-diff {
   font-size: 10.5px;
 }
 
+/* Footer navigation: an in-flow row at the end of the artifact body, so the
+   next artifact is one click away without scrolling back to the tab bar.
+   Two equal controls that wrap and ellipsize when a label is long. */
+osv-pane .tab-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 32px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-muted);
+}
+osv-pane .tab-nav-btn {
+  flex: 1 1 12em;
+  min-width: 0;
+  display: block;
+  padding: 8px 14px;
+  background: var(--bg);
+  color: var(--fg-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: background .15s, border-color .15s, color .15s;
+}
+osv-pane .tab-nav-btn.prev { text-align: left; }
+osv-pane .tab-nav-btn.next { text-align: right; }
+osv-pane .tab-nav-btn:hover:not(:disabled) { background: var(--panel); color: var(--fg); border-color: var(--fg-subtle); }
+osv-pane .tab-nav-btn:disabled { opacity: .45; cursor: default; }
+
 /* Review-guidance strip: one-line collapsed (guiding question), expandable
    to the kind's red flags. Sits between the tabs and the artifact body, so
    its height changes stay local — content below is untouched. */
