@@ -11,7 +11,7 @@
 // open file, update tab badges, show a "deleted" notice), it dispatches a
 // document-level CustomEvent that the bootstrap (index.js) wires to osv-pane.
 
-import { normPath, isRelevant, isChangeMetadata, groupOf, changeOf, searchTitle } from './model.js';
+import { normPath, isRelevant, isChangeMetadata, groupOf, changeOf, searchTitle, parseGitIdentity } from './model.js';
 import { handleText } from './render.js';
 import { diffLines, hashText } from './diff.js';
 import { pruneHighlights } from './annotations.js';
@@ -244,11 +244,27 @@ function nameSuffix(name) {
 }
 
 // Add a folder to the registry (rail + in-memory state + persisted row) and
-// return its display entry.
+// return its display entry. Captures the folder identity once, at open time
+// (show-folder-identity D1/D2/D3): the pick relation ('repo' when the picked
+// folder resolved to its openspec/ child, 'root' when it is itself an openspec
+// root) and — for repo picks with a readable .git — the origin URL + branch,
+// best-effort: any read failure yields git: null and never blocks the folder.
 async function registerPickFolder(handle, root) {
   const id = genId();
   const name = handle.name || 'folder';
-  const entry = { id, name, kind: 'pick', hue: hueFor(name), suffix: nameSuffix(name) };
+  const relation = root === handle ? 'root' : 'repo';
+  let git = null;
+  if (relation === 'repo') {
+    try {
+      const gitDir = await handle.getDirectoryHandle('.git');
+      const [config, head] = await Promise.all([
+        (await (await gitDir.getFileHandle('config')).getFile()).text(),
+        (await (await gitDir.getFileHandle('HEAD')).getFile()).text(),
+      ]);
+      git = parseGitIdentity(config, head);
+    } catch (e) { git = null; }
+  }
+  const entry = { id, name, kind: 'pick', relation, git, hue: hueFor(name), suffix: nameSuffix(name) };
   registerFolderState(id);
   folderHandles.set(id, { pickedHandle: handle, rootHandle: root });
   folderUnread.value = new Map(folderUnread.value).set(id, false);
@@ -342,11 +358,19 @@ export function addUploadFolder(fileList) {
     }
   }
   // Project name = the first segment of the upload path (the folder chosen
-  // in the picker), e.g. 'my-repo/openspec/...' -> 'my-repo'.
+  // in the picker), e.g. 'my-repo/openspec/...' -> 'my-repo'. Pick relation
+  // from the same path (show-folder-identity D2): a segment after the first
+  // equal to 'openspec' means a repo root was uploaded. Uploads are
+  // session-only so they never carry git identity.
   const uploadPath = String((files[0] && (files[0].webkitRelativePath || files[0].name)) || '');
-  const base = uploadPath.split('/')[0] || 'upload';
+  const segs = uploadPath.split('/');
+  const base = segs[0] || 'upload';
   const id = genId();
-  const entry = { id, name: base, kind: 'upload', hue: hueFor(base), suffix: nameSuffix(base) };
+  const entry = {
+    id, name: base, kind: 'upload', git: null,
+    relation: segs.slice(1).includes('openspec') ? 'repo' : 'root',
+    hue: hueFor(base), suffix: nameSuffix(base),
+  };
   registerFolderState(id);
   const st = folderData.get(id);
   st.files = filtered;
@@ -637,7 +661,7 @@ export async function autoReopen() {
   }
   const changedNames = [];
   await Promise.all(granted.map(async (row) => {
-    const entry = { id: row.id, name: row.name || 'folder', kind: 'pick', hue: hueFor(row.name || 'folder'), suffix: row.suffix || '' };
+    const entry = { id: row.id, name: row.name || 'folder', kind: 'pick', relation: row.relation, git: row.git || null, hue: hueFor(row.name || 'folder'), suffix: row.suffix || '' };
     registerFolderState(row.id);
     folderHandles.set(row.id, { pickedHandle: row.pickedHandle, rootHandle: row.rootHandle });
     folderUnread.value = new Map(folderUnread.value).set(row.id, false);

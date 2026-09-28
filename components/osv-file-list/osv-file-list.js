@@ -6,7 +6,7 @@ import {
   allFiles, currentRel, currentKey, recentRels, collapsed, search, activeFolderId,
   activeFolderEntry, folders, changeMeta, diffInfo, highlights, GROUPS,
 } from '../../app/state.js';
-import { artifactOf, groupOf, changeOf, displayLabel, compareArchiveDateDesc } from '../../app/render.js';
+import { artifactOf, groupOf, changeOf, displayLabel, compareArchiveDateDesc, identityPhrase } from '../../app/render.js';
 import { diffHint } from '../../app/diff.js';
 import { closeFolder } from '../../app/store.js';
 
@@ -35,8 +35,14 @@ export class OsvFileList extends HTMLElement {
       const f = activeFolderEntry();
       if (!f) return html`<span class="folder-name muted">No folder</span>`;
       const label = f.name + (f.suffix || '');
+      // Identity sub-line (show-folder-identity): hidden entirely for
+      // folders without identity (legacy rows) so their row keeps its height.
+      const identity = identityPhrase(f);
       return html`
-        <span class="folder-name" title="${label}">${label}</span>
+        <div class="folder-id">
+          <span class="folder-name" title="${label}">${label}</span>
+          ${identity ? html`<span class="folder-identity" title="${identity}">${identity}</span>` : ''}
+        </div>
         <button type="button" class="folder-close" title="Close folder — stop monitoring and forget it">✕</button>`;
     }, [folders, activeFolderId]);
     folderRow.effect(() => {

@@ -9,6 +9,7 @@
 import { html, joinHtml, computed } from '../../imports.js';
 import { folders, activeFolderId, folderUnread } from '../../app/state.js';
 import { pickFolder, addUploadFolder, activateFolder } from '../../app/store.js';
+import { identityPhrase } from '../../app/render.js';
 
 export class OsvFolderRail extends HTMLElement {
   connectedCallback() {
@@ -65,9 +66,14 @@ function buildRailHtml() {
     const active = f.id === activeFolderId.value;
     const unread = f.kind !== 'upload' && !!folderUnread.value.get(f.id);
     const letter = (f.name || '?').charAt(0).toUpperCase();
+    // Tooltip carries the folder identity (show-folder-identity): pick
+    // relation + git origin/branch when known, so switched-away folders stay
+    // identifiable on hover even when project names collide.
+    const identity = identityPhrase(f);
+    const title = f.name + (f.suffix || '') + (identity ? ' — ' + identity : '');
     return html`
       <button type="button" class="rail-avatar${active ? ' active' : ''}${f.kind === 'upload' ? ' upload' : ''}"
-        data-id="${f.id}" title="${f.name}${f.suffix || ''}" style="--hue:${f.hue}">
+        data-id="${f.id}" title="${title}" style="--hue:${f.hue}">
         <span class="rail-letter">${letter}</span>
         ${unread ? html`<span class="rail-dot" title="Unread changes"></span>` : ''}
       </button>`;

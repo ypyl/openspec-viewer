@@ -8,14 +8,14 @@ import { marked, jsyaml, DOMPurify } from '../imports.js';
 import {
   normPath, artifactOf, artifactPhrase, isRelevant, isChangeMetadata, isArchived, groupOf, displayLabel,
   changeOf, prettyChangeName, compareArchiveDateDesc, crumbFor, refLines, snippet,
-  searchLabel, searchTitle, snippetSegments,
+  searchLabel, searchTitle, snippetSegments, parseGitIdentity, identityPhrase,
 } from './model.js';
 
 // Re-export the pure model helpers for the browser app.
 export {
   normPath, artifactOf, artifactPhrase, isRelevant, isChangeMetadata, isArchived, groupOf, displayLabel,
   changeOf, prettyChangeName, compareArchiveDateDesc, crumbFor, refLines, snippet,
-  searchLabel, searchTitle, snippetSegments,
+  searchLabel, searchTitle, snippetSegments, parseGitIdentity, identityPhrase,
 };
 
 // Read raw text from a FileSystemFileHandle or an uploaded File.

@@ -32,7 +32,6 @@ osv-file-list .folder-row {
   min-height: 24px;
 }
 osv-file-list .folder-name {
-  flex: 1;
   min-width: 0;
   white-space: nowrap;
   overflow: hidden;
@@ -44,6 +43,23 @@ osv-file-list .folder-name {
 osv-file-list .folder-name.muted {
   color: var(--fg-subtle);
   font-weight: 500;
+}
+/* Folder identity sub-line (show-folder-identity): the pick relation + git
+   origin/branch under the project name; rendered only when identity exists. */
+osv-file-list .folder-id {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+osv-file-list .folder-identity {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--fg-subtle);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 osv-file-list .folder-close {
   flex-shrink: 0;

@@ -15,6 +15,8 @@ async page => {
   const err = (msg) => { out.errors.push(msg); console.error('FAIL: ' + msg); };
 
   const fsA = {
+    '.git/config': { text: '[core]\n[remote "origin"]\n\turl = https://github.com/acme/repoA.git\n', mtime: 900 },
+    '.git/HEAD': { text: 'ref: refs/heads/main\n', mtime: 901 },
     'openspec/changes/alpha/proposal.md': { text: '# Alpha in A\n\nA-specific.\n', mtime: 1000 },
     'openspec/changes/alpha/design.md': { text: '# Design A\n', mtime: 1100 },
     'openspec/changes/gamma/proposal.md': { text: '# Gamma\n\nOnly in A.\n', mtime: 1200 },
@@ -22,6 +24,8 @@ async page => {
     'openspec/config.yaml': { text: 'extends: openspec\n', mtime: 1400 },
   };
   const fsB = {
+    '.git/config': { text: '[core]\n[remote "origin"]\n\turl = https://github.com/acme/repoB.git\n', mtime: 2900 },
+    '.git/HEAD': { text: 'ref: refs/heads/dev\n', mtime: 2901 },
     'openspec/changes/alpha/proposal.md': { text: '# Alpha in B\n\nB-specific.\n', mtime: 2000 },
     'openspec/changes/beta/proposal.md': { text: '# Beta\n\nOnly in B.\n', mtime: 2100 },
     'openspec/specs/wa/spec.md': { text: '# WA Spec\n\nB flavour.\n', mtime: 2200 },
@@ -38,6 +42,21 @@ async page => {
       kind: 'directory',
       async queryPermission() { return 'granted'; },
       async isSameEntry(other) { return !!(other && other._id && other._id === this._id); },
+      // .git reads (folder-identity capture) reach into the stub tree like the
+      // real File System Access API: missing entries throw NotFoundError.
+      async getDirectoryHandle(name) {
+        const c = this._node.dirs[name];
+        if (!c) { const e = new Error('not found'); e.name = 'NotFoundError'; throw e; }
+        return makeDir(name, this._id + '/' + name, c);
+      },
+      async getFileHandle(name) {
+        const d = this._node.files[name];
+        if (!d) { const e = new Error('not found'); e.name = 'NotFoundError'; throw e; }
+        return {
+          kind: 'file', name,
+          getFile: async () => ({ lastModified: d.mtime, text: async () => d.text }),
+        };
+      },
       async *values() {
         const n = this._node;
         for (const [d, c] of Object.entries(n.dirs)) yield makeDir(d, this._id + '/' + d, c);
@@ -113,6 +132,20 @@ async page => {
   if (!state.gamma || state.beta) err('A active: list should show gamma, not beta, got ' + JSON.stringify(state));
   if (!state.nameRow) err('name row should show the active folder');
   const idA = state.active;
+
+  // Folder-identity capture (show-folder-identity): repo-root pick shows the
+  // pick relation + git origin/branch in the sidebar sub-line and the avatar
+  // tooltip.
+  const idAState = await page.evaluate(() => {
+    const av = [...document.querySelectorAll('.rail-avatar')].find(b => b.title.startsWith('repoA'));
+    return {
+      subline: document.querySelector('.folder-identity') ? document.querySelector('.folder-identity').textContent.trim() : null,
+      tooltip: av ? av.title : null,
+    };
+  });
+  out.steps.push('identity-A: ' + JSON.stringify(idAState));
+  if (idAState.subline !== 'openspec/ · https://github.com/acme/repoA.git · main') err('identity sub-line should show relation + git for repoA, got ' + JSON.stringify(idAState));
+  if (!idAState.tooltip || !idAState.tooltip.startsWith('repoA — ') || !idAState.tooltip.includes('openspec/ · https://github.com/acme/repoA.git · main')) err('avatar tooltip should carry repoA identity, got ' + idAState.tooltip);
 
   // ---- Phase 2: add folder B; dedup on re-picking A ----
   await clickAdd('B');
@@ -253,12 +286,14 @@ async page => {
     names: window.folderNames(),
     uploadAvatar: (() => { const av = [...document.querySelectorAll('.rail-avatar')].find(b => b.title.startsWith('uploaded-repo')); return av ? { upload: av.classList.contains('upload'), dot: !!av.querySelector('.rail-dot') } : null; })(),
     activeName: window.folderName(window.activeFolderId()),
+    uploadSubline: (() => { const el = document.querySelector('.folder-identity'); return el ? el.textContent.trim() : null; })(),
   }));
   out.steps.push('upload: ' + JSON.stringify(state));
   if (!state.names.includes('uploaded-repo')) err('upload should appear in the rail, got ' + JSON.stringify(state.names));
   if (!state.uploadAvatar || !state.uploadAvatar.upload) err('upload avatar should be marked session-only (hollow), got ' + JSON.stringify(state.uploadAvatar));
   if (state.uploadAvatar && state.uploadAvatar.dot) err('upload avatar must never show an unread dot');
   if (state.activeName !== 'uploaded-repo') err('adding an upload should make it active, got ' + state.activeName);
+  if (state.uploadSubline !== 'openspec/') err('upload should show the relation sub-line (repo pick, no git), got ' + state.uploadSubline);
 
   // Uploads are never persisted: no folder registry row of kind 'upload'.
   const rows = await page.evaluate(async () => {

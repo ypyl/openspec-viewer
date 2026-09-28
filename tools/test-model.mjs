@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import {
   normPath, artifactOf, artifactPhrase, isRelevant, isChangeMetadata, isArchived, groupOf, displayLabel,
   changeOf, prettyChangeName, compareArchiveDateDesc, crumbFor, refLines, snippet,
+  parseGitIdentity, identityPhrase,
 } from '../app/model.js';
 
 test('normPath: strips any leading path up to the first openspec segment', () => {
@@ -128,3 +129,34 @@ test('snippet: collapses whitespace and truncates past 90 chars', () => {
   assert.ok(snippet(long).endsWith('…'));
   assert.ok(snippet(long).length <= 91);
 });
+
+test('parseGitIdentity: reads origin and branch from config/HEAD', () => {
+  const config = '[core]\n\trepositoryformatversion = 0\n[remote "origin"]\n\turl = https://github.com/acme/myrepo.git\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n';
+  assert.deepEqual(parseGitIdentity(config, 'ref: refs/heads/main\n'), { origin: 'https://github.com/acme/myrepo.git', branch: 'main' });
+});
+
+test('parseGitIdentity: ignores other remotes, keeps the branch', () => {
+  const config = '[remote "upstream"]\n\turl = git@github.com:acme/myrepo.git\n';
+  assert.deepEqual(parseGitIdentity(config, 'ref: refs/heads/dev\n'), { origin: null, branch: 'dev' });
+});
+
+test('parseGitIdentity: detached HEAD drops the branch, keeps the origin', () => {
+  assert.deepEqual(
+    parseGitIdentity('[remote "origin"]\n\turl = file:///srv/git/repo\n', '4b825dc642cb6eb9a060e54bf8d69288fbee4904\n'),
+    { origin: 'file:///srv/git/repo', branch: null });
+});
+
+test('parseGitIdentity: unparseable input returns null', () => {
+  assert.equal(parseGitIdentity('not a git config at all', 'also not a head'), null);
+  assert.equal(parseGitIdentity('', ''), null);
+});
+
+test('identityPhrase: relation plus git parts, empty without identity', () => {
+  assert.equal(identityPhrase({ relation: 'repo', git: { origin: 'https://github.com/acme/myrepo.git', branch: 'main' } }), 'openspec/ · https://github.com/acme/myrepo.git · main');
+  assert.equal(identityPhrase({ relation: 'repo', git: null }), 'openspec/');
+  assert.equal(identityPhrase({ relation: 'root' }), 'openspec root');
+  assert.equal(identityPhrase({ name: 'LegacyProj' }), '');
+  assert.equal(identityPhrase(null), '');
+});
+
+

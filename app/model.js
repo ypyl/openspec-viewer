@@ -129,6 +129,42 @@ export function snippet(text) {
   return t.length > 90 ? t.slice(0, 90) + '…' : t;
 }
 
+/* ---------- Folder identity ---------- */
+
+// Best-effort git identity parsed from a repo root's .git/config + .git/HEAD:
+// the `[remote "origin"]` URL and the checked-out branch (`ref: refs/heads/<name>`).
+// Either field is null when absent; the whole result is null when neither is
+// present (not a git repo, or unparseable). Browsers expose no absolute paths,
+// so this — plus the pick relation — is the strongest folder identity
+// available for repo-root picks. (see change show-folder-identity, design D3)
+export function parseGitIdentity(configText, headText) {
+  let origin = null;
+  let section = '';
+  for (const line of String(configText || '').split(/\r?\n/)) {
+    const sec = line.match(/^\s*\[(.+)\]\s*$/);
+    if (sec) { section = sec[1]; continue; }
+    if (/^remote\s+"origin"$/i.test(section.trim())) {
+      const m = line.match(/^\s*url\s*=\s*(.+?)\s*$/);
+      if (m) origin = m[1];
+    }
+  }
+  const ref = String(headText || '').match(/^ref:\s*refs\/heads\/(.+?)\s*$/);
+  const branch = ref ? ref[1] : null;
+  return (origin || branch) ? { origin, branch } : null;
+}
+
+// One-line folder identity for display (see change show-folder-identity,
+// design D4): the pick relation plus git origin/branch when known. Empty for
+// folders without identity (legacy rows) — callers hide the line entirely.
+export function identityPhrase(f) {
+  if (!f || !f.relation) return '';
+  if (f.relation === 'root') return 'openspec root';
+  const parts = ['openspec/'];
+  if (f.git && f.git.origin) parts.push(f.git.origin);
+  if (f.git && f.git.branch) parts.push(f.git.branch);
+  return parts.join(' · ');
+}
+
 /* ---------- Content-search helpers (pure, Fuse-backed) ---------- */
 
 // Human-readable location of an artifact for search results: the change's
