@@ -181,7 +181,9 @@ async page => {
   if (scrollTest.top <= 0) err('sidebar list should be scrollable inside the drawer, got ' + JSON.stringify(scrollTest));
 
   // ---- 3. Picking a file closes the drawer and shows it in the pane. ----
-  await page.click('.item[data-rel="specs/cap/spec.md"]');
+  // Clicked via JS so Playwright's scroll-into-view cannot move the list: this
+  // section asserts the drawer's own scroll restore, not the click's scroll.
+  await page.evaluate(() => { document.querySelector('.item[data-rel="specs/cap/spec.md"]').click(); });
   await page.waitForTimeout(400);
   st = await drawerState();
   const picked = await page.evaluate(() => ({
@@ -285,7 +287,7 @@ async page => {
   // Picking the OTHER folder's avatar closes the drawer and switches the view.
   await page.click('.nav-toggle');
   await page.waitForTimeout(400);
-  await page.click('osv-nav-drawer .rail-avatar[title="repoA"]');
+  await page.click('osv-nav-drawer .rail-avatar[title^="repoA"]');
   await page.waitForTimeout(400);
   const folderPick = await page.evaluate(() => ({
     open: document.querySelector('osv-nav-drawer').classList.contains('open'),
