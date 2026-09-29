@@ -8,7 +8,7 @@ import {
 } from '../../app/state.js';
 import { artifactOf, groupOf, changeOf, displayLabel, compareArchiveDateDesc, identityPhrase } from '../../app/render.js';
 import { diffHint } from '../../app/diff.js';
-import { closeFolder } from '../../app/store.js';
+import { closeFolder, markAllRead } from '../../app/store.js';
 
 const SEARCH_ICON = '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M10.68 11.74a6 6 0 111.06-1.06l3.04 3.04a.75.75 0 11-1.06 1.06l-3.04-3.04zM11.5 7a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z"/></svg>';
 
@@ -38,15 +38,25 @@ export class OsvFileList extends HTMLElement {
       // Identity sub-line (show-folder-identity): hidden entirely for
       // folders without identity (legacy rows) so their row keeps its height.
       const identity = identityPhrase(f);
+      // "Mark all as read" sits between the name and the close button and acts
+      // on the active folder only. Disabled (not hidden) when nothing is unread
+      // so the row never changes height.
+      const unread = recentRels.value.size;
+      const markTitle = unread
+        ? `Mark all ${unread} unread artifact${unread === 1 ? '' : 's'} as read`
+        : 'Nothing unread in this folder';
       return html`
         <div class="folder-id">
           <span class="folder-name" title="${label}">${label}</span>
           ${identity ? html`<span class="folder-identity" title="${identity}">${identity}</span>` : ''}
         </div>
+        <button type="button" class="folder-mark-read" title="${markTitle}"${unread ? '' : html` disabled`}>Mark all as read</button>
         <button type="button" class="folder-close" title="Close folder — stop monitoring and forget it">✕</button>`;
-    }, [folders, activeFolderId]);
+    }, [folders, activeFolderId, recentRels]);
     folderRow.effect(() => {
       folderRowEl.innerHTML = folderRow.value;
+      const markBtn = folderRowEl.querySelector('.folder-mark-read');
+      if (markBtn) markBtn.addEventListener('click', () => markAllRead());
       const btn = folderRowEl.querySelector('.folder-close');
       if (btn) btn.addEventListener('click', () => {
         const id = activeFolderId.value;

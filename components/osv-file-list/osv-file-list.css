@@ -61,6 +61,25 @@ osv-file-list .folder-identity {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* "Mark all as read" link-style control between the folder name and the close
+   button. Muted while there is nothing unread, so it reads as unavailable
+   without disappearing. */
+osv-file-list .folder-mark-read {
+  flex-shrink: 0;
+  padding: 0 2px;
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+osv-file-list .folder-mark-read:hover:not(:disabled) { text-decoration: underline; }
+osv-file-list .folder-mark-read:disabled {
+  color: var(--fg-subtle);
+  cursor: default;
+}
 osv-file-list .folder-close {
   flex-shrink: 0;
   width: 22px;

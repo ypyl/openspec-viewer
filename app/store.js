@@ -206,6 +206,28 @@ export async function markRead(rel, hash, folderId = currentFolderId()) {
   } catch (e) { /* non-fatal */ }
 }
 
+// Acknowledge every unread artifact in the active folder at once (the
+// sidebar's "Mark all as read" control). Each unread artifact is marked read
+// against its current content, then the folder's unread set and the signals
+// derived from it are cleared. Returns how many artifacts were acknowledged.
+export async function markAllRead() {
+  const folderId = activeFolderId.value;
+  const st = folderId ? folderData.get(folderId) : null;
+  if (!st || !st.recentRels.size) return 0;
+  const rels = [...st.recentRels];
+  for (const rel of rels) {
+    try { await markRead(rel, hashText(await readFileText(rel)), folderId); }
+    catch (e) { /* non-fatal */ }
+  }
+  st.recentRels = new Set();
+  recentRels.value = st.recentRels;
+  folderUnread.value = new Map(folderUnread.value).set(folderId, false);
+  // The pane's tab badges and diff toggle are imperative, not reactive.
+  document.dispatchEvent(new CustomEvent('osv:refresh-tab-badges'));
+  showToast(`Marked ${rels.length} artifact${rels.length === 1 ? '' : 's'} as read`);
+  return rels.length;
+}
+
 /* ---------- Search corpus ---------- */
 
 // The search index is built from the ACTIVE folder's persisted snapshots only

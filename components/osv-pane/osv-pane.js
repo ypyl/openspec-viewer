@@ -103,7 +103,11 @@ export class OsvPane extends HTMLElement {
     document.addEventListener('osv:select-change', e => { clearSearchMarks(); this.openChange(e.detail.key); });
     document.addEventListener('osv:auto-open', () => this.autoOpenFirst());
     document.addEventListener('osv:refresh-current', () => this.rerenderCurrent());
-    document.addEventListener('osv:refresh-tab-badges', () => this.refreshTabBadges());
+    document.addEventListener('osv:refresh-tab-badges', () => {
+      this.refreshTabBadges();
+      // The diff toggle carries the same NEW badge, so refresh it too.
+      if (currentRel.value) this.refreshToggle(currentRel.value);
+    });
     document.addEventListener('osv:open-deleted', () => this.showDeleted());
     document.addEventListener('osv:reveal', async e => {
       const { rel, id } = e.detail;
