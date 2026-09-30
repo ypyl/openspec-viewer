@@ -479,6 +479,15 @@ export function buildReviewHtml() {
   }).join('') };
 }
 
+// Drop every collected review item across all artifacts (the review panel's
+// "clear all" action). Search marks are transient and untouched.
+export function clearAllHighlights() {
+  highlights.value = new Map();
+  persistHighlights();
+  const rel = currentRel.value;
+  if (rel) applyHighlights(rel); else staleTick.value++;
+}
+
 export function deleteHighlight(rel, id) {
   const list = (highlights.value.get(rel) || []).filter(h => h.id !== id);
   setHighlights(rel, list);

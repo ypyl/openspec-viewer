@@ -173,6 +173,18 @@ osv-review .review-action {
 osv-review .review-action:hover:not(:disabled) { background: rgba(110,118,129,.12); }
 osv-review .review-action.primary { background: var(--accent-dim); color: #fff; border-color: transparent; }
 osv-review .review-action.primary:hover:not(:disabled) { background: #2a6fd9; }
+/* Square destructive button: fixed size, red glyph + border. */
+osv-review .review-action.danger {
+  flex: 0 0 auto;
+  width: 38px;
+  padding: 8px 0;
+  color: var(--red);
+  border-color: color-mix(in srgb, var(--red) 45%, var(--border-muted));
+}
+osv-review .review-action.danger:hover:not(:disabled) {
+  background: rgba(248,81,73,.14);
+  border-color: var(--red);
+}
 osv-review .review-action:disabled { opacity: .45; cursor: not-allowed; }
 
 /* ≥ 62em (992px): the review is a reserved right-hand column of --review-w,

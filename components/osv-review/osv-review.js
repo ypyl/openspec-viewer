@@ -3,7 +3,7 @@
 
 import { html, joinHtml, computed } from '../../imports.js';
 import { currentRel, currentKey, highlights, staleTick, checklistTicks, checklistCollapsed } from '../../app/state.js';
-import { buildReviewHtml, deleteHighlight, revealComment } from '../../app/annotations.js';
+import { buildReviewHtml, deleteHighlight, clearAllHighlights, allHighlights, revealComment } from '../../app/annotations.js';
 import { buildPrompt, copyText } from '../../app/prompt.js';
 import { showToast } from '../osv-toast/osv-toast.js';
 import { CHECKLIST, CHECKLIST_TITLE } from '../../app/review-guide.js';
@@ -40,6 +40,7 @@ export class OsvReview extends HTMLElement {
         <div class="review-checklist" hidden></div>
         <div class="review-list"></div>
         <div class="review-actions">
+          <button class="review-action danger clear-btn" title="Remove all comments" aria-label="Remove all comments" disabled>✕</button>
           <button class="review-action primary copy-btn" disabled>📋 Copy prompt</button>
         </div>
       </div>`;
@@ -47,6 +48,7 @@ export class OsvReview extends HTMLElement {
     this._listEl = this.querySelector('.review-list');
     this._checklistEl = this.querySelector('.review-checklist');
     this._copyBtn = this.querySelector('.copy-btn');
+    this._clearBtn = this.querySelector('.clear-btn');
 
     /* ---- Render the review list + actions from highlights ---- */
     const review = computed(buildReviewHtml, [currentRel, highlights, staleTick]);
@@ -71,6 +73,10 @@ export class OsvReview extends HTMLElement {
       this._copyBtn.disabled = !hasComments;
       const hint = hasComments ? '' : 'Add a comment first';
       this._copyBtn.title = hint;
+      this._clearBtn.disabled = !n;
+      this._clearBtn.title = n
+        ? `Remove all ${n} comment${n === 1 ? '' : 's'}`
+        : 'No comments to remove';
     });
 
     /* ---- The two-minute checklist (session-scoped per change, design D4) ----
@@ -110,6 +116,14 @@ export class OsvReview extends HTMLElement {
       if (!prompt) return;
       const ok = await copyText(prompt);
       showToast(ok ? 'Prompt copied to clipboard' : 'Copy failed', ok ? undefined : 'error');
+    });
+
+    /* ---- Remove every comment (guarded; irreversible) ---- */
+    this._clearBtn.addEventListener('click', () => {
+      if (!allHighlights().length) return;
+      if (!window.confirm('Remove all comments? This cannot be undone.')) return;
+      clearAllHighlights();
+      showToast('All comments removed');
     });
 
     /* ---- Focus a review item (panel is always visible) ---- */
