@@ -8,7 +8,7 @@ import {
 } from '../../app/state.js';
 import { artifactOf, groupOf, changeOf, displayLabel, compareArchiveDateDesc, identityPhrase } from '../../app/render.js';
 import { diffHint } from '../../app/diff.js';
-import { closeFolder, markAllRead } from '../../app/store.js';
+import { closeFolder, markAllRead, readActiveGroup } from '../../app/store.js';
 
 const SEARCH_ICON = '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M10.68 11.74a6 6 0 111.06-1.06l3.04 3.04a.75.75 0 11-1.06 1.06l-3.04-3.04zM11.5 7a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z"/></svg>';
 
@@ -109,12 +109,16 @@ customElements.define('osv-file-list', OsvFileList);
 
 function toggleGroup(g) {
   const s = new Set(collapsed.value);
-  if (s.has(g)) s.delete(g); else s.add(g);
+  const expanding = s.has(g);   // currently collapsed → this click expands it
+  if (expanding) s.delete(g); else s.add(g);
   collapsed.value = s;
   const id = activeFolderId.value;
   if (id) {
     try { localStorage.setItem('osviewer.collapsed.' + id, JSON.stringify([...s])); } catch (e) {}
   }
+  // Expanding shows the group, so read it: a reload skips collapsed groups
+  // (see change-monitoring "Read only the groups being viewed").
+  if (expanding) readActiveGroup(g);
 }
 
 function buildListHtml() {

@@ -17,9 +17,10 @@ step, no framework — plain HTML, CSS, and ES-module JavaScript served as-is.
   active folder falls back to another one.
 - **Reload on demand** (Chrome/Edge): folders picked via the File System Access
   API are read when you open them and when you press the header's ⟳ **Reload**
-  button, which re-reads the active folder so added, modified, and deleted
-  artifacts appear. There is no background polling. Open files hot-refresh in
-  place.
+  button. A reload re-reads only the groups you have expanded, plus the artifact
+  you have open, so it stays fast even with a large archive. Expanding a
+  collapsed group reads it, and that is where a change to an archived artifact
+  surfaces. There is no background polling. Open files hot-refresh in place.
 - **Change diffs**: every read snapshots artifact content, so when a reload
   detects a change you get a **Diff** button next to the breadcrumb with +/− line
   counts — click it to switch from the artifact to a line-by-line unified diff

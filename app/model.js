@@ -73,6 +73,30 @@ export function groupOf(rel) {
   return null;
 }
 
+// The group a directory (a path prefix with a trailing slash) belongs to, or
+// null. `changes/` is shared: `changes/archive/` is Archive, every other
+// `changes/*` is Changes. Used to bound a folder read to the viewed groups.
+export function groupOfDir(dirPrefix) {
+  if (dirPrefix === 'changes/archive/' || dirPrefix.startsWith('changes/archive/')) return 'Archive';
+  if (dirPrefix === 'changes/' || dirPrefix.startsWith('changes/')) return 'Changes';
+  if (dirPrefix === 'specs/' || dirPrefix.startsWith('specs/')) return 'Specs';
+  if (dirPrefix === 'config/' || dirPrefix.startsWith('config/')) return 'Config';
+  return null;
+}
+
+// True when a scoped read may descend into the directory at `dirPrefix` for
+// the given set of groups (change-monitoring "Read only the groups being
+// viewed"). Keeps the walk inside the viewed groups: the shared `changes/`
+// root is entered when either Changes or Archive is in scope, while the
+// archive subtree is entered only for Archive.
+export function mayEnterDir(dirPrefix, groups) {
+  if (dirPrefix === '') return true;   // the openspec root
+  const g = groupOfDir(dirPrefix);
+  if (!g) return false;                // a top-level directory outside every group
+  if (groups.has(g)) return true;
+  return g === 'Changes' && dirPrefix === 'changes/' && groups.has('Archive');
+}
+
 export function displayLabel(rel, group) {
   if (group === 'Changes') return rel.slice('changes/'.length);                 // <change>/<file…>
   if (group === 'Archive') return rel.slice('changes/archive/'.length);         // <date>-<change>/<file…>

@@ -11,7 +11,7 @@
 // open file, update tab badges, show a "deleted" notice), it dispatches a
 // document-level CustomEvent that the bootstrap (index.js) wires to osv-pane.
 
-import { normPath, isRelevant, isChangeMetadata, groupOf, changeOf, searchTitle, parseGitIdentity, uploadRelation } from './model.js';
+import { normPath, isRelevant, isChangeMetadata, groupOf, changeOf, searchTitle, parseGitIdentity, uploadRelation, mayEnterDir } from './model.js';
 import { handleText } from './render.js';
 import { diffLines, hashText } from './diff.js';
 import { pruneHighlights } from './annotations.js';
@@ -19,6 +19,7 @@ import {
   folders, activeFolderId, folderUnread, folderData, registerFolderState,
   folderEntryFor, currentFolderId, hueFor, allFiles, recentRels, searchVersion,
   diffInfo, diffViews, paneCache, currentRel, currentKey, navDrawerOpen,
+  collapsed, GROUPS,
 } from './state.js';
 import { showToast } from '../components/osv-toast/osv-toast.js';
 import { setLoading } from '../components/osv-loading/osv-loading.js';
@@ -441,15 +442,41 @@ const scanAborters = new Map();   // folderId -> AbortController (reads are canc
 const baselineFresh = new Set();  // folderIds whose NEXT scan is a fresh baseline (nothing is new)
 const folderHandles = new Map();  // id -> { pickedHandle, rootHandle }
 
-async function* walkDir(dir, prefix, signal) {
+async function* walkDir(dir, prefix, signal, mayEnter) {
   for await (const entry of dir.values()) {
     if (signal && signal.aborted) return;
     if (entry.kind === 'directory') {
-      yield* walkDir(entry, prefix + entry.name + '/', signal);
+      const p = prefix + entry.name + '/';
+      if (mayEnter && !mayEnter(p)) continue;   // prune subtrees outside the read scope
+      yield* walkDir(entry, p, signal, mayEnter);
     } else {
       yield [prefix + entry.name, entry];
     }
   }
+}
+
+// How many files a scoped read stats at once. Bounded so a slow share is not
+// flooded, but >1 so the round trips overlap instead of queueing.
+const STAT_CONCURRENCY = 8;
+
+// Read lastModified for each [rel, handle] with bounded concurrency. A slow
+// filesystem (WSL/9p, network shares) pays one round trip per file; running a
+// few at a time overlaps that latency. Files that fail to stat are skipped.
+async function statEntries(entries, signal, onProgress) {
+  const out = new Map();
+  for (let i = 0; i < entries.length; i += STAT_CONCURRENCY) {
+    if (signal && signal.aborted) break;
+    const chunk = entries.slice(i, i + STAT_CONCURRENCY);
+    const stats = await Promise.all(chunk.map(async ([rel, handle]) => {
+      try {
+        const file = await handle.getFile();
+        return [rel, { handle, lastModified: file.lastModified }];
+      } catch (e) { return null; }
+    }));
+    for (const s of stats) if (s) out.set(s[0], s[1]);
+    if (onProgress) onProgress(out.size);
+  }
+  return out;
 }
 
 // Run the initial read for a folder. `keepSnapshots` treats it as
@@ -488,10 +515,22 @@ export async function startMonitoring(folderId, keepSnapshots = false, opts = {}
   return 'ok';
 }
 
+// The groups a reload should read: every expanded group, plus the group of the
+// artifact/change currently open (so what is on screen stays current).
+function activeReadScope(st) {
+  const scope = new Set(GROUPS.filter(g => !collapsed.value.has(g)));
+  if (st && st.currentRel) scope.add(groupOf(st.currentRel));
+  if (st && st.currentKey) scope.add(groupOf(st.currentKey));
+  scope.delete(null);
+  return scope;
+}
+
 // Rescan the active folder on demand (the header's Reload control). Only the
 // active folder is read; every other open folder keeps the state from its own
-// last scan. Session-only uploads have no folder to re-read, so they no-op.
-// `initial: true` shows the reading overlay, whose cancel aborts this read.
+// last scan. The read is scoped to the groups the user is viewing (see
+// change-monitoring "Read only the groups being viewed"). Session-only uploads
+// have no folder to re-read, so they no-op. `initial: true` shows the reading
+// overlay, whose cancel aborts this read.
 export async function reloadActiveFolder() {
   const id = activeFolderId.value;
   const entry = id && folderEntryFor(id);
@@ -499,7 +538,23 @@ export async function reloadActiveFolder() {
   const abort = new AbortController();
   scanAborters.set(id, abort);
   try {
-    await scan(id, true, abort.signal, { toast: true });
+    await scan(id, true, abort.signal, { toast: true, groups: activeReadScope(folderData.get(id)) });
+  } finally {
+    scanAborters.delete(id);
+  }
+}
+
+// Read one group of the active folder. Called when the user expands a collapsed
+// group, so what is shown reflects the folder's current contents. Quiet — the
+// group simply appears; the reading indicator covers the wait.
+export async function readActiveGroup(group) {
+  const id = activeFolderId.value;
+  const entry = id && folderEntryFor(id);
+  if (!entry || entry.kind !== 'pick' || !group) return;
+  const abort = new AbortController();
+  scanAborters.set(id, abort);
+  try {
+    await scan(id, true, abort.signal, { toast: false, groups: new Set([group]) });
   } finally {
     scanAborters.delete(id);
   }
@@ -516,33 +571,49 @@ export async function scan(folderId, initial, signal, opts = {}) {
   const cancelled = () => !!(signal && signal.aborted);
   const cancelAction = { cancel: () => { const a = scanAborters.get(folderId); if (a) a.abort(); } };
   if (initial) setLoading('Reading folder…', cancelAction);
-  let found = 0, lastUiAt = 0, aborted = false;
+  let lastUiAt = 0, aborted = false;
+  // Read scope: the groups this read walks. Default is every group (a folder's
+  // first read); a reload narrows it to the viewed groups and an expand to one
+  // (see change-monitoring "Read only the groups being viewed").
+  const scope = opts.groups instanceof Set ? opts.groups : new Set(GROUPS);
+  const mayEnter = (p) => mayEnterDir(p, scope);
+  const inScope = (rel) => scope.has(groupOf(rel));
   try {
-    const current = new Map();
+    // 1. Enumerate the in-scope files, pruning subtrees outside the scope.
     // rootHandle is already the resolved openspec root, so walking it yields
     // paths relative to openspec/ with no prefix to strip.
-    for await (const [rel, handle] of walkDir(handles.rootHandle, '', signal)) {
+    const entries = [];
+    for await (const [rel, handle] of walkDir(handles.rootHandle, '', signal, mayEnter)) {
       if (cancelled()) { aborted = true; break; }
-      if (!isRelevant(rel) || !groupOf(rel)) continue;
-      found++;
-      const file = await handle.getFile();
-      current.set(rel, { handle, lastModified: file.lastModified });
-      const now = performance.now();
-      if (initial && now - lastUiAt > 150) {
-        lastUiAt = now;
-        setLoading(`Reading folder… ${found} files`, cancelAction);
-      }
+      if (!isRelevant(rel) || !inScope(rel)) continue;
+      entries.push([rel, handle]);
     }
+    if (aborted) return 'aborted';
 
+    // 2. Stat them with bounded concurrency (progress for big folders).
+    const current = await statEntries(entries, signal, (n) => {
+      if (!initial) return;
+      const now = performance.now();
+      if (now - lastUiAt > 150) {
+        lastUiAt = now;
+        setLoading(`Reading folder… ${n} files`, cancelAction);
+      }
+    });
+    if (cancelled()) return 'aborted';
+
+    // 3. Diff/unread for the walked files only. Rels in unwalked groups keep
+    // their entries, diffs, unread, and counters.
+    const scopePrior = [...st.fileState.keys()].filter(inScope);
+    const hadPrior = scopePrior.length > 0;   // false on the very first read
     let changed = false, activeChangedFor = false, corpusChanged = false;
-    const hadPrior = st.fileState.size > 0;   // false on the very first scan
     const updates = [];
     const diffsSeen = [];
     let removals = 0;
     const prevUnread = st.recentRels;
-    // Rebuilt by this scan, assigned to st.recentRels below. Metadata paths
-    // are never unread (see change-monitoring spec) so drop any carried over.
-    const nextUnread = new Set([...prevUnread].filter(rel => !isChangeMetadata(rel)));
+    // Rebuilt for the walked groups, assigned to st.recentRels below; unwalked
+    // groups keep their unread. Metadata paths are never unread (see
+    // change-monitoring spec) so drop any carried over.
+    const nextUnread = new Set([...prevUnread].filter(rel => !isChangeMetadata(rel) && !inScope(rel)));
     for (const [rel, info] of current) {
       if (cancelled()) { aborted = true; break; }
       const prev = st.fileState.get(rel);
@@ -584,7 +655,8 @@ export async function scan(folderId, initial, signal, opts = {}) {
       }
     }
 
-    for (const rel of [...st.fileState.keys()]) {
+    // Removals are only detectable within the walked groups.
+    for (const rel of scopePrior) {
       if (cancelled()) { aborted = true; break; }
       if (!current.has(rel)) {
         changed = true;
@@ -611,8 +683,11 @@ export async function scan(folderId, initial, signal, opts = {}) {
       document.dispatchEvent(new CustomEvent('osv:open-deleted'));
     }
 
-    st.fileState.clear();
-    current.forEach((v, k) => st.fileState.set(k, v));
+    // Merge: keep unwalked groups' entries, replace the walked groups'.
+    const merged = new Map();
+    for (const [rel, info] of st.fileState) if (!inScope(rel)) merged.set(rel, info);
+    for (const [rel, info] of current) merged.set(rel, info);
+    st.fileState = merged;
     st.recentRels = nextUnread;
 
     if (corpusChanged) searchVersion.value++;   // snapshots changed → rebuild the search index

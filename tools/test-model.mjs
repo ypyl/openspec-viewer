@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import {
   normPath, artifactOf, artifactPhrase, isRelevant, isChangeMetadata, isArchived, groupOf, displayLabel,
   changeOf, prettyChangeName, compareArchiveDateDesc, crumbFor, refLines, snippet,
-  parseGitIdentity, identityPhrase, uploadRelation,
+  parseGitIdentity, identityPhrase, uploadRelation, groupOfDir, mayEnterDir,
 } from '../app/model.js';
 
 test('normPath: strips any leading path up to the first openspec segment', () => {
@@ -172,6 +172,35 @@ test('uploadRelation: picking the openspec folder itself is a root pick', () => 
   assert.equal(uploadRelation(['openspec/changes/a/proposal.md']), 'root');
   assert.equal(uploadRelation(['my-repo/README.md']), 'root');
   assert.equal(uploadRelation(['']), 'root');
+});
+
+test('groupOfDir: changes/archive is Archive, other changes/* is Changes', () => {
+  assert.equal(groupOfDir('changes/'), 'Changes');
+  assert.equal(groupOfDir('changes/alpha/'), 'Changes');
+  assert.equal(groupOfDir('changes/archive/'), 'Archive');
+  assert.equal(groupOfDir('changes/archive/2026-01-01-x/'), 'Archive');
+  assert.equal(groupOfDir('specs/'), 'Specs');
+  assert.equal(groupOfDir('specs/acct/'), 'Specs');
+  assert.equal(groupOfDir('config/'), 'Config');
+  assert.equal(groupOfDir('icons/'), null);
+});
+
+test('mayEnterDir: prunes dirs outside the scope, keeps the path to archive', () => {
+  assert.equal(mayEnterDir('', new Set(['Changes'])), true);            // the root
+  const changes = new Set(['Changes']);
+  assert.equal(mayEnterDir('changes/', changes), true);
+  assert.equal(mayEnterDir('changes/alpha/', changes), true);
+  assert.equal(mayEnterDir('changes/archive/', changes), false);       // archive is its own group
+  assert.equal(mayEnterDir('specs/', changes), false);
+  const archive = new Set(['Archive']);
+  assert.equal(mayEnterDir('changes/', archive), true);                // walk down to archive/
+  assert.equal(mayEnterDir('changes/archive/', archive), true);
+  assert.equal(mayEnterDir('changes/alpha/', archive), false);
+  assert.equal(mayEnterDir('specs/', archive), false);
+  const specs = new Set(['Specs']);
+  assert.equal(mayEnterDir('specs/', specs), true);
+  assert.equal(mayEnterDir('changes/', specs), false);
+  assert.equal(mayEnterDir('icons/', specs), false);
 });
 
 

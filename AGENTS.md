@@ -35,7 +35,7 @@ Push to `master` auto-deploys (~1 min); verify the header badge afterwards.
 - Components: `osv-` prefix, registered by import from index.js, fixed DOM once in connectedCallback, updates in place.
 - Import libraries only from imports.js. No shadow DOM unless isolation is needed; theme via CSS custom properties (variables.css).
 - SW: navigations network-first (fresh shell on reload), other assets cache-first → tick "Bypass for network" in DevTools when editing assets.
-- Folders are read on open/re-open and on demand (header ⟳). Changed files get a green "new" marker, group counter, toast.
+- Folders are read on open/re-open and on demand (header ⟳). A read is scoped to the expanded groups plus the open artifact's group, so a collapsed group is not walked; expanding a group reads it. Changed files get a green "new" marker, group counter, toast.
 - Folder-picker fallback: hidden `#picker` webkitdirectory input in osv-folder-rail (upload mode: session-only, no live dot).
 
 ## Dev
