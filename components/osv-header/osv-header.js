@@ -1,12 +1,13 @@
 // osv-header: title, version badge, theme toggle, stats, review button.
 
 import { html, computed } from '../../imports.js';
-import { theme, allFiles, folders, changeMeta, navDrawerOpen, sidebarHidden, reviewHidden } from '../../app/state.js';
+import { theme, allFiles, folders, changeMeta, navDrawerOpen, sidebarHidden, reviewHidden, activeFolderEntry, activeFolderId } from '../../app/state.js';
 import { groupOf, changeOf, isArchived } from '../../app/render.js';
+import { reloadActiveFolder } from '../../app/store.js';
 
 // Single source for the visible version badge (AGENTS.md keeps the version
 // in the header badge, the first-line comment, and sw.js in sync).
-export const VERSION = '3.21.0';
+export const VERSION = '4.0.0';
 
 export class OsvHeader extends HTMLElement {
   connectedCallback() {
@@ -24,6 +25,7 @@ export class OsvHeader extends HTMLElement {
         <osv-search></osv-search>
         <div class="side">
           <div class="stats"></div>
+          <button type="button" class="reload-btn" title="Reload active folder" aria-label="Reload active folder">⟳</button>
           <button type="button" class="toggle-review" aria-pressed="false" aria-label="Hide review panel" title="Hide review panel">☰</button>
         </div>
       </header>`;
@@ -94,16 +96,29 @@ export class OsvHeader extends HTMLElement {
     mql.addEventListener('change', () => { if (theme.value === 'system') applyTheme(); });
     theme.effect(applyTheme);
 
+    /* ---- Reload the active folder on demand (v4.0.0): replaces the
+         removed 10s polling loop and its "● live" badge. Disabled when no
+         folder is active or the active folder is a session-only upload. ---- */
+    const reloadBtn = this.querySelector('.reload-btn');
+    reloadBtn.addEventListener('click', () => { reloadActiveFolder(); });
+    const syncReload = () => {
+      const f = activeFolderEntry();
+      const on = !!f && f.kind === 'pick';
+      reloadBtn.disabled = !on;
+      reloadBtn.title = on ? `Reload ${f.name}${f.suffix || ''}` : 'Reload (open a folder to reload)';
+      reloadBtn.setAttribute('aria-label', reloadBtn.title);
+    };
+    folders.effect(syncReload);
+    activeFolderId.effect(syncReload);
+
     /* ---- Stats ---- */
     const stats = computed(() => {
       const all = allFiles.value;
       const active = [...new Set(all.filter(f => groupOf(f.rel) === 'Changes').map(f => changeOf(f.rel)))].length;
       const archived = [...changeMeta.value.values()].filter(m => isArchived(m.key)).length;
-      const live = folders.value.some(f => f.kind === 'pick');
       return html`<b>${all.length}</b> file${all.length === 1 ? '' : 's'} · ` +
-        html`<b>${active}</b> active change${active === 1 ? '' : 's'} · <b>${archived}</b> archived` +
-        (live ? html` · <span class="live-dot">● live</span>` : '');
-    }, [allFiles, folders, changeMeta]);
+        html`<b>${active}</b> active change${active === 1 ? '' : 's'} · <b>${archived}</b> archived`;
+    }, [allFiles, changeMeta]);
     stats.effect(() => { statsEl.innerHTML = stats.value; });
   }
 }

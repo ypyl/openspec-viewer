@@ -114,14 +114,14 @@ The system SHALL open the artifact belonging to a clicked result in its usual su
 
 ### Requirement: Results track the current folder contents
 
-The system SHALL base search results on the current state of the active folder: artifacts that appear, change, or are removed by its live folder scan SHALL be reflected in search results without reloading the page. Search SHALL also work for folders loaded through the file-upload fallback. Results SHALL never include artifacts from a non-active folder, even when another folder contains an artifact with the same relative path. Switching folders SHALL reset the search: the query is cleared and search then operates on the new active folder's contents.
+The system SHALL base search results on the current state of the active folder: artifacts that appear, change, or are removed by the active folder's scan (on open, re-open, or reload) SHALL be reflected in search results without reloading the page. Search SHALL also work for folders loaded through the file-upload fallback. Results SHALL never include artifacts from a non-active folder, even when another folder contains an artifact with the same relative path. Switching folders SHALL reset the search: the query is cleared and search then operates on the new active folder's contents.
 
 #### Scenario: Newly added artifact becomes searchable
-- **WHEN** a new artifact appears in the active folder during live monitoring
+- **WHEN** a new artifact appears in the active folder and the user reloads the folder
 - **THEN** its content is included in subsequent searches without reloading the page
 
 #### Scenario: Deleted artifact leaves the results
-- **WHEN** an artifact is removed from the active folder during live monitoring
+- **WHEN** an artifact is removed from the active folder and the user reloads the folder
 - **THEN** it no longer appears in search results
 
 #### Scenario: Search works on uploaded folders

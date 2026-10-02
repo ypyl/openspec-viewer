@@ -1,6 +1,6 @@
 // app/store.js — data access: IndexedDB persistence (folder registry +
-// content snapshots), File System Access picking/scanning, and per-folder
-// live-monitoring poll loops.
+// content snapshots), File System Access picking/scanning, and on-demand
+// folder reads (add, re-open, manual reload).
 //
 // Multi-folder model (design D1/D3/D4): every folder gets a stable uuid;
 // snapshots are keyed by `folderId + '/' + rel` because two folders can
@@ -404,13 +404,7 @@ export function addUploadFolder(fileList) {
   return entry;
 }
 
-// Stop polling a folder (and drop any in-flight scan controller).
-function stopTimer(folderId) {
-  const t = pollTimers.get(folderId);
-  if (t) { clearInterval(t); pollTimers.delete(folderId); }
-}
-
-// Close = forget: remove from the rail, stop monitoring, delete persisted
+// Close = forget: remove from the rail, stop reading, delete persisted
 // snapshots + folder row. When the closed folder was active, the next folder
 // down the rail becomes active (or `opts.reactivate`, e.g. after cancelling
 // a folder add — see spec change-monitoring "Cancel an in-progress folder
@@ -418,7 +412,6 @@ function stopTimer(folderId) {
 export async function closeFolder(folderId, opts = {}) {
   const idx = folders.value.findIndex(f => f.id === folderId);
   if (idx < 0 && !folderData.has(folderId)) return;
-  stopTimer(folderId);
   const a = scanAborters.get(folderId);
   if (a) a.abort();
   scanAborters.delete(folderId);
@@ -441,11 +434,10 @@ export async function closeFolder(folderId, opts = {}) {
   }
 }
 
-/* ---------- Live monitoring (per folder) ---------- */
+/* ---------- Folder reads (per folder) ---------- */
 
-const pollTimers = new Map();     // folderId -> setInterval
 const scanning = new Set();       // folderIds mid-scan (overlap guard)
-const scanAborters = new Map();   // folderId -> AbortController (initial reads are cancellable)
+const scanAborters = new Map();   // folderId -> AbortController (reads are cancellable)
 const baselineFresh = new Set();  // folderIds whose NEXT scan is a fresh baseline (nothing is new)
 const folderHandles = new Map();  // id -> { pickedHandle, rootHandle }
 
@@ -460,7 +452,7 @@ async function* walkDir(dir, prefix, signal) {
   }
 }
 
-// Run the initial read + poll loop for a folder. `keepSnapshots` treats it as
+// Run the initial read for a folder. `keepSnapshots` treats it as
 // a re-open (diff baselines and read state persist so changes since the last
 // visit surface); a fresh add clears the folder's snapshots and baselines
 // nothing as new. `opts.toast === false` suppresses scan toasts (autoReopen
@@ -493,9 +485,24 @@ export async function startMonitoring(folderId, keepSnapshots = false, opts = {}
   if (activeFolderId.value === folderId && !st.currentRel) {
     document.dispatchEvent(new CustomEvent('osv:auto-open'));
   }
-  stopTimer(folderId);
-  pollTimers.set(folderId, setInterval(() => scan(folderId, false, null, { toast: true }), 10000));
   return 'ok';
+}
+
+// Rescan the active folder on demand (the header's Reload control). Only the
+// active folder is read; every other open folder keeps the state from its own
+// last scan. Session-only uploads have no folder to re-read, so they no-op.
+// `initial: true` shows the reading overlay, whose cancel aborts this read.
+export async function reloadActiveFolder() {
+  const id = activeFolderId.value;
+  const entry = id && folderEntryFor(id);
+  if (!entry || entry.kind !== 'pick') return;
+  const abort = new AbortController();
+  scanAborters.set(id, abort);
+  try {
+    await scan(id, true, abort.signal, { toast: true });
+  } finally {
+    scanAborters.delete(id);
+  }
 }
 
 export async function scan(folderId, initial, signal, opts = {}) {

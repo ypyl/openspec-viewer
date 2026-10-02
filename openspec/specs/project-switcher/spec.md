@@ -22,11 +22,11 @@ The system SHALL show a narrow folder rail to the left of the sidebar artifact l
 
 ### Requirement: Add a folder from the rail
 
-The rail SHALL provide an add action (a `+` icon at its top) that opens a folder picker and starts monitoring the selected openspec root. When the File System Access API is unavailable, the same action SHALL fall back to a folder-upload control. Adding a folder SHALL NOT reset or disturb any already-open folder. Picking a folder that is already open SHALL NOT add a duplicate; it SHALL switch to the existing entry instead. Two different folders whose project names collide SHALL be shown with a distinguishing suffix (e.g. a `#2`) in addition to their distinct avatar colors.
+The rail SHALL provide an add action (a `+` icon at its top) that opens a folder picker and opens the selected openspec root, performing its initial read. When the File System Access API is unavailable, the same action SHALL fall back to a folder-upload control. Adding a folder SHALL NOT reset or disturb any already-open folder. Picking a folder that is already open SHALL NOT add a duplicate; it SHALL switch to the existing entry instead. Two different folders whose project names collide SHALL be shown with a distinguishing suffix (e.g. a `#2`) in addition to their distinct avatar colors.
 
 #### Scenario: Plus action opens the folder picker
 - **WHEN** the user activates the `+` icon
-- **THEN** a folder picker opens and the picked openspec root is added to the rail and monitored
+- **THEN** a folder picker opens and the picked openspec root is added to the rail and read
 
 #### Scenario: Same folder picked twice switches instead of duplicating
 - **WHEN** the user picks a folder that is already open
@@ -37,8 +37,8 @@ The rail SHALL provide an add action (a `+` icon at its top) that opens a folder
 - **THEN** the second one is shown with a distinguishing suffix wherever the name is displayed
 
 #### Scenario: Existing folders are unaffected by an add
-- **WHEN** the user adds a new folder while others are open and monitored
-- **THEN** the previously open folders keep their state and continue being monitored
+- **WHEN** the user adds a new folder while others are open
+- **THEN** the previously open folders keep their state and are not rescanned
 
 ### Requirement: Close the active folder from the rail's name row
 
@@ -62,11 +62,11 @@ Beside the sidebar artifact list, the system SHALL show a row with the active fo
 
 ### Requirement: Folder avatars indicate unread changes
 
-The system SHALL mark a folder avatar with a small indicator when that folder's artifacts have unacknowledged changes. The indicator SHALL disappear once all of that folder's changes are acknowledged, and SHALL NOT appear for session-only (uploaded) folders. The indicator SHALL reflect changes detected while the folder is not active, so the rail doubles as a monitoring surface.
+The system SHALL mark a folder avatar with a small indicator when that folder's artifacts have unacknowledged changes. The indicator SHALL disappear once all of that folder's changes are acknowledged, and SHALL NOT appear for session-only (uploaded) folders. The indicator SHALL reflect the folder's unacknowledged changes as of its most recent scan, so it updates when the folder is opened, re-opened, or reloaded, and does not change while the folder sits unscanned.
 
 #### Scenario: Dot appears for a folder with unread changes
-- **WHEN** a folder gains unacknowledged changes while it is not the active folder
-- **THEN** its avatar shows the unread indicator and the change notice names the folder
+- **WHEN** a folder's scan, on open, re-open, or reload, finds unacknowledged changes
+- **THEN** its avatar shows the unread indicator
 
 #### Scenario: Dot clears when changes are acknowledged
 - **WHEN** the user acknowledges all of a folder's unread changes
@@ -78,11 +78,11 @@ The system SHALL mark a folder avatar with a small indicator when that folder's 
 
 ### Requirement: Reload restores all granted folders
 
-On reload, the system SHALL re-open every folder that was open before and whose permission is still granted, resuming live monitoring for each. If multiple restored folders have changes since the last visit, the system SHALL show ONE aggregated notice naming those folders rather than a separate notice per folder. Folders whose permission is no longer granted SHALL be listed in the notice as skipped and SHALL NOT be re-opened.
+On reload, the system SHALL re-open every folder that was open before and whose permission is still granted, performing each folder's initial read. If multiple restored folders have changes since the last visit, the system SHALL show ONE aggregated notice naming those folders rather than a separate notice per folder. Folders whose permission is no longer granted SHALL be listed in the notice as skipped and SHALL NOT be re-opened.
 
 #### Scenario: All granted folders re-open on reload
 - **WHEN** the user reloads with three granted folders open
-- **THEN** all three re-open, resume monitoring, and appear in the rail
+- **THEN** all three re-open, are read, and appear in the rail
 
 #### Scenario: Changes since last visit are reported once
 - **WHEN** two restored folders each changed since the last visit
@@ -94,7 +94,7 @@ On reload, the system SHALL re-open every folder that was open before and whose 
 
 ### Requirement: Uploaded folders are session-only rail entries
 
-A folder added through the file-upload fallback SHALL appear in the rail with a visually distinct avatar (e.g. a hollow ring), SHALL NOT be live-monitored, SHALL NOT show an unread indicator, and SHALL NOT be restored on reload. Closing it SHALL behave like closing any other folder.
+A folder added through the file-upload fallback SHALL appear in the rail with a visually distinct avatar (e.g. a hollow ring), SHALL NOT be rescanned after its initial read, SHALL NOT show an unread indicator, and SHALL NOT be restored on reload. Closing it SHALL behave like closing any other folder.
 
 #### Scenario: Uploaded folder is marked session-only
 - **WHEN** a folder is added via upload

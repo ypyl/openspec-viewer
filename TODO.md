@@ -23,7 +23,7 @@
   for offline use); add a folder (＋ in the left rail, File System Access picker with an
   upload fallback, multiple folders each with their own avatar/tabs/unread state);
   browse (Changes / Specs / Archive / Config groups, a change's Proposal / Spec(s) /
-  Design / Tasks / Metadata tabs, live dot + 10 s polling, open files hot-refresh);
+  Design / Tasks / Metadata tabs, header ⟳ reload of the active folder, open files hot-refresh);
   diff (Diff button next to the breadcrumb, line-by-line unified diff that survives
   reloads); review (select text in an artifact → comment, or whole-file comment from
   the artifact header; two-minute checklist; one **Copy prompt** action folding

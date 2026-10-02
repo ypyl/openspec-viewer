@@ -99,6 +99,28 @@ osv-header .theme-btn {
 }
 osv-header .theme-btn:hover { background: var(--panel); }
 
+/* Reload control (v4.0.0): replaced the "● live" badge when automatic
+   polling was removed. Same look as the theme button; disabled until a
+   picked folder is active (uploads have nothing to re-read). */
+osv-header .reload-btn {
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0;
+  transition: background .15s;
+}
+osv-header .reload-btn:hover:not(:disabled) { background: var(--panel); }
+osv-header .reload-btn:disabled { opacity: .4; cursor: default; }
+
 /* Desktop panel visibility toggles (v3.8.0) were removed in v3.10.0: the
    sidebar's hide/show control is now the ☰ nav toggle (visible at all
    widths), and the review panel's close control lives on the panel itself. */
@@ -146,7 +168,6 @@ osv-header .toggle-review[aria-pressed="true"] {
 
 osv-header .stats { font-size: 12px; color: var(--fg-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 osv-header .stats b { color: var(--fg); font-weight: 600; }
-osv-header .live-dot { color: var(--green); font-weight: 600; }
 
 /* Below xs: tighten the header so stats don't crowd the title. */
 @media (max-width: 36em) {

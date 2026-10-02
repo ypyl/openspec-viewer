@@ -11,7 +11,7 @@
 import {
   startMonitoring, scan, getSnapshot, putSnapshot, deleteSnapshot,
   resolveOpenSpecRoot, addPickedFolder, activateFolder, rehandleFolder,
-  addUploadFolder,
+  addUploadFolder, reloadActiveFolder,
 } from './store.js';
 import { folders, activeFolderId, folderData } from './state.js';
 import { buildPrompt } from './prompt.js';
@@ -34,6 +34,7 @@ export function installTestBridge() {
   };
   window.scan = (initial, signal) => scan(activeFolderId.value, initial, signal, {});
   window.scanFolder = (id) => scan(id, false, null, {});   // scan any folder (background)
+  window.reloadActiveFolder = reloadActiveFolder;          // the header's Reload control
   window.addUploadFolder = addUploadFolder;
   window.getSnapshot = (rel) => getSnapshot(activeFolderId.value, rel);
   window.putSnapshot = (rel, snap) => putSnapshot(activeFolderId.value, rel, snap);

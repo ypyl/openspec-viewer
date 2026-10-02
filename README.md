@@ -12,13 +12,15 @@ step, no framework — plain HTML, CSS, and ES-module JavaScript served as-is.
 
 - **Monitor one or more folders**: add as many repository/`openspec/` folders as
   you like from the rail (＋ button); each gets a colored avatar, its own file
-  list, tabs, and unread state, and a "live" dot that lights up when a background
-  folder has changes. Re-picking the same folder is deduped; closing the active
-  folder falls back to another one.
-- **Live monitoring** (Chrome/Edge): folders picked via the File System Access
-  API are polled every 10 seconds, so added, modified, and deleted artifacts
-  appear without reloading. Open files hot-refresh in place.
-- **Change diffs**: every scan snapshots artifact content, so when the monitor
+  list, tabs, and unread state. A dot on an avatar marks a folder whose last read
+  found unacknowledged changes. Re-picking the same folder is deduped; closing the
+  active folder falls back to another one.
+- **Reload on demand** (Chrome/Edge): folders picked via the File System Access
+  API are read when you open them and when you press the header's ⟳ **Reload**
+  button, which re-reads the active folder so added, modified, and deleted
+  artifacts appear. There is no background polling. Open files hot-refresh in
+  place.
+- **Change diffs**: every read snapshots artifact content, so when a reload
   detects a change you get a **Diff** button next to the breadcrumb with +/− line
   counts — click it to switch from the artifact to a line-by-line unified diff
   view (a NEW badge marks diffs you haven't seen yet). Snapshots live in
@@ -49,7 +51,7 @@ in the address bar) so it runs fully offline.
 2. The picker reopens at your last-chosen folder (persisted via IndexedDB).
 
 In browsers without the File System Access API, the folder picker falls back to a
-one-shot read without live updates.
+one-shot read with no reload.
 
 ## Local development
 
