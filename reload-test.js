@@ -103,6 +103,11 @@ async page => {
   await page.waitForFunction(() => window.__makeFs !== undefined);
   await page.waitForTimeout(300);
 
+  // Isolate the reload control: the open-artifact auto-refresh (v4.2.0) would
+  // otherwise refresh the displayed artifact on its own and blur what the
+  // control does. Auto-refresh has its own suite (auto-refresh-test.js).
+  await page.evaluate(() => window.setAutoRefresh(false));
+
   const reloadState = () => page.evaluate(() => {
     const b = document.querySelector('.reload-btn');
     return b ? { exists: true, disabled: b.disabled, title: b.title } : { exists: false };

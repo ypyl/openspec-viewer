@@ -20,9 +20,11 @@ step, no framework — plain HTML, CSS, and ES-module JavaScript served as-is.
   button. A reload re-reads only the groups you have expanded, plus the artifact
   you have open, so it stays fast even with a large archive. Expanding a
   collapsed group reads it, and that is where a change to an archived artifact
-  surfaces. There is no background polling. Open files hot-refresh in place.
-- **Change diffs**: every read snapshots artifact content, so when a reload
-  detects a change you get a **Diff** button next to the breadcrumb with +/− line
+  surfaces. The artifact you have open is also watched on its own: edit its file
+  and the view (or its diff) refreshes in place without a reload. Only that one
+  file is read, so nothing else is walked.
+- **Change diffs**: every read snapshots artifact content, so when the watcher
+  or a reload detects a change you get a **Diff** button next to the breadcrumb with +/− line
   counts — click it to switch from the artifact to a line-by-line unified diff
   view (a NEW badge marks diffs you haven't seen yet). Snapshots live in
   IndexedDB, so diffs survive a page reload.

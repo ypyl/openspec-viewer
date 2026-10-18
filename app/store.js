@@ -319,6 +319,7 @@ export function activateFolder(id) {
   activeFolderId.value = id;   // the projection effect swaps the view
   setFolderLastActive(id);     // fire-and-forget
   navDrawerOpen.value = false; // any folder activation dismisses the drawer
+  startWatch();                // follow the folder's displayed artifact
 }
 
 // Point an existing folder at a (re-resolved) root handle. Used by the test
@@ -433,6 +434,7 @@ export async function closeFolder(folderId, opts = {}) {
     if (target) activateFolder(target);
     else activeFolderId.value = null;
   }
+  if (!activeFolderId.value) stopWatch();   // no folder left to watch
 }
 
 /* ---------- Folder reads (per folder) ---------- */
@@ -477,6 +479,39 @@ async function statEntries(entries, signal, onProgress) {
     if (onProgress) onProgress(out.size);
   }
   return out;
+}
+
+// Re-read one artifact and rebuild its diff and unread state from the
+// persisted snapshot, then write the snapshot back. Shared by a folder scan
+// and the open-artifact watch (change-monitoring "Auto-refresh the open
+// artifact") so both resolve diffs and unread the same way. Returns whether
+// the content actually changed and whether the artifact is now unread.
+async function refreshOne(folderId, rel, info) {
+  const st = folderData.get(folderId);
+  let changedContent = false, isUnread = false;
+  if (!st) return { changedContent, isUnread };
+  try {
+    const text = await handleText(info.handle);
+    const snap = await getSnapshot(folderId, rel);
+    if (snap && snap.text !== undefined && snap.text !== text) {
+      const d = diffLines(snap.text, text);
+      if (d) { st.diffInfo.set(rel, d); changedContent = true; }
+      else st.diffInfo.delete(rel);
+    } else if (!snap) {
+      st.diffInfo.delete(rel);   // first baseline — nothing to diff yet
+    }
+    if (isChangeMetadata(rel)) isUnread = false;
+    else if (!snap) isUnread = !baselineFresh.has(folderId);   // fresh picks are read
+    else if (changedContent) isUnread = snap.readHash !== hashText(text);
+    else isUnread = !!snap.unread;
+    await putSnapshot(folderId, rel, {
+      rel, text, mtime: info.lastModified,
+      readHash: snap ? snap.readHash : undefined,
+      unread: isUnread,
+    });
+  } catch (e) { /* snapshotting unavailable — markers still work */ }
+  st.paneCache.delete(rel);
+  return { changedContent, isUnread };
 }
 
 // Run the initial read for a folder. `keepSnapshots` treats it as
@@ -620,30 +655,9 @@ export async function scan(folderId, initial, signal, opts = {}) {
       const modified = !prev || prev.lastModified !== info.lastModified;
       if (modified) {
         corpusChanged = true;
-        try {
-          const text = await handleText(info.handle);
-          const snap = await getSnapshot(folderId, rel);
-          let changedContent = false;
-          if (snap && snap.text !== undefined && snap.text !== text) {
-            const d = diffLines(snap.text, text);
-            if (d) { st.diffInfo.set(rel, d); diffsSeen.push(rel); changedContent = true; }
-            else st.diffInfo.delete(rel);
-          } else if (!snap) {
-            st.diffInfo.delete(rel);   // first baseline — nothing to diff yet
-          }
-          let isUnread;
-          if (isChangeMetadata(rel)) isUnread = false;
-          else if (!snap) isUnread = !baselineFresh.has(folderId);   // fresh picks are read
-          else if (changedContent) isUnread = snap.readHash !== hashText(text);
-          else isUnread = !!snap.unread;
-          if (isUnread) nextUnread.add(rel); else nextUnread.delete(rel);
-          await putSnapshot(folderId, rel, {
-            rel, text, mtime: info.lastModified,
-            readHash: snap ? snap.readHash : undefined,
-            unread: isUnread,
-          });
-        } catch (e) { /* snapshotting unavailable — markers still work */ }
-        st.paneCache.delete(rel);
+        const { changedContent, isUnread } = await refreshOne(folderId, rel, info);
+        if (changedContent) diffsSeen.push(rel);
+        if (isUnread) nextUnread.add(rel); else nextUnread.delete(rel);
       }
       if (!prev) {
         changed = true;
@@ -741,6 +755,94 @@ export async function scan(folderId, initial, signal, opts = {}) {
     if (!scanning.size) setLoading(null);   // another folder may still be reading
   }
 }
+
+/* ---------- Open-artifact watch ---------- */
+
+// How often the displayed artifact is polled. One getFile() stat per tick; a
+// few seconds feels immediate without hammering a slow (WSL/9p) mount.
+const WATCH_INTERVAL = 3000;
+let watchTimer = null;      // setInterval handle, null when stopped
+let watchBusy = false;      // a tick is mid-read
+let watchEnabled = true;    // test/e2e kill switch (testbridge setAutoRefresh)
+
+// Start the watch (idempotent). It reads only the active folder's displayed
+// artifact, so no folder walk happens on a tick.
+export function startWatch() {
+  if (!watchEnabled || watchTimer !== null) return;
+  watchTimer = setInterval(() => { if (watchEnabled) watchTick(); }, WATCH_INTERVAL);
+}
+
+export function stopWatch() {
+  if (watchTimer !== null) { clearInterval(watchTimer); watchTimer = null; }
+}
+
+// Test hook: turn the timer off so a suite can isolate another mechanism, or
+// drive single ticks by hand (watchTick stays callable either way).
+export function setWatchEnabled(on) {
+  watchEnabled = !!on;
+  if (!watchEnabled) stopWatch();
+  else if (activeFolderId.value) startWatch();
+}
+
+// One watch tick: stat the displayed artifact and, when it changed on disk,
+// refresh just that artifact. No-op unless a pick folder is active, an artifact
+// is displayed, and no folder read is in flight.
+export async function watchTick() {
+  if (watchBusy || document.hidden) return;
+  const id = activeFolderId.value;
+  const rel = currentRel.value;
+  if (!id || !rel) return;
+  const entry = folderEntryFor(id);
+  if (!entry || entry.kind !== 'pick') return;
+  if (scanning.has(id)) return;   // don't race a folder read
+  const st = folderData.get(id);
+  const info = st && st.fileState.get(rel);
+  if (!info || !info.handle) return;
+  watchBusy = true;
+  try {
+    const file = await info.handle.getFile();
+    if (file.lastModified === info.lastModified) return;
+    if (scanning.has(id)) return;   // a read started while we statted
+    await autoRefresh(id, rel, { handle: info.handle, lastModified: file.lastModified });
+  } catch (e) {
+    /* file vanished or is unreadable — the next folder read reconciles it */
+  } finally {
+    watchBusy = false;
+  }
+}
+
+// Commit one externally-changed artifact and refresh the open view in place.
+async function autoRefresh(folderId, rel, info) {
+  const st = folderData.get(folderId);
+  if (!st) return;
+  const { isUnread } = await refreshOne(folderId, rel, info);
+  st.fileState.set(rel, info);
+  const had = st.recentRels.has(rel);
+  if (isUnread && !had) st.recentRels = new Set(st.recentRels).add(rel);
+  else if (!isUnread && had) {
+    const next = new Set(st.recentRels);
+    next.delete(rel);
+    st.recentRels = next;
+  }
+  searchVersion.value++;   // content changed → the search corpus may be stale
+  if (activeFolderId.value === folderId) {
+    // Swap the caches first: the signal writes below re-render synchronously.
+    swapMap(diffInfo, st.diffInfo);
+    swapMap(diffViews, st.diffViews);
+    swapMap(paneCache, st.paneCache);
+    recentRels.value = st.recentRels;
+    if (rel === currentRel.value) {
+      document.dispatchEvent(new CustomEvent('osv:auto-refresh', { detail: { rel } }));
+    }
+  }
+  folderUnread.value = new Map(folderUnread.value).set(folderId, st.recentRels.size > 0);
+  showToast('1 artifact updated');
+}
+
+// A tab that was hidden skipped its ticks; catch up at once when it is shown.
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) watchTick();
+});
 
 /* ---------- Startup ---------- */
 

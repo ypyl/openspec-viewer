@@ -12,8 +12,9 @@ import {
   startMonitoring, scan, getSnapshot, putSnapshot, deleteSnapshot,
   resolveOpenSpecRoot, addPickedFolder, activateFolder, rehandleFolder,
   addUploadFolder, reloadActiveFolder,
+  setWatchEnabled, watchTick,
 } from './store.js';
-import { folders, activeFolderId, folderData } from './state.js';
+import { folders, activeFolderId, folderData, currentRel } from './state.js';
 import { buildPrompt } from './prompt.js';
 
 const pane = () => document.querySelector('osv-pane');
@@ -35,8 +36,12 @@ export function installTestBridge() {
   window.scan = (initial, signal) => scan(activeFolderId.value, initial, signal, {});
   window.scanFolder = (id) => scan(id, false, null, {});   // scan any folder (background)
   window.reloadActiveFolder = reloadActiveFolder;          // the header's Reload control
+  window.watchTick = watchTick;                            // one open-artifact watch tick
+  window.setAutoRefresh = setWatchEnabled;                 // e2e kill switch
   window.addUploadFolder = addUploadFolder;
   window.getSnapshot = (rel) => getSnapshot(activeFolderId.value, rel);
+  window.getSnapshotIn = (folderId, rel) => getSnapshot(folderId, rel);
+  window.currentRel = () => currentRel.value;
   window.putSnapshot = (rel, snap) => putSnapshot(activeFolderId.value, rel, snap);
   window.deleteSnapshot = (rel) => deleteSnapshot(activeFolderId.value, rel);
   window.openFile = (rel) => pane() && pane().openFile(rel);

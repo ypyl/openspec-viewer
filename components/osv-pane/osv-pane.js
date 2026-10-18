@@ -103,6 +103,10 @@ export class OsvPane extends HTMLElement {
     document.addEventListener('osv:select-change', e => { clearSearchMarks(); this.openChange(e.detail.key); });
     document.addEventListener('osv:auto-open', () => this.autoOpenFirst());
     document.addEventListener('osv:refresh-current', () => this.rerenderCurrent());
+    document.addEventListener('osv:auto-refresh', e => {
+      const rel = (e.detail && e.detail.rel) || currentRel.value;
+      if (rel) this.refreshBodyInPlace(rel);
+    });
     document.addEventListener('osv:refresh-tab-badges', () => {
       this.refreshTabBadges();
       // The diff toggle carries the same NEW badge, so refresh it too.
@@ -319,6 +323,20 @@ export class OsvPane extends HTMLElement {
   async rerenderCurrent() {
     if (currentKey.value) await this.openChange(currentKey.value, currentRel.value);
     else if (currentRel.value) await this.openFile(currentRel.value);
+  }
+
+  // Patch the open body after the displayed artifact changed on disk, without
+  // rebuilding the pane chrome (tabs) or resetting scroll (change-monitoring
+  // "Auto-refresh the open artifact"). The diff toggle and tab badges are
+  // refreshed in place so a newly unread change shows its indicator.
+  async refreshBodyInPlace(rel) {
+    if (rel !== currentRel.value || !this._body || !this._main.contains(this._body)) return;
+    const top = this._main.scrollTop;
+    this._body.innerHTML = await this.viewFor(rel);
+    applyHighlights(rel);
+    this._main.scrollTop = top;
+    this.refreshToggle(rel);
+    this.refreshTabBadges();
   }
 
   // After the active folder switches: re-render whatever the new folder had
