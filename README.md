@@ -15,8 +15,9 @@ step, no framework — plain HTML, CSS, and ES-module JavaScript served as-is.
   list, tabs, and unread state. A dot on an avatar marks a folder whose last read
   found unacknowledged changes. Re-picking the same folder is deduped; closing the
   active folder falls back to another one.
-- **Reload on demand** (Chrome/Edge): folders picked via the File System Access
-  API are read when you open them and when you press the header's ⟳ **Reload**
+- **Reload on demand + live refresh** (Chrome/Edge): folders picked via the File
+  System Access API are read when you open them and when you press the header's
+  ⟳ **Reload**
   button. A reload re-reads only the groups you have expanded, plus the artifact
   you have open, so it stays fast even with a large archive. Expanding a
   collapsed group reads it, and that is where a change to an archived artifact
@@ -51,7 +52,9 @@ in the address bar) so it runs fully offline.
 
 1. Click the **＋** button in the left rail and choose a repository root or its
    `openspec/` folder.
-2. The picker reopens at your last-chosen folder (persisted via IndexedDB).
+2. Open folders are remembered in IndexedDB and re-opened on your next visit (the
+   last-active one becomes active), so a page reload picks up where you left off.
+   The picker itself also reopens at your last-chosen folder.
 
 In browsers without the File System Access API, the folder picker falls back to a
 one-shot read with no reload.
@@ -69,10 +72,11 @@ python -m http.server 8743
 ## Architecture
 
 - `index.html` — static skeleton (head meta, vendored UMD `<script>` tags,
-  pre-paint theme bootstrap, component shells). Version lives in the first-line
-  comment.
+  pre-paint theme bootstrap, component shells). Version lives in a comment at the
+  top of the file.
 - `index.js` — bootstrap: registers the web components and starts the app.
-- `index.css` — root stylesheet; `@import`s the stylesheets below.
+- `index.css` — root stylesheet; composes the `styles/` sheets and each
+  component's CSS.
 - `styles/` — `reset.css`, `variables.css` (theme tokens), `global.css` (layout).
 - `lib/` — vendored libraries: the Plain Vanilla Web libs (html-literal,
   tiny-signals) as ES modules, plus marked, js-yaml, DOMPurify, and Fuse as UMD
@@ -82,24 +86,29 @@ python -m http.server 8743
   classification), `render.js`, `diff.js`, `annotations.js` (review
   highlights/comments), `review-guide.js` (distilled review guidance),
   `search.js` (Fuse content search), `prompt.js` (LLM fix-prompt builder),
-  `testbridge.js` (e2e test API exposed on `window`).
+  `testbridge.js` (e2e test API exposed on `window`). `store.js` also watches the
+  artifact on screen for external edits.
 - `components/` — web components (`osv-*`), each a folder with `.js` + `.css`:
   header, folder rail, file list, pane (tabs + artifact body), review drawer,
-  search, loading overlay, toast.
+  search, loading overlay, toast, and the mobile navigation drawer.
 - `imports.js` — centralizes module loads.
 - `sw.js` — service worker (cache-name version tied to the app version).
 
-Keep the version in sync across `index.html` (comment + header badge) and
-`sw.js` (`CACHE_VERSION`) when you ship a change.
+Keep the version in sync across the comment at the top of `index.html`, the
+header badge (`VERSION` in `components/osv-header/osv-header.js`), and `sw.js`
+(`CACHE_VERSION`) when you ship a change.
 
 ## Tests
 
 - Node unit tests, zero deps — `npm test` (runs `node --test tools/test-*.mjs`):
   `tools/test-model.mjs`, `tools/test-diff.mjs`, `tools/test-search.mjs`.
-- Playwright end-to-end tests against the served app:
+- Playwright end-to-end tests against the served app (each stubs the File System
+  Access API with an in-memory tree and drives the real pipeline):
   `diff-test.js` (scan → snapshot → diff → render), `migration-test.js`
-  (IndexedDB v2→v3 upgrade keeps the saved folder), `multi-folder-test.js`,
-  `collapse-test.js`, `archive-read-test.js`, `whole-file-comment-test.js`,
-  `review-guidance-test.js`.
+  (IndexedDB v2→v3 upgrade keeps the saved folder), `reload-test.js`,
+  `scoped-read-test.js`, `auto-refresh-test.js`, `multi-folder-test.js`,
+  `collapse-test.js`, `archive-read-test.js`, `mark-all-read-test.js`,
+  `whole-file-comment-test.js`, `review-guidance-test.js`, `tab-nav-test.js`,
+  `search-hotkey-test.js`, `mobile-drawer-test.js`, `panel-toggle-test.js`.
 
 Run a browser test with `playwright-cli` against `python -m http.server 8743`.

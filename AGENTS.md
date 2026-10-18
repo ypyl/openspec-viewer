@@ -7,7 +7,7 @@ ES modules, web components), auto-deployed to GitHub Pages from `master`.
 
 MAJOR = breaking · MINOR = new feature · PATCH = invisible fix. Keep in sync:
 
-- `index.html` first line: `<!-- OpenSpec Local Viewer vX.Y.Z -->`
+- `index.html` version comment: `<!-- OpenSpec Local Viewer vX.Y.Z -->` (line 2, right after `<!DOCTYPE html>`)
 - `components/osv-header/osv-header.js`: `export const VERSION = 'X.Y.Z'` (header badge renders `v${VERSION}` from it)
 - `sw.js`: `CACHE_VERSION = 'osviewer-X.Y.Z'` (else returning users keep the old cached shell)
 
@@ -22,8 +22,8 @@ Push to `master` auto-deploys (~1 min); verify the header badge afterwards.
 - `index.js` — bootstrap: imports every component (registers it), starts store, wires folder switch, registers SW.
 - `index.css` — @imports styles/ then each component CSS.
 - `imports.js` — the only module that touches libraries; all code imports from here.
-- `app/` — logic: state.js (signals) · store.js (folders/IndexedDB/FS/scan) · model.js (pure helpers) · render.js · diff.js · annotations.js (review) · review-guide.js · search.js · prompt.js · testbridge.js (e2e API on window).
-- `components/osv-<name>/` — header, folder-rail, search, file-list, pane, review, loading, toast; each own .js + .css.
+- `app/` — logic: state.js (signals) · store.js (folders/IndexedDB/FS/scan + open-artifact watch) · model.js (pure helpers) · render.js · diff.js · annotations.js (review) · review-guide.js · search.js · prompt.js · testbridge.js (e2e API on window).
+- `components/osv-<name>/` — header, folder-rail, nav-drawer, search, file-list, pane, review, loading, toast; each own .js + .css.
 - `lib/` — vendored: html-literal.js + tiny-signals.js (ESM) · marked/js-yaml/purify/fuse (UMD, window globals).
 - `styles/` — reset.css · variables.css (theme tokens) · global.css.
 
@@ -42,7 +42,7 @@ Push to `master` auto-deploys (~1 min); verify the header badge afterwards.
 
 - Serve: `python -m http.server 8743` (start.sh / start.bat serve + open browser).
 - Unit: `npm test` → node --test tools/test-*.mjs (model, diff, search).
-- E2E: root `*-test.js` — diff, migration, multi-folder, collapse, archive-read, whole-file-comment, review-guidance. Stub showDirectoryPicker with an in-memory tree; drive the real pipeline via app/testbridge.js. Run: serve on 8743, then `playwright-cli open http://127.0.0.1:8743/index.html` and `playwright-cli run-code --filename=<test>.js`.
+- E2E: root `*-test.js` — diff, migration, multi-folder, collapse, archive-read, reload, scoped-read, auto-refresh, mark-all-read, whole-file-comment, review-guidance, tab-nav, search-hotkey, mobile-drawer, panel-toggle. Stub showDirectoryPicker with an in-memory tree; drive the real pipeline via app/testbridge.js. Run: serve on 8743, then `playwright-cli open http://127.0.0.1:8743/index.html` and `playwright-cli run-code --filename=<test>.js`.
 - The real folder picker (showDirectoryPicker) cannot be automated headless (promise hangs) → use the upload fallback: `setInputFiles('#picker', folder)`.
 
 ## screenshot.png
