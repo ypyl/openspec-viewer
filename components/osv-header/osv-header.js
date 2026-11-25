@@ -7,7 +7,7 @@ import { reloadActiveFolder } from '../../app/store.js';
 
 // Single source for the visible version badge (AGENTS.md keeps the version
 // in the header badge, the first-line comment, and sw.js in sync).
-export const VERSION = '4.2.0';
+export const VERSION = '4.2.1';
 
 export class OsvHeader extends HTMLElement {
   connectedCallback() {
@@ -20,12 +20,12 @@ export class OsvHeader extends HTMLElement {
           <button type="button" class="nav-toggle" aria-label="Open navigation" aria-expanded="false" title="Open navigation">☰</button>
           <h1>OpenSpec <span class="dot">•</span> Local Viewer</h1>
           <span class="version">v${VERSION}</span>
-          <button class="theme-btn" title="Following system theme — click to override">💻</button>
+          <button type="button" class="reload-btn" title="Reload active folder" aria-label="Reload active folder">⟳</button>
         </div>
         <osv-search></osv-search>
         <div class="side">
           <div class="stats"></div>
-          <button type="button" class="reload-btn" title="Reload active folder" aria-label="Reload active folder">⟳</button>
+          <button class="theme-btn" title="Following system theme — click to override">💻</button>
           <button type="button" class="toggle-review" aria-pressed="false" aria-label="Hide review panel" title="Hide review panel">☰</button>
         </div>
       </header>`;
