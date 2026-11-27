@@ -7,7 +7,7 @@ import { reloadActiveFolder } from '../../app/store.js';
 
 // Single source for the visible version badge (AGENTS.md keeps the version
 // in the header badge, the first-line comment, and sw.js in sync).
-export const VERSION = '4.2.1';
+export const VERSION = '4.4.0';
 
 export class OsvHeader extends HTMLElement {
   connectedCallback() {

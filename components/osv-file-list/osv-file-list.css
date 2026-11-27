@@ -231,7 +231,50 @@ osv-file-list .group-new {
   text-transform: none;
   letter-spacing: 0;
 }
+/* "done" badge on a change row: every task in its tasks.md is checked, so the
+   change was applied and is only waiting to be archived. Same pill as the
+   artifact badges, green like the tasks/progress accents. */
+osv-file-list .done-badge {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  padding: 1px 6px;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--green) 45%, transparent);
+  color: var(--green);
+}
 osv-file-list .diff-hint { flex-shrink: 0; font-size: 10.5px; display: inline-flex; gap: 4px; }
+/* Per-row "mark as read": explicit acknowledgement of one change (all of its
+   unread artifacts) or one artifact. Shown only on unread rows, so the row that
+   carries a new-dot also carries the control that clears it. */
+osv-file-list .row-mark-read {
+  flex-shrink: 0;
+  margin-left: auto;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--green) 45%, transparent);
+  border-radius: 4px;
+  color: var(--green);
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+osv-file-list .row-mark-read:hover {
+  background: color-mix(in srgb, var(--green) 22%, transparent);
+  border-color: var(--green);
+  color: var(--fg);
+}
+/* An unread change row's date gives up its auto margin so the ✓ sits flush
+   right against it instead of the two splitting the free space. */
+osv-file-list .item .date.tight { margin-left: 0; }
 osv-file-list .item .date {
   margin-left: auto;
   font-size: 11px;

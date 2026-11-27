@@ -7,6 +7,7 @@ import {
   normPath, artifactOf, artifactPhrase, isRelevant, isChangeMetadata, isArchived, groupOf, displayLabel,
   changeOf, prettyChangeName, compareArchiveDateDesc, crumbFor, refLines, snippet,
   parseGitIdentity, identityPhrase, uploadRelation, groupOfDir, mayEnterDir,
+  isTasksRel, taskProgress,
 } from '../app/model.js';
 
 test('normPath: strips any leading path up to the first openspec segment', () => {
@@ -183,6 +184,23 @@ test('groupOfDir: changes/archive is Archive, other changes/* is Changes', () =>
   assert.equal(groupOfDir('specs/acct/'), 'Specs');
   assert.equal(groupOfDir('config/'), 'Config');
   assert.equal(groupOfDir('icons/'), null);
+});
+
+test('isTasksRel: only a change/archive artifact named tasks.md', () => {
+  assert.equal(isTasksRel('changes/alpha/tasks.md'), true);
+  assert.equal(isTasksRel('changes/archive/2026-01-01-alpha/tasks.md'), true);
+  assert.equal(isTasksRel('changes/alpha/proposal.md'), false);
+  assert.equal(isTasksRel('specs/acct/tasks.md'), false);
+  assert.equal(isTasksRel('changes/alpha/tasks.md.bak'), false);
+});
+
+test('taskProgress: counts checked and total task boxes', () => {
+  assert.deepEqual(taskProgress(''), { total: 0, done: 0 });
+  assert.deepEqual(taskProgress(undefined), { total: 0, done: 0 });
+  assert.deepEqual(taskProgress('# Tasks\n\n- [x] one\n- [X] two\n- [ ] three\n'), { total: 3, done: 2 });
+  // Nested/indented boxes and * bullets count too; prose is not a task.
+  assert.deepEqual(taskProgress('  * [x] nested\n\ntext [x] inline\n'), { total: 1, done: 1 });
+  assert.deepEqual(taskProgress('- [ ] a\n'), { total: 1, done: 0 });
 });
 
 test('mayEnterDir: prunes dirs outside the scope, keeps the path to archive', () => {

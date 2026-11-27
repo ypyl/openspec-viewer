@@ -9,6 +9,7 @@ import {
   normPath, artifactOf, artifactPhrase, isRelevant, isChangeMetadata, isArchived, groupOf, displayLabel,
   changeOf, prettyChangeName, compareArchiveDateDesc, crumbFor, refLines, snippet,
   searchLabel, searchTitle, snippetSegments, parseGitIdentity, identityPhrase,
+  isTasksRel, taskProgress,
 } from './model.js';
 
 // Re-export the pure model helpers for the browser app.
@@ -16,6 +17,7 @@ export {
   normPath, artifactOf, artifactPhrase, isRelevant, isChangeMetadata, isArchived, groupOf, displayLabel,
   changeOf, prettyChangeName, compareArchiveDateDesc, crumbFor, refLines, snippet,
   searchLabel, searchTitle, snippetSegments, parseGitIdentity, identityPhrase,
+  isTasksRel, taskProgress,
 };
 
 // Read raw text from a FileSystemFileHandle or an uploaded File.
@@ -71,13 +73,12 @@ export function markdownPane(rel, text) {
     metaHtml = html`<div class="meta-card"><h3>Frontmatter</h3><div class="meta-error">Could not parse: ${meta._error}</div></div>`;
   }
 
-  // Tasks progress
-  const tasks = body.match(/^\s*[-*]\s+\[([ xX])\]/gm) || [];
+  // Tasks progress (taskProgress is shared with the sidebar's "done" badge)
+  const { total, done } = taskProgress(body);
   let progressHtml = '';
-  if (tasks.length) {
-    const done = tasks.filter(t => /\[[xX]\]/.test(t)).length;
-    const pct = Math.round(done / tasks.length * 100);
-    progressHtml = html`<div class="progress">${done}/${tasks.length} tasks done · ${pct}%</div>
+  if (total) {
+    const pct = Math.round(done / total * 100);
+    progressHtml = html`<div class="progress">${done}/${total} tasks done · ${pct}%</div>
       <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>`;
   }
 

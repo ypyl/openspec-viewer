@@ -30,6 +30,16 @@ step, no framework — plain HTML, CSS, and ES-module JavaScript served as-is.
   view (a NEW badge marks diffs you haven't seen yet). Snapshots live in
   IndexedDB, so diffs survive a page reload.
 - Open a change to see its artifacts as tabs: Proposal, Spec(s), Design, Tasks, Metadata.
+- **Explicit read state**: nothing is marked read by opening it. Browsing an
+  artifact, its diff, or a whole change leaves the green "new" markers exactly as
+  they were. Each unread change row in the sidebar carries a small ✓ that marks
+  all of that change's artifacts read, each unread spec/config row carries one that
+  marks just that artifact, and the folder row has **Mark all as read** for the
+  whole folder.
+- **Done badge**: a change whose `tasks.md` has every task checked is applied but
+  not archived yet, so its sidebar row carries a small `done` badge next to the
+  change name (hover it for the task count). Checking off the last task, or editing
+  `tasks.md` at all, updates it on the next read.
 - **Review mode**: select text in an artifact and add a comment, or comment on
   the whole file from the artifact header; highlights are kept per file, then
   collected with the artifact content into a single LLM fix prompt (copy it or

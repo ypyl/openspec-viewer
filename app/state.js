@@ -98,6 +98,7 @@ export function createFolderState() {
     currentRel: null,          // selected artifact
     currentKey: null,          // selected change (active or archived)
     recentRels: new Set(),     // rels with unacknowledged changes
+    taskState: new Map(),      // change key -> { total, done } from its tasks.md
     fileState: new Map(),      // rel -> { handle, lastModified } change-detection snapshot
     paneCache: new Map(),      // rel -> rendered pane HTML
     diffInfo: new Map(),       // rel -> { hunks, added, removed, ts, hash }
@@ -129,6 +130,7 @@ export const recentRels = signal(new Set()); // active folder's unread rels
 export const collapsed = signal(new Set());  // active folder's collapsed groups
 export const highlights = signal(new Map()); // active folder's review items (hydrated on switch)
 export const staleTick = signal(0);          // bumped after a file renders so stale checks re-run
+export const taskState = signal(new Map());  // active folder's change key -> tasks { total, done }
 export const searchVersion = signal(0);      // bumped whenever the folder's contents could have changed
 export const searchMarks = signal(new Map()); // transient search-match ranges (not persisted)
 
@@ -236,6 +238,7 @@ export function syncProjection(id) {
   currentRel.value = st.currentRel;
   currentKey.value = st.currentKey;
   recentRels.value = st.recentRels;
+  taskState.value = st.taskState;
   dirHandle.value = entry && entry.kind === 'pick' ? entry.rootHandle : null;
   swapMap(fileState, st.fileState);
   swapMap(paneCache, st.paneCache);
@@ -255,6 +258,7 @@ function clearProjection() {
   currentRel.value = null;
   currentKey.value = null;
   recentRels.value = new Set();
+  taskState.value = new Map();
   dirHandle.value = null;
   fileState.clear();
   paneCache.clear();

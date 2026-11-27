@@ -5,12 +5,13 @@
  *   playwright-cli open http://127.0.0.1:8743/index.html
  *   playwright-cli run-code --filename=archive-read-test.js
  *
- * Verifies: opening an archived change acknowledges ALL of its artifacts at
- * once — clearing the change-row unread marker and the Archive group counter —
- * and that this stays read across a reload (keepSnapshots); and that an ACTIVE
- * change is NOT bulk-acknowledged (an unread sibling stays unread when the
- * active change is opened). The Archive group is expanded at the start so its
- * per-change rows render (it is collapsed by default).
+ * Verifies: opening an archived change acknowledges NOTHING (reading is
+ * explicit since v4.4.0), and that the change row's own mark-as-read control
+ * acknowledges ALL of its artifacts at once — clearing the change-row unread
+ * marker and the Archive group counter — and that this stays read across a
+ * reload (keepSnapshots); and that an ACTIVE change is acknowledged only by its
+ * own control, never by opening it. The Archive group is expanded at the start
+ * so its per-change rows render (it is collapsed by default).
  * Serves as: async page => { ... } single function expression. */
 async page => {
   const out = { steps: [], errors: [] };
@@ -149,12 +150,23 @@ async page => {
   if (s.activeNew !== true) err('active change (unread design sibling) should be unread, got activeNew=' + s.activeNew);
   if (!s.changesCounter || !s.changesCounter.includes('unread')) err('Changes counter should show the unread active change, got ' + s.changesCounter);
 
-  // ---- Open ONE artifact inside the archived change -> whole change read at once ----
+  // ---- Open ONE artifact inside the archived change -> nothing is acknowledged ----
   await page.evaluate(async () => { await window.openFile('changes/archive/2025-01-01-old/tasks.md'); });
-  await page.waitForTimeout(400); // bulk acknowledge is async fire-and-forget
+  await page.waitForTimeout(400);
   s = await snap();
   out.steps.push('after-archive-open: ' + JSON.stringify(s));
-  if (s.archiveNew !== false) err('opening an archived change should clear its unread marker at once, got archiveNew=' + s.archiveNew);
+  if (s.archiveNew !== true) err('opening an archived change should NOT acknowledge it, got archiveNew=' + s.archiveNew);
+  if (!s.archiveCounter || !s.archiveCounter.includes('unread')) err('Archive group counter should survive opening the change, got ' + s.archiveCounter);
+  if (s.activeNew !== true) err('active change sibling should remain unread, got activeNew=' + s.activeNew);
+
+  // ---- The archived change row's own control acknowledges all of its artifacts ----
+  await page.evaluate(() => {
+    document.querySelector('.change-row[data-key="changes/archive/2025-01-01-old"] .row-mark-read').click();
+  });
+  await page.waitForTimeout(400); // acknowledge is async fire-and-forget
+  s = await snap();
+  out.steps.push('after-change-mark-read: ' + JSON.stringify(s));
+  if (s.archiveNew !== false) err('the change row control should clear the archived change unread marker, got archiveNew=' + s.archiveNew);
   if (s.archiveCounter) err('Archive group counter should clear after opening the archived change, got ' + s.archiveCounter);
   if (s.activeNew !== true) err('active change sibling should remain unread, got activeNew=' + s.activeNew);
   if (!s.changesCounter || !s.changesCounter.includes('unread')) err('Changes counter should still show the unread active change, got ' + s.changesCounter);
@@ -167,7 +179,7 @@ async page => {
   if (s.archiveNew !== false) err('archived change should stay read across reload, got archiveNew=' + s.archiveNew);
   if (s.archiveCounter) err('Archive counter should stay cleared across reload, got ' + s.archiveCounter);
 
-  // ---- Active change is NOT bulk-acknowledged: opening it leaves the sibling unread ----
+  // ---- An active change is acknowledged only by its own control ----
   await page.evaluate(async () => { await window.openChange('changes/active-1', 'changes/active-1/proposal.md'); });
   await page.waitForTimeout(300);
   s = await page.evaluate(() => {
@@ -179,8 +191,24 @@ async page => {
     };
   });
   out.steps.push('active-open: ' + JSON.stringify(s));
-  if (s.activeNew !== true) err('opening an active change should NOT bulk-acknowledge its unread sibling, got activeNew=' + s.activeNew);
-  if (!s.changesCounter || !s.changesCounter.includes('unread')) err('Changes counter should keep the unread sibling, got ' + s.changesCounter);
+  if (s.activeNew !== true) err('opening an active change should NOT acknowledge its unread artifact, got activeNew=' + s.activeNew);
+  if (!s.changesCounter || !s.changesCounter.includes('unread')) err('Changes counter should keep the unread artifact, got ' + s.changesCounter);
+
+  await page.evaluate(() => {
+    document.querySelector('.change-row[data-key="changes/active-1"] .row-mark-read').click();
+  });
+  await page.waitForTimeout(300);
+  s = await page.evaluate(() => {
+    const activeRow = document.querySelector('.change-row[data-key="changes/active-1"]');
+    const changesG = document.querySelector('.group-label[data-group="Changes"]');
+    return {
+      activeNew: activeRow ? activeRow.classList.contains('new') : null,
+      changesCounter: changesG && changesG.querySelector('.group-new') ? changesG.querySelector('.group-new').textContent.trim() : null,
+    };
+  });
+  out.steps.push('active-mark-read: ' + JSON.stringify(s));
+  if (s.activeNew !== false) err('the change row control should acknowledge an active change, got activeNew=' + s.activeNew);
+  if (s.changesCounter) err('Changes counter should clear after an explicit mark-as-read, got ' + s.changesCounter);
 
   out.ok = out.errors.length === 0;
   console.log('=== ARCHIVE READ TEST RESULT ===');

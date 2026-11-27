@@ -63,6 +63,20 @@ export function isArchived(rel) {
   return rel.startsWith('changes/archive/');
 }
 
+// A change's task list. Its checkboxes are the only in-app signal that a change
+// was applied but not archived yet (the CLI's completion step is the archive
+// move), so the sidebar badges a change whose tasks are all done.
+export function isTasksRel(rel) {
+  return rel.startsWith('changes/') && /\/tasks\.md$/.test(rel);
+}
+
+// Checkbox counts in a tasks body: { total, done }. The tasks progress bar and
+// the sidebar's "done" badge both come from here, so they cannot disagree.
+export function taskProgress(text) {
+  const boxes = String(text || '').match(/^\s*[-*]\s+\[([ xX])\]/gm) || [];
+  return { total: boxes.length, done: boxes.filter(b => /\[[xX]\]/.test(b)).length };
+}
+
 // Only four sections. Archive lives under changes/archive per the
 // standard openspec CLI layout; everything else is ignored.
 export function groupOf(rel) {

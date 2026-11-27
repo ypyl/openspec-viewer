@@ -11,7 +11,7 @@
 // open file, update tab badges, show a "deleted" notice), it dispatches a
 // document-level CustomEvent that the bootstrap (index.js) wires to osv-pane.
 
-import { normPath, isRelevant, isChangeMetadata, groupOf, changeOf, searchTitle, parseGitIdentity, uploadRelation, mayEnterDir } from './model.js';
+import { normPath, isRelevant, isChangeMetadata, groupOf, changeOf, searchTitle, parseGitIdentity, uploadRelation, mayEnterDir, isTasksRel, taskProgress } from './model.js';
 import { handleText } from './render.js';
 import { diffLines, hashText } from './diff.js';
 import { pruneHighlights } from './annotations.js';
@@ -19,7 +19,7 @@ import {
   folders, activeFolderId, folderUnread, folderData, registerFolderState,
   folderEntryFor, currentFolderId, hueFor, allFiles, recentRels, searchVersion,
   diffInfo, diffViews, paneCache, currentRel, currentKey, navDrawerOpen,
-  collapsed, GROUPS,
+  collapsed, taskState, GROUPS,
 } from './state.js';
 import { showToast } from '../components/osv-toast/osv-toast.js';
 import { setLoading } from '../components/osv-loading/osv-loading.js';
@@ -207,26 +207,56 @@ export async function markRead(rel, hash, folderId = currentFolderId()) {
   } catch (e) { /* non-fatal */ }
 }
 
+// Acknowledge a set of rels in one go: mark each read against its current
+// content, drop it from the folder's unread set, then refresh the folder's
+// unread indicator and the pane's imperative badges. Shared by the three
+// explicit acknowledge controls (folder, change row, file row).
+async function acknowledgeRels(rels, folderId) {
+  const st = folderData.get(folderId);
+  if (!st || !rels.length) return 0;
+  const unread = new Set(st.recentRels);
+  const done = rels.filter(rel => unread.has(rel));
+  for (const rel of done) {
+    try { await markRead(rel, hashText(await readFileText(rel)), folderId); }
+    catch (e) { /* non-fatal */ }
+    unread.delete(rel);
+  }
+  st.recentRels = unread;
+  recentRels.value = unread;
+  if (folderUnread.value.get(folderId) !== (unread.size > 0)) {
+    folderUnread.value = new Map(folderUnread.value).set(folderId, unread.size > 0);
+  }
+  // The pane's tab badges and diff toggle are imperative, not reactive.
+  document.dispatchEvent(new CustomEvent('osv:refresh-tab-badges'));
+  showToast(`Marked ${done.length} artifact${done.length === 1 ? '' : 's'} as read`);
+  return done.length;
+}
+
 // Acknowledge every unread artifact in the active folder at once (the
-// sidebar's "Mark all as read" control). Each unread artifact is marked read
-// against its current content, then the folder's unread set and the signals
-// derived from it are cleared. Returns how many artifacts were acknowledged.
+// sidebar's "Mark all as read" control). Returns how many were acknowledged.
 export async function markAllRead() {
   const folderId = activeFolderId.value;
   const st = folderId ? folderData.get(folderId) : null;
   if (!st || !st.recentRels.size) return 0;
-  const rels = [...st.recentRels];
-  for (const rel of rels) {
-    try { await markRead(rel, hashText(await readFileText(rel)), folderId); }
-    catch (e) { /* non-fatal */ }
-  }
-  st.recentRels = new Set();
-  recentRels.value = st.recentRels;
-  folderUnread.value = new Map(folderUnread.value).set(folderId, false);
-  // The pane's tab badges and diff toggle are imperative, not reactive.
-  document.dispatchEvent(new CustomEvent('osv:refresh-tab-badges'));
-  showToast(`Marked ${rels.length} artifact${rels.length === 1 ? '' : 's'} as read`);
-  return rels.length;
+  return acknowledgeRels([...st.recentRels], folderId);
+}
+
+// Acknowledge every unread artifact of one change (the change row's
+// "Mark as read" control). Keys are what changeOf() returns, so an archived
+// change (changes/archive/<name>) and an active one (changes/<name>) each get
+// their own scope. Returns how many artifacts were acknowledged.
+export async function markChangeRead(key) {
+  const folderId = activeFolderId.value;
+  const st = folderId ? folderData.get(folderId) : null;
+  if (!st || !st.recentRels.size) return 0;
+  return acknowledgeRels([...st.recentRels].filter(rel => changeOf(rel) === key), folderId);
+}
+
+// Acknowledge a single artifact (the file row's "Mark as read" control), for
+// changed specs/config outside any change directory.
+export async function markFileRead(rel) {
+  const folderId = activeFolderId.value;
+  return folderId ? acknowledgeRels([rel], folderId) : 0;
 }
 
 /* ---------- Search corpus ---------- */
@@ -367,7 +397,7 @@ export async function pickFolder() {
 // Upload fallback (no File System Access API): session-only folder entry,
 // never persisted, never live-monitored, no unread dot. Dedups against other
 // uploads by the normalized set of artifact paths.
-export function addUploadFolder(fileList) {
+export async function addUploadFolder(fileList) {
   const files = Array.from(fileList);
   if (!files.length) return null;
   const raw = files.map(f => ({ rel: normPath(f.webkitRelativePath || f.name), handle: f }));
@@ -397,6 +427,11 @@ export function addUploadFolder(fileList) {
   registerFolderState(id);
   const st = folderData.get(id);
   st.files = filtered;
+  // Uploads are read exactly once — here — so capture task progress now: a
+  // session-only folder has no folder read to fall back on for the "done" badge.
+  await Promise.all(filtered.filter(f => isTasksRel(f.rel)).map(async f => {
+    try { noteTaskProgress(st, f.rel, await handleText(f.handle)); } catch (e) {}
+  }));
   folderHandles.set(id, null);
   folderUnread.value = new Map(folderUnread.value).set(id, false);
   folders.value = [...folders.value, entry];
@@ -486,12 +521,22 @@ async function statEntries(entries, signal, onProgress) {
 // and the open-artifact watch (change-monitoring "Auto-refresh the open
 // artifact") so both resolve diffs and unread the same way. Returns whether
 // the content actually changed and whether the artifact is now unread.
+// Record a change's task progress from its tasks.md text. A fully checked list
+// is the sidebar's "done" signal — applied, waiting to be archived — so it is
+// captured wherever tasks.md is read, a folder read or the open-file watch.
+function noteTaskProgress(st, rel, text) {
+  if (!isTasksRel(rel)) return;
+  const key = changeOf(rel);
+  if (key) st.taskState.set(key, taskProgress(text));
+}
+
 async function refreshOne(folderId, rel, info) {
   const st = folderData.get(folderId);
   let changedContent = false, isUnread = false;
   if (!st) return { changedContent, isUnread };
   try {
     const text = await handleText(info.handle);
+    noteTaskProgress(st, rel, text);
     const snap = await getSnapshot(folderId, rel);
     if (snap && snap.text !== undefined && snap.text !== text) {
       const d = diffLines(snap.text, text);
@@ -533,6 +578,7 @@ export async function startMonitoring(folderId, keepSnapshots = false, opts = {}
   else baselineFresh.add(folderId);
   st.fileState.clear();
   st.recentRels = new Set();
+  st.taskState.clear();
   st.diffInfo.clear();
   st.diffViews.clear();
   const status = await scan(folderId, true, abort.signal, { toast: opts.toast !== false });
@@ -658,6 +704,11 @@ export async function scan(folderId, initial, signal, opts = {}) {
         const { changedContent, isUnread } = await refreshOne(folderId, rel, info);
         if (changedContent) diffsSeen.push(rel);
         if (isUnread) nextUnread.add(rel); else nextUnread.delete(rel);
+      } else if (isTasksRel(rel)) {
+        // Unchanged tasks.md: restore its progress from the persisted snapshot,
+        // which already holds the text read last time — no extra file read.
+        const snap = await getSnapshot(folderId, rel);
+        noteTaskProgress(st, rel, snap ? snap.text : '');
       }
       if (!prev) {
         changed = true;
@@ -677,6 +728,7 @@ export async function scan(folderId, initial, signal, opts = {}) {
         corpusChanged = true;
         st.paneCache.delete(rel);
         st.diffInfo.delete(rel);
+        if (isTasksRel(rel)) st.taskState.delete(changeOf(rel));
         nextUnread.delete(rel);
         st.diffViews.delete(rel);
         if (hadPrior) {
@@ -724,6 +776,7 @@ export async function scan(folderId, initial, signal, opts = {}) {
       swapMap(paneCache, st.paneCache);
       allFiles.value = st.files;
       recentRels.value = st.recentRels;
+      taskState.value = new Map(st.taskState);
     }
     folderUnread.value = new Map(folderUnread.value).set(folderId, st.recentRels.size > 0);
 
@@ -831,6 +884,7 @@ async function autoRefresh(folderId, rel, info) {
     swapMap(diffViews, st.diffViews);
     swapMap(paneCache, st.paneCache);
     recentRels.value = st.recentRels;
+    taskState.value = new Map(st.taskState);
     if (rel === currentRel.value) {
       document.dispatchEvent(new CustomEvent('osv:auto-refresh', { detail: { rel } }));
     }

@@ -44,23 +44,23 @@ The system SHALL track, per artifact, whether the artifact has changes the user 
 
 ### Requirement: Acknowledge changes as read
 
-The system SHALL mark an artifact as read when the user has seen everything there is to see about it, or when the user explicitly acknowledges it in bulk. Opening the diff view SHALL acknowledge the artifact. Opening the artifact's content view SHALL acknowledge it only when no diff exists for it (its content view is then the only thing to see). A bulk acknowledge SHALL mark every unread artifact in the folder read against its current content, without requiring any artifact to be opened.
+The system SHALL mark an artifact as read only when the user explicitly acknowledges it: through the mark-as-read control on the artifact's own list row, on the row of the change that contains it, or on the active folder. Viewing SHALL NOT acknowledge anything. Opening an artifact's content view, opening its diff view, switching between a change's tabs, navigating with the footer controls, and opening a change (active or archived) SHALL all leave read state exactly as it was. Acknowledging SHALL mark the artifact read against its current content.
 
-#### Scenario: Opening the diff view acknowledges the artifact
-- **WHEN** the user opens the diff view of an artifact that has a diff
-- **THEN** the artifact is marked read and its unread indication is cleared
+#### Scenario: Opening the diff view leaves the artifact unread
+- **WHEN** the user opens the diff view of an unread artifact
+- **THEN** the artifact remains unread with its unread indication and change-count labels intact
 
-#### Scenario: Opening a changed artifact's content does not acknowledge it
-- **WHEN** the user opens the content view of an artifact that has a pending diff
-- **THEN** the artifact remains unread until the diff view is opened
+#### Scenario: Opening an artifact's content leaves it unread
+- **WHEN** the user opens the content view of a changed or brand-new unread artifact
+- **THEN** the artifact remains unread
 
-#### Scenario: Opening a new artifact's content acknowledges it
-- **WHEN** the user opens the content view of a brand-new artifact for which no diff exists
-- **THEN** the artifact is marked read and its unread indication is cleared
+#### Scenario: Opening a change leaves its artifacts unread
+- **WHEN** the user opens a change whose artifacts are unread
+- **THEN** each unread artifact of that change stays unread
 
-#### Scenario: Bulk acknowledge reads an artifact that was never opened
-- **WHEN** the user acknowledges the folder's unread artifacts in bulk
-- **THEN** each unread artifact is marked read even though its content view and its diff view were never opened
+#### Scenario: Explicit acknowledge reads an artifact that was never opened
+- **WHEN** the user acknowledges an artifact through a list control or the folder's bulk control
+- **THEN** the artifact is marked read even though its content view and its diff view were never opened
 
 ### Requirement: Persist read state across reloads
 
@@ -112,37 +112,61 @@ The system SHALL retain and surface only each artifact's most recent change. It 
 
 ### Requirement: Acknowledge artifacts individually within a change
 
-Opening a change SHALL NOT acknowledge every artifact in it. Each artifact SHALL be acknowledged only when its own content or diff view is opened.
+Opening a change SHALL NOT acknowledge every artifact in it. Each artifact SHALL be acknowledged only through an explicit acknowledge: its own list row control, the control on the row of the change that contains it, or the folder's bulk control.
 
 #### Scenario: Opening one artifact does not acknowledge its siblings
-- **WHEN** a change contains multiple changed artifacts and the user opens only one of them
-- **THEN** the open artifact is acknowledged but the other changed artifacts remain unread
+- **WHEN** a change contains multiple changed artifacts and the user opens one of them
+- **THEN** every artifact of that change, including the one opened, stays unread
 
-### Requirement: Opening an archived change acknowledges all its artifacts
-The system SHALL acknowledge every artifact of an archived change when the user opens that archived change or any artifact within it, marking each artifact as read against its current content in one step. Opening an archived change SHALL clear the unread indication and diff counts for all of its artifacts at once, and SHALL remove them from the Archive group counter. Active (non-archived) changes SHALL NOT be bulk-acknowledged: opening an active change SHALL acknowledge only the artifact the user is viewing, leaving its siblings unread until each is opened individually. The acknowledge SHALL be persisted so the archived change stays read across reloads.
+#### Scenario: One artifact's row control leaves its siblings unread
+- **WHEN** the user acknowledges one artifact of a change through its own row control while a sibling artifact is also unread
+- **THEN** that artifact is marked read and the sibling stays unread
 
-#### Scenario: Opening an archived change clears all unread markers at once
-- **WHEN** the user opens an archived change whose artifacts carry individual unread markers
-- **THEN** every artifact of that change is marked read and its unread marker and diff counts are cleared without needing to open each one
+### Requirement: Mark as read control per change
 
-#### Scenario: Opening an archived spec clears the whole change
-- **WHEN** the user opens a single artifact inside an archived change, such as one of its spec files
-- **THEN** all artifacts of that archived change are marked read, not just the one opened
+The sidebar's change list SHALL show a mark-as-read control on every change row that has at least one unread artifact, both for active changes and for archived ones. Activating it SHALL acknowledge every unread artifact of that change in one action, whether or not that change is open, and SHALL NOT open or navigate to the change. The control SHALL disappear from the row once the change has nothing unread left, so only rows with something to acknowledge carry it.
 
-#### Scenario: Archive group counter clears
-- **WHEN** the user opens an archived change whose artifacts were counting toward the Archive group counter
+#### Scenario: One action clears the change's unread markers
+- **WHEN** a change has several unread artifacts and the user activates that change's mark-as-read control
+- **THEN** every unread artifact of that change is marked read and the change row loses its unread marker and change-count hint
+
+#### Scenario: Other changes are untouched
+- **WHEN** the user activates one change's mark-as-read control while another change is also unread
+- **THEN** the other change keeps its unread marker
+
+#### Scenario: Activating the control does not open the change
+- **WHEN** the user activates the mark-as-read control on a change row that is not open
+- **THEN** that change's artifacts are acknowledged and the previously open artifact stays open
+
+#### Scenario: Archived changes are acknowledged the same way
+- **WHEN** the user activates the mark-as-read control on an archived change row
+- **THEN** every unread artifact of that archived change is marked read and the Archive group counter drops accordingly
+
+### Requirement: Mark as read control per artifact
+
+The sidebar's artifact rows that are not change rows (specs and config files) SHALL show a mark-as-read control on every unread row. Activating it SHALL acknowledge that artifact alone, leaving every other unread artifact unread.
+
+#### Scenario: A changed spec is acknowledged on its own
+- **WHEN** the user activates the mark-as-read control on an unread spec row
+- **THEN** that spec is marked read and its row loses its unread marker, while other unread specs stay unread
+
+### Requirement: Opening an archived change acknowledges nothing
+Opening an archived change SHALL NOT acknowledge anything, exactly as for an active change. An archived change's artifacts SHALL be acknowledged only through an explicit acknowledge: its own row control, an individual artifact row, or the folder's bulk control. The acknowledge SHALL be persisted so an acknowledged archived change stays read across reloads, and a later change to one of its artifacts SHALL flag it unread again.
+
+#### Scenario: Opening an archived change leaves it unread
+- **WHEN** the user opens an archived change whose artifacts carry unread markers
+- **THEN** every artifact of that change stays unread and the Archive group counter is unchanged
+
+#### Scenario: Archive group counter clears on acknowledge
+- **WHEN** the user acknowledges an archived change whose artifacts were counting toward the Archive group counter
 - **THEN** the Archive group counter no longer includes that change's artifacts
 
 #### Scenario: Persistent across reloads
-- **WHEN** the user opens an archived change and then reloads the app
+- **WHEN** the user acknowledges an archived change and then reloads the app
 - **THEN** the archived change's artifacts remain read
 
-#### Scenario: Active changes still acknowledge per artifact
-- **WHEN** the user opens an active change that has unread sibling artifacts
-- **THEN** the sibling artifacts remain unread until each is opened individually
-
-#### Scenario: A newer change after opening stays unread
-- **WHEN** an artifact of an archived change changes again after the change was opened and acknowledged
+#### Scenario: A newer change after acknowledging stays unread
+- **WHEN** an artifact of an acknowledged archived change changes again
 - **THEN** that artifact is flagged unread again
 
 ### Requirement: Mark all as read control in the sidebar

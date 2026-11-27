@@ -4,11 +4,11 @@
 import { html, computed } from '../../imports.js';
 import {
   allFiles, currentRel, currentKey, recentRels, collapsed, search, activeFolderId,
-  activeFolderEntry, folders, changeMeta, diffInfo, highlights, GROUPS,
+  activeFolderEntry, folders, changeMeta, diffInfo, highlights, taskState, GROUPS,
 } from '../../app/state.js';
 import { artifactOf, groupOf, changeOf, displayLabel, compareArchiveDateDesc, identityPhrase } from '../../app/render.js';
 import { diffHint } from '../../app/diff.js';
-import { closeFolder, markAllRead, readActiveGroup } from '../../app/store.js';
+import { closeFolder, markAllRead, markChangeRead, markFileRead, readActiveGroup } from '../../app/store.js';
 
 const SEARCH_ICON = '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M10.68 11.74a6 6 0 111.06-1.06l3.04 3.04a.75.75 0 11-1.06 1.06l-3.04-3.04zM11.5 7a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z"/></svg>';
 
@@ -84,7 +84,7 @@ export class OsvFileList extends HTMLElement {
 
     /* ---- List render (patch-in-place; preserve scroll position) ---- */
     const listHtml = computed(buildListHtml,
-      [allFiles, currentRel, currentKey, recentRels, collapsed, search, changeMeta, highlights, activeFolderId]);
+      [allFiles, currentRel, currentKey, recentRels, collapsed, search, changeMeta, highlights, taskState, activeFolderId]);
     listHtml.effect(() => {
       const top = listEl.scrollTop;
       listEl.innerHTML = listHtml.value;
@@ -97,6 +97,12 @@ export class OsvFileList extends HTMLElement {
       listEl.querySelectorAll('.item[data-key]').forEach(el =>
         el.addEventListener('click', () =>
           document.dispatchEvent(new CustomEvent('osv:select-change', { detail: { key: el.dataset.key } }))));
+      // Per-row "mark as read": explicit acknowledgement of one change (all its
+      // unread artifacts) or one file. Stops the row's own navigation click.
+      listEl.querySelectorAll('.row-mark-read[data-key]').forEach(el =>
+        el.addEventListener('click', e => { e.stopPropagation(); markChangeRead(el.dataset.key); }));
+      listEl.querySelectorAll('.row-mark-read[data-rel]').forEach(el =>
+        el.addEventListener('click', e => { e.stopPropagation(); markFileRead(el.dataset.rel); }));
     });
 
     // Folder switch: the projection already reset the search signal; clear the
@@ -172,14 +178,23 @@ function buildListHtml() {
       if (g === 'Archive' || g === 'Changes') {
         sec.rows.forEach(m => {
           const active = m.key === currentKey.value;
-          const isNew = m.files.some(f => recentRels.value.has(f.rel));
+          const unread = m.files.filter(f => recentRels.value.has(f.rel));
+          const isNew = unread.length > 0;
           const cnt = m.files.reduce((s, f) => s + (highlights.value.get(f.rel) || []).length, 0);
+          // A change whose tasks.md is fully checked has been applied and is
+          // only waiting to be archived. Archive rows are done by definition.
+          const prog = taskState.value.get(m.key);
+          const done = g === 'Changes' && prog && prog.total > 0 && prog.done === prog.total;
           out += html`<div class="item change-row${active ? ' active' : ''}${isNew ? ' new' : ''}" data-key="${m.key}">
             ${isNew ? html`<span class="new-dot" title="Unread changes"></span>` : ''}
             <span class="path">${m.label}</span>
+            ${done ? html`<span class="done-badge" title="${prog.done}/${prog.total} tasks done — applied, waiting to be archived">done</span>` : ''}
             ${cnt ? html`<span class="cmt-count">${cnt}</span>` : ''}
-            ${diffHint(m.files.filter(f => recentRels.value.has(f.rel)).map(f => diffInfo.get(f.rel)).filter(Boolean))}
-            ${m.date ? html`<span class="date">${m.date}</span>` : ''}
+            ${diffHint(unread.map(f => diffInfo.get(f.rel)).filter(Boolean))}
+            ${m.date ? html`<span class="date${isNew ? ' tight' : ''}">${m.date}</span>` : ''}
+            ${isNew ? html`<button type="button" class="row-mark-read" data-key="${m.key}"
+              title="Mark all ${unread.length} unread artifact${unread.length === 1 ? '' : 's'} in this change as read"
+              aria-label="Mark this change as read">✓</button>` : ''}
           </div>`;
         });
       } else {
@@ -196,6 +211,8 @@ function buildListHtml() {
             ${cnt ? html`<span class="cmt-count">${cnt}</span>` : ''}
             ${diffHint(recentRels.value.has(f.rel) ? [diffInfo.get(f.rel)].filter(Boolean) : [])}
             ${badge}
+            ${isNew ? html`<button type="button" class="row-mark-read" data-rel="${f.rel}"
+              title="Mark as read" aria-label="Mark as read">✓</button>` : ''}
           </div>`;
         });
       }

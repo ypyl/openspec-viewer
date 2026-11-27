@@ -35,14 +35,15 @@ Push to `master` auto-deploys (~1 min); verify the header badge afterwards.
 - Components: `osv-` prefix, registered by import from index.js, fixed DOM once in connectedCallback, updates in place.
 - Import libraries only from imports.js. No shadow DOM unless isolation is needed; theme via CSS custom properties (variables.css).
 - SW: navigations network-first (fresh shell on reload), other assets cache-first → tick "Bypass for network" in DevTools when editing assets.
-- Folders are read on open/re-open and on demand (header ⟳). A read is scoped to the expanded groups plus the open artifact's group, so a collapsed group is not walked; expanding a group reads it. Changed files get a green "new" marker, group counter, toast. The open artifact is also watched on a timer (store.js `watchTick`): only that one file is stat-ed, and a change refreshes it in place; `window.setAutoRefresh(false)` disables the timer for a suite that isolates another mechanism.
+- Folders are read on open/re-open and on demand (header ⟳). A read is scoped to the expanded groups plus the open artifact's group, so a collapsed group is not walked; expanding a group reads it. Changed files get a green "new" marker, group counter, toast.
+- Read state is explicit only: opening an artifact, its diff, a tab, or a change (archived included) acknowledges nothing. Acknowledging goes through store.js `acknowledgeRels` via `markAllRead()` (folder row), `markChangeRead(key)` (a change row's ✓, all its artifacts) and `markFileRead(rel)` (a spec/config row's ✓). Keep new acknowledge entry points on that one path. The open artifact is also watched on a timer (store.js `watchTick`): only that one file is stat-ed, and a change refreshes it in place; `window.setAutoRefresh(false)` disables the timer for a suite that isolates another mechanism.
 - Folder-picker fallback: hidden `#picker` webkitdirectory input in osv-folder-rail (upload mode: session-only, no live dot).
 
 ## Dev
 
 - Serve: `python -m http.server 8743` (start.sh / start.bat serve + open browser).
 - Unit: `npm test` → node --test tools/test-*.mjs (model, diff, search).
-- E2E: root `*-test.js` — diff, migration, multi-folder, collapse, archive-read, reload, scoped-read, auto-refresh, mark-all-read, whole-file-comment, review-guidance, tab-nav, search-hotkey, mobile-drawer, panel-toggle. Stub showDirectoryPicker with an in-memory tree; drive the real pipeline via app/testbridge.js. Run: serve on 8743, then `playwright-cli open http://127.0.0.1:8743/index.html` and `playwright-cli run-code --filename=<test>.js`.
+- E2E: root `*-test.js` — diff, migration, multi-folder, collapse, archive-read, reload, scoped-read, auto-refresh, mark-all-read, whole-file-comment, review-guidance, tab-nav, search-hotkey, mobile-drawer, panel-toggle, done-badge. Explicit read state (viewing acknowledges nothing, the row ✓ controls) is covered by diff-test and archive-read-test. The Changes "done" badge is derived from tasks.md checkboxes (model `taskProgress`) and covered by done-badge-test. Stub showDirectoryPicker with an in-memory tree; drive the real pipeline via app/testbridge.js. Run: serve on 8743, then `playwright-cli open http://127.0.0.1:8743/index.html` and `playwright-cli run-code --filename=<test>.js`.
 - The real folder picker (showDirectoryPicker) cannot be automated headless (promise hangs) → use the upload fallback: `setInputFiles('#picker', folder)`.
 
 ## screenshot.png

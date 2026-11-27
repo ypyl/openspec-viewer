@@ -8,13 +8,12 @@ import { html, joinHtml } from '../../imports.js';
 import {
   crumbFor, handleText, markdownPane, yamlPane, artifactOf, changeOf, groupOf, displayLabel,
 } from '../../app/render.js';
-import { diffViewHtml, diffToggleHtml, diffTabBadgeHtml, hashText } from '../../app/diff.js';
+import { diffViewHtml, diffToggleHtml, diffTabBadgeHtml } from '../../app/diff.js';
 import {
   allFiles, currentRel, currentKey, changeMeta, diffInfo, diffViews,
   recentRels, paneCache, paneCachePut, setDiffView, currentTabs, setCurrentTabs, searchMarks,
   expandedStripKinds, activeFolderId,
 } from '../../app/state.js';
-import { markRead as markReadStore, readFileText } from '../../app/store.js';
 import { applyHighlights, hideAnnBubble, onSelection, clearSearchMarks } from '../../app/annotations.js';
 import { GUIDE, KIND_LABEL } from '../../app/review-guide.js';
 
@@ -86,10 +85,10 @@ export class OsvPane extends HTMLElement {
       const b = e.target.closest('.diff-toggle');
       if (!b) return;
       const rel = b.dataset.rel;
-      const showingDiff = !diffViews.get(rel);
-      setDiffView(rel, showingDiff);
-      // Opening the diff view acknowledges the artifact (see acknowledgeShown).
-      if (showingDiff) await this.markRead(rel, diffInfo.get(rel) && diffInfo.get(rel).hash);
+      setDiffView(rel, !diffViews.get(rel));
+      // Viewing never acknowledges: read state is only cleared by an explicit
+      // mark-as-read control in the file list (change-monitoring "Explicit
+      // acknowledge only").
       this.refreshToggle(rel);
       if (this._body && this._main.contains(this._body)) {
         this._body.innerHTML = await this.viewFor(rel);
@@ -155,8 +154,6 @@ export class OsvPane extends HTMLElement {
     if (key) { this.openChange(key, rel); return; }
     currentRel.value = rel;
     currentKey.value = null;
-    // The artifact is now viewed; the diff toggle may still show NEW until
-    // the user actually switches to the diff view (handled in acknowledgeShown).
     this._main.innerHTML = this.paneBarHtml(html`<div class="crumb">${crumbFor(rel)}</div>`, rel)
       + '<div class="pane-body pane-loading">Loading…</div>';
     this._body = this._main.querySelector('.pane-body');
@@ -164,20 +161,12 @@ export class OsvPane extends HTMLElement {
     this._body.innerHTML = await this.viewFor(rel);
     applyHighlights(rel);
     this._main.scrollTop = 0;
-    await this.acknowledgeShown(rel);
   }
 
   async openChange(key, initialRel) {
     const meta = changeMeta.value.get(key);
     if (!meta) return;
-    // Opening an archived change acknowledges all of its artifacts at once
-    // (design D1/D2): archived changes are history, not review targets, so a
-    // single open clears every unread marker and the Archive group counter.
-    // Active changes keep per-tab acknowledgment in acknowledgeShown below.
     const isArchive = key.startsWith('changes/archive/');
-    if (isArchive) {
-      this.acknowledgeArchivedChange(meta).catch(() => {});
-    }
     hideAnnBubble();
     currentKey.value = key;
     currentRel.value = initialRel || meta.proposalRel || null;
@@ -237,7 +226,6 @@ export class OsvPane extends HTMLElement {
     this._body.innerHTML = await this.viewFor(t.rel);
     applyHighlights(t.rel);
     this._main.scrollTop = 0;
-    await this.acknowledgeShown(t.rel);
   }
 
   async viewFor(rel) {
@@ -376,46 +364,6 @@ export class OsvPane extends HTMLElement {
     }
   }
 
-  // Acknowledge the currently shown view of rel once the user has seen
-  // everything there is to see (see design.md D4): the diff view always
-  // acknowledges; the artifact view acknowledges only when there is no pending
-  // diff for the artifact — its content is then the whole change (e.g. a
-  // brand-new file). A pending diff keeps the artifact unread until opened.
-  async acknowledgeShown(rel) {
-    const di = diffInfo.get(rel);
-    if (diffViews.get(rel) && di) {
-      await this.markRead(rel, di.hash);
-    } else if (!di) {
-      try { await this.markRead(rel, hashText(await readFileText(rel))); }
-      catch (e) { /* non-fatal */ }
-    }
-    // else: artifact view with a pending diff → stay unread
-  }
-
-  // Mark every artifact of an archived change read against its current content
-  // (design D2). Metadata files are already never unread, so skip them. Uses the
-  // same markRead path as a normal read; recentRels reactivity clears the
-  // Archive markers and group counter. Fire-and-forget and non-fatal.
-  async acknowledgeArchivedChange(meta) {
-    for (const f of meta.files) {
-      if (f.rel.endsWith('.openspec.yaml')) continue;
-      try { await this.markRead(f.rel, hashText(await readFileText(f.rel))); }
-      catch (e) { /* non-fatal */ }
-    }
-  }
-
-  async markRead(rel, hash) {
-    if (hash == null) return;
-    await markReadStore(rel, hash);
-    if (recentRels.value.has(rel)) {
-      const s = new Set(recentRels.value);
-      s.delete(rel);
-      recentRels.value = s;
-    }
-    // Tab count badges are imperative (not reactive) — drop the read file's
-    // +a −r label on the fly; the file list updates via recentRels reactivity.
-    this.refreshTabBadges();
-  }
 }
 
 customElements.define('osv-pane', OsvPane);

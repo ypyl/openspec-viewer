@@ -68,7 +68,7 @@ A footer control SHALL be disabled when no artifact exists in that direction. Th
 
 ### Requirement: Footer navigation switches the active artifact
 
-Selecting a footer control SHALL open the adjacent artifact exactly as selecting that artifact's tab does: the artifact SHALL become the active tab, its content SHALL be shown in place of the previous artifact, and the content pane SHALL be scrolled to the top of the new artifact. Moving between artifacts this way SHALL NOT introduce any read/unread acknowledgment beyond what opening an artifact already does, so an artifact with an unacknowledged change stays unacknowledged until its change is actually seen.
+Selecting a footer control SHALL open the adjacent artifact exactly as selecting that artifact's tab does: the artifact SHALL become the active tab, its content SHALL be shown in place of the previous artifact, and the content pane SHALL be scrolled to the top of the new artifact. Moving between artifacts this way SHALL NOT change read state, so an artifact with an unacknowledged change stays unacknowledged until it is explicitly acknowledged from the file list.
 
 #### Scenario: Next opens the following artifact at its top
 
@@ -80,7 +80,7 @@ Selecting a footer control SHALL open the adjacent artifact exactly as selecting
 - **WHEN** the user is on the Design tab and selects the Previous control
 - **THEN** the preceding artifact becomes the active tab and is shown
 
-#### Scenario: Acknowledgment matches tab selection
+#### Scenario: Read state is untouched
 
 - **WHEN** the user moves to an artifact that has an unacknowledged change by selecting a footer control
-- **THEN** that artifact's unacknowledged state is the same as if its tab had been selected directly
+- **THEN** that artifact stays unread, exactly as if its tab had been selected directly

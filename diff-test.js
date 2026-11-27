@@ -166,7 +166,28 @@ async page => {
   if (!state.hasHdr) err('diff should include hunk header');
   if (!state.toggle.startsWith('Artifact')) err('toggle should now offer to switch back, got ' + state.toggle);
 
-  // ---- After reading the diff, the read file's tab badge and list hints clear ----
+  // ---- Viewing a diff does NOT acknowledge it (explicit read only) ----
+  state = await page.evaluate(() => {
+    const alpha = [...document.querySelectorAll('.change-row[data-key]')].find(r => r.dataset.key === 'changes/alpha');
+    const btn = alpha && alpha.querySelector('.row-mark-read');
+    return {
+      alphaNew: alpha ? alpha.classList.contains('new') : false,
+      rowReadTitle: btn ? btn.title : null,
+    };
+  });
+  out.steps.push('diff-view-not-acknowledged: ' + JSON.stringify(state));
+  if (!state.alphaNew) err('opening the diff view should NOT acknowledge the artifact, got new=' + state.alphaNew);
+  if (!state.rowReadTitle || !state.rowReadTitle.includes('1 unread artifact')) {
+    err('an unread change row should offer a mark-as-read control, got ' + JSON.stringify(state.rowReadTitle));
+  }
+
+  // ---- Explicit per-change mark as read ----
+  await page.evaluate(() => {
+    document.querySelector('.change-row[data-key="changes/alpha"] .row-mark-read').click();
+  });
+  await page.waitForTimeout(250);
+
+  // ---- After acknowledging, the read file's tab badge and list hints clear ----
   state = await page.evaluate(() => {
     const alpha = [...document.querySelectorAll('.change-row[data-key]')].find(r => r.dataset.key === 'changes/alpha');
     const toggle = document.querySelector('.diff-toggle');
@@ -333,9 +354,26 @@ async page => {
     };
   });
   out.steps.push('r1-open: ' + JSON.stringify(state));
-  if (state.itemNew) err('opening a brand-new artifact content should acknowledge it, got new=' + state.itemNew);
-  if (state.counter) err('Specs unread counter should clear after reading the new spec, got ' + state.counter);
   if (!state.artifactShown) err('brand-new file should show its artifact view');
+  // Visiting the artifact does not acknowledge it: only an explicit control does.
+  if (!state.itemNew) err('opening a brand-new artifact content should NOT acknowledge it, got new=' + state.itemNew);
+  if (!state.counter) err('Specs unread counter should survive visiting the new spec, got ' + state.counter);
+
+  await page.evaluate(() => { document.querySelector('.item[data-rel="specs/epsilon/spec.md"] .row-mark-read').click(); });
+  await page.waitForTimeout(250);
+  state = await page.evaluate(() => {
+    const item = document.querySelector('.item[data-rel="specs/epsilon/spec.md"]');
+    const gl = [...document.querySelectorAll('.group-label')].find(l => l.dataset.group === 'Specs');
+    return {
+      itemNew: item ? item.classList.contains('new') : false,
+      rowRead: item ? !!item.querySelector('.row-mark-read') : false,
+      counter: gl && gl.querySelector('.group-new') ? gl.querySelector('.group-new').textContent.trim() : null,
+    };
+  });
+  out.steps.push('r1-mark-read: ' + JSON.stringify(state));
+  if (state.itemNew || state.rowRead) err('the row control should clear the unread marker, got ' + JSON.stringify(state));
+  // epsilon was one of two unread specs (cap was mutated earlier) — the counter drops by one.
+  if (state.counter !== '+1 unread') err('Specs unread counter should drop to +1 after the explicit mark-as-read, got ' + state.counter);
 
   // ---- R2: read state survives a reload (keepSnapshots) ----
   // The just-read epsilon stays read; a change with an unread file stays unread.
@@ -378,10 +416,9 @@ async page => {
   // unread stays a single marker and the shown diff is only the latest change.
   await page.evaluate(async () => { await window.openFile('specs/epsilon/spec.md'); });
   await page.waitForTimeout(150);
-  await page.evaluate(() => { document.querySelector('.diff-toggle').click(); });
+  // Acknowledge explicitly (viewing no longer does), then move the active file away.
+  await page.evaluate(() => { document.querySelector('.item[data-rel="specs/epsilon/spec.md"] .row-mark-read').click(); });
   await page.waitForTimeout(200);
-  await page.evaluate(() => { document.querySelector('.diff-toggle').click(); }); // back to artifact, keep it read
-  await page.waitForTimeout(150);
   await page.evaluate(async () => { await window.openFile('specs/cap/spec.md'); }); // move active away
   await page.waitForTimeout(150);
   await page.evaluate(() => {
